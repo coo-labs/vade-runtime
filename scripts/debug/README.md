@@ -123,6 +123,25 @@ cat "$TRACE/snapshots/<ts>-<tag>-<pid>/metadata/env.txt"
 
 (Token-shaped vars are stripped on the way out.)
 
+### Interactive timeline (Chrome DevTools shape)
+
+```bash
+python3 /home/user/vade-runtime/scripts/debug/render-trace-timeline.py
+# → writes /tmp/trace-timeline.html (open in any browser)
+```
+
+One row per PID, lifespan bars, event markers for writes / invariant
+decisions / merges / script entries, snapshot vertical lines colored
+by `VADE_RUNTIME_DIR` presence in `settings.json`. Pan with scroll,
+zoom with Ctrl/⌘+scroll, click any event for raw xtrace context.
+
+Default view filters to the first 22 s of boot and hides dispatch /
+guard / brief-git wrappers. Pass a different trace directory as the
+first positional argument; second positional is the HTML output path.
+
+Also surfaced as the `trace-timeline` skill — the agent will pick this
+up when you ask it to "visualize" or "show" a trace.
+
 ## How to stop the trace
 
 Three options, descending order of operational simplicity:
