@@ -116,7 +116,7 @@ def fetch_org_fields() -> dict[str, dict[str, Any]]:
               id
               name
               dataType
-              singleSelectOptions { id name }
+              options { id name }
             }
             ... on IssueFieldText {
               id
@@ -149,7 +149,7 @@ def fetch_org_fields() -> dict[str, dict[str, Any]]:
             "dataType": node["dataType"],
         }
         if node["dataType"] == "SINGLE_SELECT":
-            spec["options"] = {opt["name"]: opt["id"] for opt in node.get("singleSelectOptions", [])}
+            spec["options"] = {opt["name"]: opt["id"] for opt in node.get("options", [])}
         fields[node["name"]] = spec
     return fields
 
@@ -170,7 +170,7 @@ def resolve_mutation_inputs(
         field_id = field["id"]
         dtype = field["dataType"]
         if dtype == "SINGLE_SELECT":
-            option_id = field["options"].get(value)
+            option_id = field["options"].get(value) or field["options"].get(value.split("\n", 1)[0].strip())
             if not option_id:
                 sys.stderr.write(
                     f"[bridge] {label}: value {value!r} not in options "
