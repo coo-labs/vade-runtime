@@ -18,12 +18,13 @@ name: Bridge issue-form widgets to native fields (reusable)
 #
 # Prerequisites in each caller repo:
 #   - `secrets.VADE_FIELDS_ADMIN_PAT` — fine-grained PAT with
-#     org-level Issue fields write scope. Org-level secret; distinct
-#     from the container's `GITHUB_MCP_PAT` (which is not in org
-#     secrets). The `secrets:` block in the reusable workflow below
-#     names it explicitly; this prerequisite comment exists so caller
-#     repos know what to wire up. Naming-drift correction:
-#     MEMO-2026-05-21-zf7d.
+#     org-level Issue fields write scope. Org-level secret slot;
+#     holds the same value as the COO's `GITHUB_MCP_PAT` env var
+#     (the COO PAT at `op://COO/vade-coo-self-2026-04/token`),
+#     renamed around the GitHub Actions reserved `GITHUB_*` prefix
+#     per vade-coo-memory#848. When the COO PAT rotates, this org
+#     secret slot needs the new value pasted in too (third rotation
+#     surface; see MEMO-2026-05-21-zf7d).
 #
 # Cross-repo workflow access requires vade-app/vade-runtime's
 # Settings → Actions → General → Access set to
