@@ -66,7 +66,7 @@ type picker. Retires the `type:*` label dimension as of 2026-05-21.
 | `Test` | `type:test` | Test coverage, fixtures, harness |
 | `Research` | `type:research` | Spike or investigation |
 | `Epic` | `type:epic` | Parent issue covering multiple implementable children |
-| `Skill` | (no prior label) | Skill lifecycle work (idea / implement / review / revise / evaluate) |
+| `Skill` | (no prior label) | Skill lifecycle work (idea / implement / review / revise / evaluate). **Title form**: `/<skill-name>: <short description>` (e.g. `/peer-review: tighten Phase 2 ingest`). The slash-prefix makes board scan-ability immediate; the `Skill kind` and `Skill name` native fields carry the lifecycle phase + canonical name. |
 
 The retired `type:*` labels remain on historical issues for
 record-keeping; do NOT apply them to new issues. GitHub default
