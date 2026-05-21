@@ -280,7 +280,13 @@
       "Bash(flyctl secrets *)",
       "mcp__claude_ai_Mem0__get_memories",
       "mcp__claude_ai_Mem0__search_memories",
-      "Bash(cp /home/user/vade-runtime/.claude/settings.json /home/user/.claude/settings.json && diff /home/user/.claude/settings.json /home/user/vade-runtime/.claude/settings.json && echo \"sync OK\")"
+      "Bash(cp /home/user/vade-runtime/.claude/settings.json /home/user/.claude/settings.json && diff /home/user/.claude/settings.json /home/user/vade-runtime/.claude/settings.json && echo \"sync OK\")",
+      "Edit(/tmp/**)",
+      "Write(/tmp/**)",
+      "Read(/tmp/**)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ],
     "deny": [
       "Bash(rm -rf /:*)",
