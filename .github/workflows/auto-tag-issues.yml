@@ -22,11 +22,14 @@ name: Auto-tag new issues
 #   - secrets.ANTHROPIC_API_KEY set (org-level preferred, repo-level OK)
 #   - Claude GitHub App installed on this repo
 #     (https://github.com/apps/claude)
-# Optional (graceful skip if absent):
-#   - secrets.VADE_PROJECT_PAT — PAT with `project` scope for the
-#     vade-app org. Enables auto-add to the VADE project. If
-#     missing, labeling still runs; the project step logs a
-#     warning and skips.
+# Optional auth for project-add step (one of, in preference order):
+#   - vars.VADE_COO_APP_ID + secrets.VADE_COO_APP_PRIVATE_KEY — the
+#     vade-coo-app GitHub App credentials (MEMO-2026-05-21-4wgy +
+#     vade-app/vade-coo-memory#837 Phase 2). Preferred.
+#   - secrets.VADE_PROJECT_PAT — legacy PAT with `project` scope for
+#     the vade-app org. Fallback during the migration window.
+#   - If neither is set, labeling still runs; the project step in
+#     the prompt logs a warning and skips.
 
 on:
   issues:
@@ -55,14 +58,25 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.user.type != 'Bot' && github.event.issue.user.login != 'vade-coo') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Mint vade-coo-app installation token (optional)
+        id: app-token
+        if: vars.VADE_COO_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.VADE_COO_APP_ID }}
+          private-key: ${{ secrets.VADE_COO_APP_PRIVATE_KEY }}
+          owner: vade-app
+
       - name: Classify, label, and add to VADE project
         uses: anthropics/claude-code-action@v1
         env:
-          # Optional: PAT with `project` scope for the vade-app org.
-          # Propagated to the subprocess so the prompt's project
-          # GraphQL mutations can use it via `GH_TOKEN=…`. If unset,
-          # the project step in the prompt gracefully skips.
-          VADE_PROJECT_PAT: ${{ secrets.VADE_PROJECT_PAT }}
+          # Auth for the subprocess's project-add step. Variable name
+          # stays VADE_PROJECT_PAT for prompt compatibility, but the
+          # value preferred is the App installation token (Phase 3 of
+          # vade-coo-memory#837); legacy PAT is fallback during the
+          # migration window. If both are empty, the prompt's project
+          # step skips gracefully.
+          VADE_PROJECT_PAT: ${{ steps.app-token.outputs.token || secrets.VADE_PROJECT_PAT }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # bypassPermissions because the subprocess runs headless in CI —

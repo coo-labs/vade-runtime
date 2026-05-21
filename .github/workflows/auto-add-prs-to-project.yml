@@ -12,9 +12,17 @@ name: Auto-add new PRs to the VADE project
 # When the VADE project is rebuilt or its fields change, batch-update
 # all 4 repos' workflows together.
 #
-# Prerequisites:
-#   - secrets.VADE_PROJECT_PAT — PAT with `project` scope for the
-#     vade-app org. If unset, the workflow logs a warning and skips
+# Prerequisites (one of, in preference order — first available wins):
+#   - vars.VADE_COO_APP_ID + secrets.VADE_COO_APP_PRIVATE_KEY — the
+#     vade-coo-app GitHub App credentials (MEMO-2026-05-21-4wgy +
+#     vade-app/vade-coo-memory#837 Phase 2). Installation-token auth;
+#     bypasses the identity-vs-token rule that 403s a user PAT on
+#     org-admin endpoints.
+#   - secrets.VADE_PROJECT_PAT — legacy PAT with `project` scope for
+#     the vade-app org. Used as fallback while the App secrets are
+#     being provisioned across the org. Will be retired in a follow-up
+#     once Ven confirms App secrets are live on every relevant repo.
+#   - If neither is set, the workflow logs a warning and skips
 #     (graceful no-op, mirrors the auto-tag-issues.yml pattern).
 
 on:
@@ -37,8 +45,18 @@ jobs:
       github.event.pull_request.user.login != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
+      - name: Mint vade-coo-app installation token (optional)
+        id: app-token
+        if: vars.VADE_COO_APP_ID != ''
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.VADE_COO_APP_ID }}
+          private-key: ${{ secrets.VADE_COO_APP_PRIVATE_KEY }}
+          owner: vade-app
+
       - name: Add PR to VADE project, set Status=In Progress
         env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
           VADE_PROJECT_PAT: ${{ secrets.VADE_PROJECT_PAT }}
           PR_NODE_ID: ${{ github.event.pull_request.node_id }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -48,8 +66,16 @@ jobs:
           # field write denied). The CI run does NOT fail; the PR proceeds.
           set -uo pipefail
 
-          if [ -z "${VADE_PROJECT_PAT:-}" ]; then
-            echo "VADE_PROJECT_PAT not set — skipping project assignment for PR #$PR_NUMBER"
+          # Prefer the App installation token; fall back to the legacy
+          # PAT during the migration window (Phase 3 of #837).
+          if [ -n "${APP_TOKEN:-}" ]; then
+            export GH_TOKEN="$APP_TOKEN"
+            echo "auth source: vade-coo-app installation token"
+          elif [ -n "${VADE_PROJECT_PAT:-}" ]; then
+            export GH_TOKEN="$VADE_PROJECT_PAT"
+            echo "auth source: VADE_PROJECT_PAT (legacy fallback)"
+          else
+            echo "no auth source available — skipping project assignment for PR #$PR_NUMBER"
             exit 0
           fi
 
@@ -57,8 +83,6 @@ jobs:
           PROJECT_ID="PVT_kwDOEGdN_84BUV2r"
           STATUS_FIELD_ID="PVTSSF_lADOEGdN_84BUV2rzhBesAw"
           STATUS_IN_PROGRESS_OPT="47fc9ee4"
-
-          export GH_TOKEN="$VADE_PROJECT_PAT"
 
           # addProjectV2ItemById is idempotent: returns the existing
           # edge if the item is already on the project.
