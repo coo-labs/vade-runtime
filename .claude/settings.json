@@ -28,6 +28,10 @@
           },
           {
             "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" project-board-digest"
+          },
+          {
+            "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-idle-watchdog --start"
           }
         ]
