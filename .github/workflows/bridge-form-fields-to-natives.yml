@@ -1,0 +1,68 @@
+name: Bridge issue-form widgets to native fields (reusable)
+
+# Reusable workflow that parses an issue body for `### <Label>\n\n<value>`
+# sections produced by the issue-form templates (`task.yml`, `bug.yml`, etc.
+# in vade-app/vade-coo-memory and mirrored across the four primary repos)
+# and writes the corresponding native Issue field values via the
+# `setIssueFieldValue` GraphQL mutation.
+#
+# Called from per-repo trigger workflows (`bridge-form-fields-trigger.yml`)
+# in vade-coo-memory / vade-runtime / vade-core / vade-agent-logs.
+#
+# Canonical design: vade-app/vade-coo-memory#811 + MEMO-2026-05-21-xfqh.
+# Pinning matrix + field IDs: coo/operations/issue-fields-and-types.md.
+#
+# Fires only on `issues.opened` (one-shot bridging at creation time).
+# Body-edits do not re-trigger — users update native fields via the
+# issue's side panel after creation, not by editing body sections.
+#
+# Prerequisites in each caller repo:
+#   - `secrets.GITHUB_MCP_PAT` — fine-grained PAT with org-level Issue
+#     fields write scope (the same PAT the COO sessions use).
+#
+# Cross-repo workflow access requires vade-app/vade-runtime's
+# Settings → Actions → General → Access set to
+# "Accessible from repositories in the 'vade-app' organization".
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        description: Issue number to bridge.
+        type: number
+        required: true
+      repo-full-name:
+        description: Full owner/repo of the calling repository (e.g. vade-app/vade-coo-memory).
+        type: string
+        required: true
+      dry-run:
+        description: If true, print intended mutations without applying.
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      ISSUE_FIELDS_ADMIN_PAT:
+        description: PAT with org-level Issue fields write scope.
+        required: true
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout vade-runtime (script source)
+        uses: actions/checkout@v4
+        with:
+          repository: vade-app/vade-runtime
+          ref: main
+
+      - name: Run bridge
+        env:
+          GH_TOKEN: ${{ secrets.ISSUE_FIELDS_ADMIN_PAT }}
+          REPO_FULL_NAME: ${{ inputs.repo-full-name }}
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          DRY_RUN: ${{ inputs.dry-run && '1' || '0' }}
+        run: python3 scripts/bridge-form-fields-to-natives.py
