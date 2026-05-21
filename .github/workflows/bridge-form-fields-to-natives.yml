@@ -41,8 +41,8 @@ on:
         required: false
         default: false
     secrets:
-      ISSUE_FIELDS_ADMIN_PAT:
-        description: PAT with org-level Issue fields write scope.
+      VADE_FIELDS_ADMIN_PAT:
+        description: PAT with org-level Issue fields write scope. Resolved from `secrets: inherit` in caller workflows (same-named org secret with selected-repo visibility scoped to the four primary repos).
         required: true
 
 permissions:
@@ -61,7 +61,7 @@ jobs:
 
       - name: Run bridge
         env:
-          GH_TOKEN: ${{ secrets.ISSUE_FIELDS_ADMIN_PAT }}
+          GH_TOKEN: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
           REPO_FULL_NAME: ${{ inputs.repo-full-name }}
           ISSUE_NUMBER: ${{ inputs.issue-number }}
           DRY_RUN: ${{ inputs.dry-run && '1' || '0' }}
