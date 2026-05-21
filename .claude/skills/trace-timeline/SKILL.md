@@ -62,7 +62,10 @@ python3 /home/user/vade-runtime/scripts/debug/render-trace-timeline.py "$TRACE" 
 The script:
 
 - Parses `xtrace.log` (PS4-prefixed, one bash command per line) into
-  per-PID lifespans and event lists.
+  per-PID lifespans and event lists. Also captures a per-PID
+  **command log** (up to ~80 commands per script, excluding noise
+  scripts like `git`, `dispatch.sh`, guards) so the detail panel
+  can show what each script actually did, line by line.
 - Resolves each PID to its real script name using the
   `_VTRACE_INVOCATION_TAG=` line emitted by `bootstrap-trace-init.sh`
   (first-seen wins — long-lived processes that re-source the init for
@@ -70,6 +73,11 @@ The script:
 - Walks `snapshots/*/content/settings.json` for each capture and
   records whether `VADE_RUNTIME_DIR` / `VADE_COO_MEMORY_DIR` /
   `VADE_CLOUD_STATE_DIR` were present.
+- Scans `snapshots/*/metadata/processes.txt` for **PID → PPID
+  relationships** so the renderer can build a process tree (parent
+  chain + tracked children) per PID. Prefers `ps`-side identity over
+  xtrace identity when walking the ancestor chain (handles PID reuse
+  cleanly).
 - Captures these event kinds (one marker each on the timeline):
     - `_write_claude_settings_*` — file writes (orange)
     - `merge_coo_settings_*` — wrapper merge calls (blue)
@@ -77,8 +85,9 @@ The script:
       (green / red / gray)
     - `set -euo pipefail` from a user script — script entry (purple)
     - selected `[vade-setup] …` log lines (gray notes)
-- Writes a single self-contained HTML file (~250 KB) with embedded
-  JSON. No CDN dependencies; opens offline.
+- Writes a single self-contained HTML file (~3–4 MB; size scales with
+  command-log volume and process count) with embedded JSON. No CDN
+  dependencies; opens offline.
 
 ### 3. Deliver
 
@@ -91,13 +100,28 @@ Orient the user briefly:
 - **Default view** is the boot window (0–22 s), noise wrappers
   (`dispatch.sh`, guards, brief `git` subprocesses) hidden.
 - **"boot (0–5 s)"** button zooms onto the actual race.
-- **Ctrl/⌘ + scroll** zooms anywhere; drag the time slider for fine
+- **Desktop**: Ctrl/⌘ + scroll zooms; drag the time slider for fine
   control; the script-name filter input narrows rows.
+- **iPad / touch**: two-finger pinch zooms the timeline; drag pans;
+  tap an event/snapshot to open the detail sheet from the right. Top
+  -right floating buttons handle WebView quirks — `⇕` hides the
+  header+legend to claim ~70 px of vertical, `▼` / `▲` nudge the top
+  padding in 20 px steps for apps whose toolbar overlays the page
+  (Files-app viewer etc). All settings persist via localStorage.
+- **Right sidebar** is resizable: drag its left edge (cursor turns
+  to ↔; hairline highlights yellow). Width persists.
+- **View mode toggle** in the controls bar: `rows` (default —
+  ordered by start time) and `tree` (preorder by parent→child, with
+  SVG L-shaped connectors drawn from each parent's bar down/up to
+  the child's start position, plus depth indent on labels).
 - Snapshot dots above the timeline are **red** when
   `VADE_RUNTIME_DIR` is missing from `settings.json`, **green** when
   present.
-- Click any event marker or snapshot dot for raw xtrace
-  context in the right-hand detail panel.
+- Click any event marker, snapshot dot, or process span for raw
+  xtrace context in the right-hand detail panel. The process detail
+  shows the **full ancestor chain** (each tracked ancestor click-to-
+  jumps), **traced children**, and an expandable **command log** of
+  what the script actually executed.
 
 If the trace contains a D4=false event (the canonical reader-vs-writer
 race for vade-app/vade-coo-memory#762), name it explicitly — the bright
@@ -115,18 +139,23 @@ write markers in the session-start-sync row immediately around it,
 | Why did D-group invariant N fail? | Click the red marker on the integrity-check row → detail panel shows `_add` source line, full `cmd` text, and `detail` string. |
 | When did each script enter? | Purple "enter" markers at the left edge of each row's lifespan bar. |
 | Which subprocess of integrity-check is which `git`? | Toggle off "hide wrappers" and the brief git PIDs appear; click each for its commands count and PID. |
+| What launched X? What did X spawn? | Click X's lifespan bar → detail panel's **ancestor chain** walks PID→PPID up to PID 1 (each tracked link clickable to jump). **Children** lists tracked subprocesses. Or flip the view-mode toggle to **tree** to see all of it visually with SVG connectors. |
+| What did X actually do? | Click X's lifespan bar → detail panel's **command log** shows up to ~80 bash commands the script ran (timestamp · script:line · function · raw bash). Suppressed for noise scripts to keep file size manageable. |
 
 ## What the timeline can't answer
 
 - **Sub-millisecond interleave inside `node -e` blocks.** xtrace records
   bash entry/exit, not syscalls inside spawned binaries. Atomic-rename
   vs read inside a node helper is invisible at this resolution.
-- **Process parent / child tree.** xtrace shows PID+BASHPID but not
-  PPID; use a snapshot's `metadata/processes.txt` (linked in the
-  snapshot detail) for the tree at that instant.
 - **Anything before the first traced bash invocation.** Anthropic's
   pre-clone phase happens before `BASH_ENV` resolves; the trace begins
   at the first bash after the repo is on disk.
+- **All children, including non-bash subprocesses.** The "children"
+  list in the detail panel and the connectors in tree-view only show
+  PIDs that appear in our xtrace (i.e. bash subprocesses that
+  re-sourced `bootstrap-trace-init.sh`). Short-lived non-bash forks
+  like `cp` / `chmod` aren't traced. The `ps cmd` shown on each
+  ancestor row gives the launching context where xtrace silent.
 
 ## Re-running on a fresh trace
 
