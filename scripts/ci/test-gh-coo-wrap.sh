@@ -321,6 +321,95 @@ assert_contains "gh repo list <owner>: keeps MCP_PAT (uncovered action)" "$out" 
 out="$("$WRAPPER" release create v1.0.0)"
 assert_contains "gh release create: keeps MCP_PAT (uncovered)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
+# ============================================================
+# App-token routing tests (vade-coo-memory#837).
+# ============================================================
+# Org-admin REST endpoints (issue-types, properties, custom roles)
+# get routed to a GitHub App installation token, minted via
+# $VADE_RUNTIME_DIR/scripts/gh-app-token.sh, bypassing the
+# identity-vs-token rule (MEMO-2026-05-21-w6qz) that 403s the
+# fine-grained PAT on org-admin operations.
+
+printf '\nApp-token routing tests:\n'
+
+# Stand up a mock minter under a fake $VADE_RUNTIME_DIR so the wrapper
+# can invoke it without reading 1Password or hitting GitHub. The mock
+# prints a known sentinel token (or exits non-zero for failure-mode
+# coverage).
+FAKE_RUNTIME="$WORK/fake-runtime"
+mkdir -p "$FAKE_RUNTIME/scripts"
+cat > "$FAKE_RUNTIME/scripts/gh-app-token.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "${MOCK_MINTER_FAIL:-0}" = "1" ]; then
+  echo "mock minter: deliberate failure" >&2
+  exit 3
+fi
+echo "APP_TOKEN_TESTING"
+EOF
+chmod +x "$FAKE_RUNTIME/scripts/gh-app-token.sh"
+export VADE_RUNTIME_DIR="$FAKE_RUNTIME"
+export GITHUB_APP_ID="999000"
+export GITHUB_APP_INSTALLATION_ID="888777"
+
+# --- org-admin auto-routes ---
+
+out="$("$WRAPPER" api orgs/vade-app/issue-types)"
+assert_contains "gh api orgs/vade-app/issue-types: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api orgs/vade-app/issue-types/123)"
+assert_contains "gh api orgs/vade-app/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api -X PUT orgs/vade-app/issue-types/123)"
+assert_contains "gh api -X PUT orgs/vade-app/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api orgs/vade-app/properties/values)"
+assert_contains "gh api orgs/vade-app/properties/values: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api orgs/vade-app/custom-repository-roles)"
+assert_contains "gh api orgs/vade-app/custom-repository-roles: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- non-org-admin paths stay on MCP_PAT (regression coverage) ---
+
+out="$("$WRAPPER" api orgs/vade-app/repos)"
+assert_contains "gh api orgs/vade-app/repos: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+out="$("$WRAPPER" api repos/vade-app/vade-coo-memory)"
+assert_contains "gh api repos/vade-app/...: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+# --- explicit opt-in via GH_USE_APP_TOKEN=1 ---
+
+out="$(GH_USE_APP_TOKEN=1 "$WRAPPER" api user)"
+assert_contains "GH_USE_APP_TOKEN=1: mints App token regardless of path" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$(GH_USE_APP_TOKEN=1 "$WRAPPER" api graphql -f query=foo)"
+assert_contains "GH_USE_APP_TOKEN=1 + graphql: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- GITHUB_APP_ID unset: routing falls through (no App-token attempt) ---
+
+out="$(env -u GITHUB_APP_ID -u GITHUB_APP_INSTALLATION_ID \
+  GITHUB_MCP_PAT="$GITHUB_MCP_PAT" GITHUB_PUBLIC_PAT="$GITHUB_PUBLIC_PAT" \
+  GH_TOKEN="$GH_TOKEN" CLAUDE_CODE_REMOTE_SESSION_ID="$CLAUDE_CODE_REMOTE_SESSION_ID" \
+  COO_GH_REAL="$WORK/gh-real" VADE_RUNTIME_DIR="$VADE_RUNTIME_DIR" \
+  "$WRAPPER" api orgs/vade-app/issue-types)"
+assert_contains "GITHUB_APP_ID unset: org-admin path keeps MCP_PAT (no mint)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+# --- minter failure: warn + fall back to PAT (no silent 403 swap) ---
+
+out="$(MOCK_MINTER_FAIL=1 "$WRAPPER" api orgs/vade-app/issue-types 2>&1)"
+assert_contains "minter failure: warns" "$out" "App-token mint failed"
+assert_contains "minter failure: falls back to MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+# --- minter missing: warn + fall back to PAT ---
+
+out="$(VADE_RUNTIME_DIR="/nonexistent-vade-runtime" \
+  GITHUB_APP_ID="$GITHUB_APP_ID" GITHUB_APP_INSTALLATION_ID="$GITHUB_APP_INSTALLATION_ID" \
+  GITHUB_MCP_PAT="$GITHUB_MCP_PAT" GITHUB_PUBLIC_PAT="$GITHUB_PUBLIC_PAT" \
+  GH_TOKEN="$GH_TOKEN" CLAUDE_CODE_REMOTE_SESSION_ID="$CLAUDE_CODE_REMOTE_SESSION_ID" \
+  COO_GH_REAL="$WORK/gh-real" \
+  "$WRAPPER" api orgs/vade-app/issue-types 2>&1)"
+assert_contains "minter missing: warns" "$out" "minter not found"
+assert_contains "minter missing: falls back to MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
 printf '\n'
 printf 'Total: %d pass, %d fail\n' "$PASS" "$FAIL"
 if [ "$FAIL" -gt 0 ]; then

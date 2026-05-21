@@ -101,6 +101,20 @@
       "notes": "Cloudflare account UUID (32-char lowercase hex). Not strictly secret (appears in committed wrangler.jsonc and Cloudflare URLs throughout the platform), but the Secret Registration Rule requires every fetch_coo_secrets export to have a pattern. Context-scoped to accounts/<id> URL paths to avoid false positives against arbitrary 32-char hex (commit SHAs, file hashes, etc)."
     },
     {
+      "id": "github-app-id",
+      "regex": "\\bGITHUB_APP_ID(?:[=:][\"']?|\" *: *[\"']?)\\d+\\b",
+      "replacement": "GITHUB_APP_ID=[REDACTED:github-app-id]",
+      "secret_var": "GITHUB_APP_ID",
+      "notes": "vade-coo-app numeric App ID. Public value (shown on the App's settings page) but registered for defense-in-depth: redacts the env-shape assignment so a leaked transcript doesn't ship the exact ID alongside other operational config. Context-scoped to the assignment shape (=, :, JSON-key form) to avoid false positives against arbitrary 6-7-digit numbers (commit-counts, line numbers, etc). vade-coo-memory#837."
+    },
+    {
+      "id": "github-app-installation-id",
+      "regex": "\\bGITHUB_APP_INSTALLATION_ID(?:[=:][\"']?|\" *: *[\"']?)\\d+\\b|/app/installations/\\d+/access_tokens",
+      "replacement": "GITHUB_APP_INSTALLATION_ID=[REDACTED:github-app-installation-id]",
+      "secret_var": "GITHUB_APP_INSTALLATION_ID",
+      "notes": "vade-coo-app installation ID. Same posture as GITHUB_APP_ID: public but registered. Also matches the /app/installations/<id>/access_tokens endpoint URL where the ID appears bare (the minter's exchange endpoint)."
+    },
+    {
       "id": "stripe-key",
       "regex": "\\b(?:sk|rk)_live_[A-Za-z0-9]{24,}\\b",
       "replacement": "[REDACTED:stripe-key]",

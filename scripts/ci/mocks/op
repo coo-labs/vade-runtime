@@ -82,6 +82,23 @@ case "${1:-}" in
       "op://COO/vade-coo-sign/public key")
         cat "$KEYDIR/vade-coo-sign.pub"
         ;;
+      "op://COO/vade-coo-app/app_id")
+        # GitHub App ID (vade-coo-memory#837) — canned numeric for the
+        # CI mode. Real value is set in production via Ven's UI work
+        # (Phase 1) and stored in op://COO/vade-coo-app/app_id.
+        echo "999000"
+        ;;
+      "op://COO/vade-coo-app/installation_id")
+        echo "888777"
+        ;;
+      "op://COO/vade-coo-app/private_key")
+        # Placeholder PEM-shaped string for CI. fetch_coo_secrets only
+        # checks for non-empty; the minter (gh-app-token.sh) is not on
+        # the bootstrap-regression hot path, so this body is never
+        # parsed by openssl in CI. Production reads the real key from
+        # 1Password on demand at mint time.
+        echo "-----BEGIN RSA PRIVATE KEY----- CIMOCK00000000000000000000= -----END RSA PRIVATE KEY-----"
+        ;;
       *)
         echo "[mock op] unknown op:// ref: $ref" >&2
         exit 2
