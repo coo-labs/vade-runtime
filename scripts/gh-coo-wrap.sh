@@ -244,10 +244,92 @@ extract_owner_positional() {
   return 0
 }
 
-target_owner="$(extract_owner "$@")"
-[ -z "$target_owner" ] && target_owner="$(extract_owner_positional "$@")"
-if [ -n "$target_owner" ] && [ "$target_owner" != "vade-app" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
-  export GH_TOKEN="$GITHUB_PUBLIC_PAT"
+# is_org_admin_api: returns 0 iff the argv parses as `gh api <path>` where
+# <path> matches a known org-admin REST surface (issue-types, custom
+# properties, properties, custom-repository-roles under any org). These
+# endpoints 403 for fine-grained PATs whose underlying user is not an org
+# admin (identity-vs-token rule, MEMO-2026-05-21-w6qz) — App installation
+# tokens authenticate as the installation, bypassing the user-elevation
+# gate. Scope intentionally narrow: only auto-route surfaces known to
+# require org-admin + currently in use. Other surfaces opt in explicitly
+# via GH_USE_APP_TOKEN=1.
+#
+# GraphQL bodies (gh api graphql -f query=…) are not parsed here — set
+# GH_USE_APP_TOKEN=1 at the callsite for org-admin GraphQL mutations
+# (e.g. addProjectV2ItemById on org-owned ProjectV2 items).
+is_org_admin_api() {
+  local sub=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --) shift ;;
+      --*=*) shift ;;
+      -R|--repo|--hostname) shift; [ $# -gt 0 ] && shift ;;
+      -*) shift ;;
+      *)
+        sub="$1"; shift; break ;;
+    esac
+  done
+  [ "$sub" = "api" ] || return 1
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --*=*) shift ;;
+      --*|-*)
+        if __gh_valued_flag "$1"; then
+          shift; [ $# -gt 0 ] && shift
+        else
+          shift
+        fi
+        ;;
+      *)
+        local path="${1#/}"
+        case "$path" in
+          orgs/*/issue-types|orgs/*/issue-types/*) return 0 ;;
+          orgs/*/properties/*) return 0 ;;
+          orgs/*/custom-repository-roles|orgs/*/custom-repository-roles/*) return 0 ;;
+        esac
+        return 1
+        ;;
+    esac
+  done
+  return 1
+}
+
+# Routing precedence:
+#   1. GH_USE_APP_TOKEN=1 → mint App token (explicit opt-in; for GraphQL).
+#   2. `gh api <org-admin-path>` → mint App token (auto).
+#   3. owner != vade-app + GITHUB_PUBLIC_PAT → public PAT (cross-org).
+#   4. default → $GITHUB_MCP_PAT via gh's auth context (no override here).
+#
+# App-token routing is attempted only when GITHUB_APP_ID is set in env
+# (the boot-time signal that Phase 1 of vade-coo-memory#837 has been
+# completed). When unset (App not yet provisioned), routing falls through
+# to the cross-org branch and the org-admin call lands on the PAT — which
+# 403s with the same error class the App fixes. Failure mode is symmetric
+# with the pre-App state, not silently wrong.
+if [ -n "${GITHUB_APP_ID:-}" ] && { [ "${GH_USE_APP_TOKEN:-0}" = "1" ] || is_org_admin_api "$@"; }; then
+  # The minter lives in vade-runtime/scripts/, not next to this wrapper.
+  # ensure_gh_coo_wrap (lib/common.sh) installs *only* gh-coo-wrap.sh to
+  # ~/.local/bin/gh — the minter stays canonical at its repo path. Locate
+  # via $VADE_RUNTIME_DIR (set in settings.json env at boot per D4
+  # integrity-check); fall back to a hard-coded path for the in-cloud
+  # default layout if the env var is missing.
+  minter="${VADE_RUNTIME_DIR:-/home/user/vade-runtime}/scripts/gh-app-token.sh"
+  if [ -x "$minter" ]; then
+    app_token="$("$minter" 2>/dev/null || true)"
+    if [ -n "$app_token" ]; then
+      export GH_TOKEN="$app_token"
+    else
+      echo "gh-coo-wrap: WARN: App-token mint failed for org-admin path; falling back to default auth (likely 403)." >&2
+    fi
+  else
+    echo "gh-coo-wrap: WARN: minter not found at $minter; org-admin path will use default auth." >&2
+  fi
+else
+  target_owner="$(extract_owner "$@")"
+  [ -z "$target_owner" ] && target_owner="$(extract_owner_positional "$@")"
+  if [ -n "$target_owner" ] && [ "$target_owner" != "vade-app" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
+    export GH_TOKEN="$GITHUB_PUBLIC_PAT"
+  fi
 fi
 
 # Resolve issue/PR shape-check script. Advisory only; missing-tolerant.

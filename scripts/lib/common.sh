@@ -1406,6 +1406,7 @@ fetch_coo_secrets() {
   local github_pat="" github_public_pat="" agentmail_key="" mem0_key=""
   local r2_access_key_id="" r2_secret_access_key="" age_identity=""
   local vade_auth_token="" cloudflare_api_token="" cloudflare_account_id=""
+  local github_app_id="" github_app_installation_id=""
   local got=0
 
   if github_pat="$(retry 3 op read 'op://COO/vade-coo-self-2026-04/token')" && [ -n "$github_pat" ]; then
@@ -1517,6 +1518,33 @@ fetch_coo_secrets() {
     log "  WARN: op://COO/cloudflare-api-token-vade-coo/account_id unavailable; CLOUDFLARE_ACCOUNT_ID will be unset (E9 probe will skip; wrangler may prompt for account selection)"
   fi
 
+  # vade-coo-app GitHub App identifiers (MEMO-2026-05-21 vade-coo-memory#837).
+  # Public values only: app_id and installation_id propagate to env so the
+  # `gh-app-token.sh` minter skips two op reads per fresh-token mint. The
+  # private key (op://COO/vade-coo-app/private_key) intentionally stays in
+  # 1Password — the minter reads it on cache miss only (tokens cached
+  # ~55 min in $VADE_CLOUD_STATE_DIR/gh-app-token-cache.json), so the
+  # sensitive material never lands in settings.json env. Best-effort
+  # fetch: missing item warns and leaves both unset; the minter then
+  # falls back to op reads for the IDs too, but with two extra round-
+  # trips per mint. Both unset = App not yet provisioned (Phase 1 not
+  # done); gh-coo-wrap routing simply skips the App-token branch.
+  if github_app_id="$(retry 3 op read 'op://COO/vade-coo-app/app_id')" && [ -n "$github_app_id" ]; then
+    log "  read GitHub App ID (len=${#github_app_id})"
+    got=$((got+1))
+  else
+    github_app_id=""
+    log "  WARN: op://COO/vade-coo-app/app_id unavailable; GITHUB_APP_ID will be unset (gh-coo-wrap org-admin routing will fall back to op reads or pass through)"
+  fi
+
+  if github_app_installation_id="$(retry 3 op read 'op://COO/vade-coo-app/installation_id')" && [ -n "$github_app_installation_id" ]; then
+    log "  read GitHub App installation ID (len=${#github_app_installation_id})"
+    got=$((got+1))
+  else
+    github_app_installation_id=""
+    log "  WARN: op://COO/vade-coo-app/installation_id unavailable; GITHUB_APP_INSTALLATION_ID will be unset"
+  fi
+
   if [ "$got" -eq 0 ]; then
     log "  no COO secrets could be fetched; skipping env file write"
     return 1
@@ -1544,6 +1572,8 @@ fetch_coo_secrets() {
       if [ -n "$vade_auth_token" ];      then echo "export VADE_AUTH_TOKEN='$vade_auth_token'"; fi
       if [ -n "$cloudflare_api_token" ]; then echo "export CLOUDFLARE_API_TOKEN='$cloudflare_api_token'"; fi
       if [ -n "$cloudflare_account_id" ]; then echo "export CLOUDFLARE_ACCOUNT_ID='$cloudflare_account_id'"; fi
+      if [ -n "$github_app_id" ];               then echo "export GITHUB_APP_ID='$github_app_id'"; fi
+      if [ -n "$github_app_installation_id" ];  then echo "export GITHUB_APP_INSTALLATION_ID='$github_app_installation_id'"; fi
     } > "$env_file"
   )
   chmod 600 "$env_file"
@@ -1564,6 +1594,8 @@ fetch_coo_secrets() {
   if [ -n "$vade_auth_token" ];      then export VADE_AUTH_TOKEN="$vade_auth_token"; fi
   if [ -n "$cloudflare_api_token" ]; then export CLOUDFLARE_API_TOKEN="$cloudflare_api_token"; fi
   if [ -n "$cloudflare_account_id" ]; then export CLOUDFLARE_ACCOUNT_ID="$cloudflare_account_id"; fi
+  if [ -n "$github_app_id" ];                then export GITHUB_APP_ID="$github_app_id"; fi
+  if [ -n "$github_app_installation_id" ];   then export GITHUB_APP_INSTALLATION_ID="$github_app_installation_id"; fi
   return 0
 }
 
@@ -1586,7 +1618,9 @@ merge_coo_settings_env() {
     "${VADE_MCP_URL:-}" \
     "${CLOUDFLARE_API_TOKEN:-}" \
     "${CLOUDFLARE_ACCOUNT_ID:-}" \
-    "${GITHUB_PUBLIC_PAT:-}"
+    "${GITHUB_PUBLIC_PAT:-}" \
+    "${GITHUB_APP_ID:-}" \
+    "${GITHUB_APP_INSTALLATION_ID:-}"
 }
 
 # Persist non-secret bootstrap-derived path state into ~/.claude/settings.json
@@ -1656,6 +1690,7 @@ _write_claude_settings_env() {
   local vade_bearer_token="${8:-}" vade_mcp_url="${9:-}"
   local cloudflare_api_token="${10:-}" cloudflare_account_id="${11:-}"
   local github_public_pat="${12:-}"
+  local github_app_id="${13:-}" github_app_installation_id="${14:-}"
   if ! check_cmd node; then
     log "Warning: node missing; skipping ~/.claude/settings.json env merge"
     return 0
@@ -1680,6 +1715,8 @@ _write_claude_settings_env() {
   CLOUDFLARE_API_TOKEN="$cloudflare_api_token" \
   CLOUDFLARE_ACCOUNT_ID="$cloudflare_account_id" \
   GITHUB_PUBLIC_PAT="$github_public_pat" \
+  GITHUB_APP_ID="$github_app_id" \
+  GITHUB_APP_INSTALLATION_ID="$github_app_installation_id" \
   NODE_PATH="$node_path" PLAYWRIGHT_BROWSERS_PATH="$pw_browsers" node -e '
     const fs = require("fs");
     const path = process.argv[1];
@@ -1701,6 +1738,12 @@ _write_claude_settings_env() {
     }
     if (process.env.GITHUB_PUBLIC_PAT) {
       merged.GITHUB_PUBLIC_PAT = process.env.GITHUB_PUBLIC_PAT;
+    }
+    if (process.env.GITHUB_APP_ID) {
+      merged.GITHUB_APP_ID = process.env.GITHUB_APP_ID;
+    }
+    if (process.env.GITHUB_APP_INSTALLATION_ID) {
+      merged.GITHUB_APP_INSTALLATION_ID = process.env.GITHUB_APP_INSTALLATION_ID;
     }
     if (process.env.AGENTMAIL_API_KEY) {
       merged.AGENTMAIL_API_KEY = process.env.AGENTMAIL_API_KEY;
