@@ -42,7 +42,7 @@ on:
         default: false
     secrets:
       VADE_FIELDS_ADMIN_PAT:
-        description: PAT with org-level Issue fields write scope. Resolved from `secrets: inherit` in caller workflows (same-named org secret with selected-repo visibility scoped to the four primary repos).
+        description: "PAT with org-level Issue fields write scope. Resolved from secrets-inherit in caller workflows (same-named org secret with selected-repo visibility scoped to the four primary repos)."
         required: true
 
 permissions:
