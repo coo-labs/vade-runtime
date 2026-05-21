@@ -1,56 +1,85 @@
 ---
 name: tagging-taxonomy
-description: Apply or look up VADE issue labels. Use when filing, triaging, or searching issues across vade-app repos by dimension (type, area, readiness, priority, needs/blocked). Covers the v1 cross-repo taxonomy from MEMO 2026-04-22-09.
+description: Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across vade-app repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer per MEMO-2026-05-21-xfqh; `area:*` and qualifier labels are what remains label-encoded.
 ---
 
 # VADE issue tagging taxonomy
 
-The five `vade-app/*` repos (`vade-coo-memory`, `vade-runtime`,
-`vade-core`, `vade-governance`, `vade-agent-logs`) share a
-prefix-namespaced label scheme adopted via MEMO 2026-04-22-09. This
-skill is a working digest. The canonical source is
-`vade-coo-memory/coo/label_taxonomy.md` — read that file when the
-digest below looks stale or incomplete.
+The vade-app repos share metadata across two layers:
+
+1. **Native issue types + Issue fields** (org-wide; primary as of
+   2026-05-21 per MEMO-2026-05-21-xfqh) — handles the `Type`,
+   `Priority`, `Readiness`, `Effort`, and per-type fields
+   (`Output kind`, `Research question`, `Skill kind`, `Skill name`).
+   Set via issue templates + the `bridge-form-fields-trigger.yml`
+   workflow on `issues.opened`.
+2. **Labels** (per-repo or org-wide) — handles what remains
+   label-encoded: `area:*`, qualifiers (`needs:*`, `blocked:*`),
+   semantic tags (`emancipatory`, `external-code`, `publish`,
+   `permanently-open`), and discussion-specific labels.
+
+Canonical refs:
+- `vade-coo-memory/coo/operations/issue-fields-and-types.md` —
+  field list, pinning matrix, API surface, migration stages.
+- `vade-coo-memory/coo/label_taxonomy.md` — surviving label
+  dimensions + the retired `type:*`/`readiness:*`/`prio:*` history.
+
+Read the canonical refs when the digest below looks stale.
 
 ## When to use this skill
 
 Invoke when you need to:
 
-- Apply labels to an issue you are filing or triaging.
-- Pick the "next task to work on" — filter by `readiness:ready`.
-- Route an issue to the right agent profile via `type:` + `area:`.
+- Apply labels (`area:*` + qualifiers) to an issue you are filing
+  or triaging.
+- Pick the "next task to work on" — filter by the native Readiness
+  field (`gh issue list --search "readiness:Ready"`).
+- Route an issue to the right agent profile via native issue type +
+  `area:*`.
 - Decide whether something is gated (`needs:*`, `blocked:*`).
 - Check whether a label is valid, deprecated, or missing.
 
 Don't invoke for: PR-level review labels (none defined), project-board
-`State` / `Owner` fields (those live on the project, not on labels —
-see `coo/label_taxonomy.md` § *"Project board"*), or commit-message
-conventions (handled elsewhere).
+`Status` / `Owner` fields (those live on the project, not on labels —
+see `coo/operations/project-board.md`), or commit-message conventions
+(handled elsewhere).
 
-## The five dimensions
+## The dimensions
 
-Each issue gets labels from each dimension independently.
+Each issue carries metadata from each dimension independently.
+Some are native fields (Type / Priority / Readiness / Effort); others
+are labels (`area:*`, qualifiers).
 
-### 1. `type:*` — kind of work (exactly one)
+### 1. Native issue type — kind of work (exactly one)
 
-| Label | Meaning |
-|---|---|
-| `type:bug` | Defect; behaviour diverges from intended |
-| `type:feat` | New capability or user-facing behaviour |
-| `type:chore` | Build, tooling, infra, housekeeping |
-| `type:docs` | Documentation-only change |
-| `type:refactor` | Internal restructure, no behaviour change |
-| `type:test` | Test coverage, fixtures, harness |
-| `type:research` | Spike or investigation — produces findings, not code |
-| `type:epic` | Parent issue covering multiple implementable children |
+Set via the issue template's `type:` front-matter or the GitHub UI
+type picker. Retires the `type:*` label dimension as of 2026-05-21.
 
-GitHub defaults `bug` / `enhancement` / `documentation` are still
-present; when both apply, the `type:*` value is canonical.
+| Native type | Replaces label | Meaning |
+|---|---|---|
+| `Task` | (default) | Default kind of implementable work |
+| `Bug` | `type:bug` | Defect; behaviour diverges from intended |
+| `Feature` | `type:feat` | New capability or user-facing behaviour |
+| `Chore` | `type:chore` | Build, tooling, infra, housekeeping |
+| `Docs` | `type:docs` | Documentation-only change |
+| `Refactor` | `type:refactor` | Internal restructure, no behaviour change |
+| `Test` | `type:test` | Test coverage, fixtures, harness |
+| `Research` | `type:research` | Spike or investigation |
+| `Epic` | `type:epic` | Parent issue covering multiple implementable children |
+| `Skill` | (no prior label) | Skill lifecycle work (idea / implement / review / revise / evaluate) |
 
-### 2. `area:*` — where in the system (one or two)
+The retired `type:*` labels remain on historical issues for
+record-keeping; do NOT apply them to new issues. GitHub default
+labels `bug` / `enhancement` / `documentation` are present but the
+native type is canonical when both apply.
+
+### 2. `area:*` — where in the system (one or two; LABEL)
 
 Prefix is universal; value list is per-repo. Adding a new `area:*`
-value is unilateral — just create the label.
+value is unilateral — just create the label. `area:*` stays a label
+because the per-repo vocabulary fights org-wide field scope (the
+field would either flatten the vocabulary or require per-type
+duplication).
 
 | Repo | Values |
 |---|---|
@@ -61,34 +90,39 @@ value is unilateral — just create the label.
 | `vade-governance` | `area:authority`, `area:policy` |
 | `vade-agent-logs` | `area:sessions`, `area:schema` |
 
-### 3. `readiness:*` — agent-routable? (exactly one, or leave blank if untriaged)
+### 3. `Readiness` field — agent-routable? (single-select)
 
-**The headline dimension.** Drives agent assignment.
+**The headline dimension.** Drives agent assignment. Pinned to all
+types except Docs / Refactor.
 
-| Label | Meaning | Agent-routable? |
+| Field value | Replaces label | Agent-routable? |
 |---|---|---|
-| `readiness:ready` | Well-scoped; approach clear; start today | **yes** |
-| `readiness:needs-design` | Requires UX / API / architecture decisions | no |
-| `readiness:needs-research` | Requires a spike before a plan exists | research agent |
-| `readiness:needs-breakdown` | Too large / vague / coupled; decompose first | no |
+| `Ready` | `readiness:ready` | **yes** |
+| `Needs design` | `readiness:needs-design` | no |
+| `Needs research` | `readiness:needs-research` | research agent |
+| `Needs breakdown` | `readiness:needs-breakdown` | no |
 
-Transitions: `needs-research` → spike lands → new or relabeled
-`readiness:ready`. `needs-breakdown` → epic with children, parent
-flips to `type:epic` + `readiness:ready` only once every child is
-itself `ready` or worked.
+Set via the issue template's Readiness dropdown (bridged) or the
+side-panel field on existing issues. Transitions: `Needs research`
+→ spike lands → new or updated `Ready`. `Needs breakdown` → Epic
+with children; parent flips to `Ready` only once every child is
+itself `Ready` or worked.
 
-### 4. `prio:*` — urgency (zero or one)
+### 4. `Priority` field — urgency (single-select)
 
-| Label | Meaning |
-|---|---|
-| `prio:P0` | Blocker; drop other work |
-| `prio:P1` | High; next in queue |
-| `prio:P2` | Normal; scheduled in current horizon |
-| `prio:P3` | Backlog; someday/maybe |
+Pinned to all types.
 
-Default is P2 if absent. Only label when it matters.
+| Field value | Replaces label | Meaning |
+|---|---|---|
+| `P0` | `prio:P0` | Blocker; drop other work |
+| `P1` | `prio:P1` | High; next in queue |
+| `P2` | `prio:P2` | Normal; scheduled in current horizon |
+| `P3` | `prio:P3` | Backlog; someday/maybe |
 
-### 5. Qualifiers (zero or more)
+Default is P2 if absent. Set via the issue template's Priority
+dropdown (bridged) or the side-panel field.
+
+### 5. Qualifiers (zero or more; LABELS)
 
 | Label | Meaning |
 |---|---|
@@ -105,47 +139,58 @@ Default is P2 if absent. Only label when it matters.
 `vade-coo-memory` has `proj:bootstrap`, `proj:pm-migration`,
 `proj:workspace-relocate`, `proj:skills-research`, `proj:coo-identity`,
 `proj:proposed-epic`. **Don't create new `proj:*` labels.** Use
-`type:epic` + GitHub sub-issues for new parent/child linkage.
+native issue type `Epic` + GitHub sub-issues for new parent/child
+linkage.
 
 ## Classification checklist
 
-When asked to tag an issue, run this in order:
+When asked to tag a new issue, run this in order:
 
-1. **Pick exactly one `type:*`.** If both `bug` and `feat` feel right,
-   pick the one the reporter is actually asking for.
-2. **Pick one or two `area:*`** from the repo's vocabulary. If none
-   fit, create a new `area:*` label rather than force-fitting.
-3. **Pick exactly one `readiness:*`** — **only if confident**. When
-   the description is thin, leave `readiness:*` off (implicit
-   "untriaged") rather than guess. `readiness:ready` means *a coding
-   agent can start today*; be strict.
-4. **Optionally add `prio:*`** — only if the issue signals urgency
-   explicitly.
-5. **Add any qualifiers** (`needs:*`, `blocked:*`, `emancipatory`,
-   `external-code`) that apply.
-6. **Apply with `gh`:**
+1. **Pick the issue type via the issue template.** Each per-type
+   template (`bug.yml`, `feature.yml`, `chore.yml`, etc.) sets the
+   native type via `type:` front-matter. If the issue was opened
+   with the wrong template, the type can be reassigned via the
+   GitHub UI's type picker or `updateIssueIssueType` GraphQL
+   mutation.
+2. **Pick one or two `area:*`** from the repo's vocabulary. If
+   none fit, create a new `area:*` label rather than force-fitting,
+   or leave area off if the issue genuinely spans no clear area.
+3. **Pick the Readiness field value** via the template dropdown
+   (bridged on creation) or the side-panel field. Only set `Ready`
+   when *a coding agent can start today*. When the description is
+   thin, leave Readiness unset (implicit "untriaged") rather than
+   guess.
+4. **Optionally set the Priority field** — only if the issue
+   signals urgency explicitly. Default is P2.
+5. **Add any qualifier labels** (`needs:*`, `blocked:*`,
+   `emancipatory`, `external-code`) that apply.
+6. **Apply labels with `gh`:**
 
    ```bash
    gh issue edit <N> --repo vade-app/<repo> \
-     --add-label "type:feat,area:agents,readiness:ready"
+     --add-label "area:agents,needs:bdfl-approval"
    ```
 
-   Or via the GitHub MCP `issue_write` tool.
+   For native fields, use the GitHub UI side-panel, or the
+   `setIssueFieldValue` GraphQL mutation. Per-issue field-value
+   setting works with the standard fine-grained PAT.
 
 ## Search recipes — "what should I work on?"
 
+Native fields are searchable as first-class GitHub search
+qualifiers (case-insensitive on org-level Issue-field entities).
 Find issues a coding agent can take:
 
 ```bash
 gh issue list --repo vade-app/vade-coo-memory \
-  --label "readiness:ready" --state open
+  --search "readiness:Ready" --state open
 ```
 
 Find the research queue:
 
 ```bash
 gh issue list --repo vade-app/vade-coo-memory \
-  --label "readiness:needs-research" --state open
+  --search "readiness:'Needs research'" --state open
 ```
 
 Blocked on BDFL (anywhere):
@@ -160,7 +205,7 @@ Issues that need breakdown before anyone picks them up:
 
 ```bash
 gh issue list --repo vade-app/<repo> \
-  --label "readiness:needs-breakdown" --state open
+  --search "readiness:'Needs breakdown'" --state open
 ```
 
 Active work in a specific area across repos:
@@ -175,21 +220,33 @@ Ready feature work in vade-core:
 
 ```bash
 gh issue list --repo vade-app/vade-core \
-  --label "type:feat,readiness:ready" --state open
+  --search "type:Feature readiness:Ready" --state open
 ```
+
+The `priority:` qualifier does not yet resolve in `gh issue list
+--search` (REST/GraphQL only as of 2026-05-21). Use the side-panel
+Priority filter on the project board, or
+`gh api graphql -f query='{ ... issueFieldValues ... }'` for
+programmatic access.
+
+For historical issues that pre-date the migration, the retired
+`type:*`, `readiness:*`, `prio:*` labels still match via `--label`
+— the backfill set both label + native field on those, so either
+filter works for closed issues. New issues only carry the native
+field.
 
 ## Routing hints (for future agent routers)
 
-The taxonomy encodes inputs for a routing workflow. Skip unless
-`readiness:ready`; then pick an agent profile from `type:` + `area:`:
+Skip unless Readiness is `Ready`; then pick an agent profile from
+native type + `area:*`:
 
-| `type:` | `area:` | Suggested agent profile |
+| Native type | `area:` | Suggested agent profile |
 |---|---|---|
-| `bug` | `canvas` | `claude-code-debug` + tldraw knowledge |
-| `feat` | `mcp` | `claude-code` + MCP skill pack |
-| `research` | any | `research-agent` (deep-research profile) |
-| `docs` | any | Haiku-class model (cheap, fast) |
-| `refactor` | any | `claude-code` + repo-aware `simplify` skill |
+| `Bug` | `canvas` | `claude-code-debug` + tldraw knowledge |
+| `Feature` | `mcp` | `claude-code` + MCP skill pack |
+| `Research` | any | `research-agent` (deep-research profile) |
+| `Docs` | any | Haiku-class model (cheap, fast) |
+| `Refactor` | any | `claude-code` + repo-aware `simplify` skill |
 
 Gates: `needs:bdfl-approval` is a handshake; `blocked:*` is a hard
 stop.
@@ -216,19 +273,23 @@ Kept to avoid breaking closed-issue references. Map forward as shown:
 ## Maintenance — what requires a memo
 
 - **New `area:*` value** → unilateral; just create the label.
-- **New `type:*` / `readiness:*` / `prio:*` value** → memo-worthy
-  (cross-repo invariant).
-- **New dimension** (sixth prefix) → memo-worthy.
+- **New native issue type or Issue field option** → memo-worthy
+  (cross-repo invariant); also requires org-admin scope (App
+  installation token per MEMO-2026-05-21-4wgy).
+- **New qualifier label** (`needs:*`, `blocked:*`, semantic tag)
+  → memo-worthy.
 - **Renaming an existing dimension** → memo-worthy.
 
 Per-repo drift under `area:*` is allowed. Everything else is a
 cross-repo invariant.
 
-## Canonical source
+## Canonical sources
 
 ```text
-vade-coo-memory/coo/label_taxonomy.md
+vade-coo-memory/coo/operations/issue-fields-and-types.md   # primary
+vade-coo-memory/coo/label_taxonomy.md                       # label scheme
+vade-coo-memory/coo/memos/2026-05-21-xfqh.md                # adoption memo
 ```
 
-When this digest and the canonical doc disagree, the canonical doc
-wins. Update this skill; don't drift the taxonomy.
+When this digest and the canonical docs disagree, the canonical
+docs win. Update this skill; don't drift the taxonomy.
