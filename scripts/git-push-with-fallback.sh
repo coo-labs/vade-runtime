@@ -33,6 +33,17 @@
 #       after the push lands;
 #     · pipes fallback push output through a sed redactor that masks
 #       any `<user>:<password>@` URL.
+#
+# Silent-failure hardening (vade-app/vade-runtime#280):
+#   The wrapper writes every state transition (entry, primary push rc,
+#   marker-match decision, fallback push rc) to a durable log at
+#   ~/.vade/git-push-fallback.log so cases where stderr is swallowed
+#   by an outer harness (bootstrap-trace, captured CI runner, etc.)
+#   leave a recoverable forensic trail. The fallback push output is
+#   also tee'd to a tmp file and dumped to the log on rc!=0, so the
+#   PAT-redacted git stderr is available for triage even when the
+#   interactive stream was empty. Set VADE_GIT_PUSH_FALLBACK_LOG=<path>
+#   to override the log location.
 
 set -uo pipefail
 
@@ -105,43 +116,103 @@ parse_push_refspec() {
 }
 
 PUSH_OUT_TMP=""
-cleanup() { [ -n "${PUSH_OUT_TMP:-}" ] && rm -f "$PUSH_OUT_TMP"; }
+FALLBACK_OUT_TMP=""
+cleanup() {
+  [ -n "${PUSH_OUT_TMP:-}" ] && rm -f "$PUSH_OUT_TMP"
+  [ -n "${FALLBACK_OUT_TMP:-}" ] && rm -f "$FALLBACK_OUT_TMP"
+}
 trap cleanup EXIT
 
+# Surface a line to BOTH stderr and the durable wrapper log under
+# ~/.vade/git-push-fallback.log. Bug #280: under the bootstrap-trace
+# harness and in some cloud-sandbox conditions, stderr from a piped
+# `git push` got eaten before reaching the user — leaving rc=1 with no
+# visible diagnostic. Tagging every important state transition through
+# this helper guarantees there is *always* a durable trail on disk even
+# when the interactive stderr stream is closed/redirected/swallowed.
+WRAPPER_LOG="${VADE_GIT_PUSH_FALLBACK_LOG:-${HOME}/.vade/git-push-fallback.log}"
+log_both() {
+  local msg="$*"
+  log_err "$msg"
+  mkdir -p "$(dirname "$WRAPPER_LOG")" 2>/dev/null || return 0
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo)"
+  printf '%s [pid=%d] %s\n' "$ts" "$$" "$msg" >> "$WRAPPER_LOG" 2>/dev/null || true
+  # Bounded retention.
+  if [ "$(wc -l < "$WRAPPER_LOG" 2>/dev/null || echo 0)" -gt 500 ]; then
+    tail -n 500 "$WRAPPER_LOG" > "${WRAPPER_LOG}.tmp" 2>/dev/null \
+      && mv -f "${WRAPPER_LOG}.tmp" "$WRAPPER_LOG" 2>/dev/null
+  fi
+}
+
+# Tee variant of log_both that also dumps the underlying push output
+# file to the wrapper log. Used when the wrapper returns non-zero so
+# the next session's investigator has the raw git stderr/stdout on
+# disk even if stderr was swallowed at runtime.
+dump_to_log() {
+  local label="$1" file="$2"
+  [ -f "$file" ] || return 0
+  mkdir -p "$(dirname "$WRAPPER_LOG")" 2>/dev/null || return 0
+  {
+    printf -- '--- %s ---\n' "$label"
+    cat "$file" 2>/dev/null || true
+    printf -- '--- end %s ---\n' "$label"
+  } >> "$WRAPPER_LOG" 2>/dev/null || true
+}
+
 main() {
+  log_both "wrapper start: args=[$*]"
+
   if ! PUSH_OUT_TMP="$(mktemp 2>/dev/null)"; then
-    log_err "mktemp failed; running git push directly with no fallback"
+    log_both "mktemp failed; running git push directly with no fallback"
     exec git push "$@"
   fi
   local tmp="$PUSH_OUT_TMP"
 
+  # Run the primary push. Two output sinks for resilience against the
+  # symptom in #280 where stderr from a piped invocation was swallowed:
+  # (a) tee to the user's terminal as before, (b) the always-present
+  # $tmp file we grep against, (c) appended into $WRAPPER_LOG after
+  # rc!=0 so a silent stderr is recoverable post-hoc.
   local rc=0
+  # `2>&1 | tee` is the canonical capture-and-display pattern.
+  # PIPESTATUS[0] is the only correct way to read git's exit under
+  # `set -o pipefail`; assign immediately on the next line — any
+  # intervening command (including a conditional branch on $?) will
+  # overwrite it.
   git push "$@" 2>&1 | tee "$tmp"
-  rc="${PIPESTATUS[0]}"
+  rc="${PIPESTATUS[0]:-1}"
+  log_both "primary push: rc=$rc bytes_captured=$(wc -c < "$tmp" 2>/dev/null || echo 0)"
   if [ "$rc" -eq 0 ]; then
     return 0
   fi
 
+  # Non-zero. From here on every return path must (1) emit a stderr
+  # line via log_both, (2) include the captured git output in the
+  # wrapper log so a silent-stderr session leaves a forensic trail.
+  dump_to_log "primary push (rc=$rc)" "$tmp"
+
   if ! grep -qE "$PROXY_FAILURE_PATTERNS" "$tmp"; then
-    log_err "git push failed (rc=$rc) with no proxy-failure marker; passing through"
+    log_both "git push failed (rc=$rc) with no proxy-failure marker; passing through"
     return "$rc"
   fi
+  log_both "proxy-failure marker matched; preparing fallback"
 
   local remote current_url repo_path repo_owner
   remote="$(resolve_remote_from_args "$@")"
   if ! current_url="$(git remote get-url "$remote" 2>/dev/null)" || [ -z "$current_url" ]; then
-    log_err "could not resolve remote '$remote'; not falling back"
+    log_both "could not resolve remote '$remote'; not falling back"
     return "$rc"
   fi
   case "$current_url" in
     *github.com*)
-      log_err "remote '$remote' already targets github.com; failure is not proxy-related"
+      log_both "remote '$remote' already targets github.com; failure is not proxy-related"
       return "$rc"
       ;;
   esac
   repo_path="$(extract_repo_path "$current_url")"
   if [ -z "$repo_path" ]; then
-    log_err "could not extract owner/repo from '$current_url'; not falling back"
+    log_both "could not extract owner/repo from '$current_url'; not falling back"
     return "$rc"
   fi
   repo_owner="${repo_path%%/*}"
@@ -162,14 +233,14 @@ main() {
     fallback_pat_name="GITHUB_MCP_PAT"
     fallback_user="vade-coo"
   else
-    log_err "git proxy push failed but no GitHub PAT is set (GITHUB_MCP_PAT, GITHUB_PUBLIC_PAT); cannot fall back"
-    log_err "  run scripts/coo-bootstrap.sh (or source ~/.vade/coo-env) to populate them"
+    log_both "git proxy push failed but no GitHub PAT is set (GITHUB_MCP_PAT, GITHUB_PUBLIC_PAT); cannot fall back"
+    log_both "  run scripts/coo-bootstrap.sh (or source ~/.vade/coo-env) to populate them"
     return "$rc"
   fi
 
   local direct_url="https://${fallback_user}:${fallback_pat}@github.com/${repo_path}.git"
   local masked_url="https://${fallback_user}:***@github.com/${repo_path}.git"
-  log_err "git proxy push failed; retrying via $masked_url (using $fallback_pat_name)"
+  log_both "git proxy push failed; retrying via $masked_url (using $fallback_pat_name)"
 
   # Build fallback args: substitute direct_url for the remote token, and
   # drop -u / --set-upstream (the upstream-tracking config gets written
@@ -191,20 +262,44 @@ main() {
     local current_branch
     current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
     if [ -z "$current_branch" ]; then
-      log_err "no remote in args and detached HEAD; cannot construct fallback push"
+      log_both "no remote in args and detached HEAD; cannot construct fallback push"
       return "$rc"
     fi
     new_args+=("$direct_url" "HEAD:refs/heads/$current_branch")
   fi
 
-  # Pipe push output through a redactor as belt-and-suspenders against
-  # any URL leak from git itself. PIPESTATUS preserves git's exit code.
+  # Fallback push: same belt-and-suspenders treatment as the primary —
+  # capture to a tmp file for forensics, run output through the PAT
+  # redactor, AND tee to stdout/stderr. The prior implementation piped
+  # straight through `sed` with no separate capture; if sed exited
+  # non-zero (e.g., SIGPIPE on closed terminal) or stderr was swallowed,
+  # there was no recoverable diagnostic. Now the raw (post-redaction)
+  # output lands in $FALLBACK_OUT_TMP and gets dumped to $WRAPPER_LOG
+  # whenever the fallback returns non-zero.
   local fallback_rc
-  git push "${new_args[@]}" 2>&1 | sed -E "$PAT_REDACT_SED"
-  fallback_rc="${PIPESTATUS[0]}"
+  if ! FALLBACK_OUT_TMP="$(mktemp 2>/dev/null)"; then
+    # Degraded path: lose the forensic dump but still run the fallback.
+    log_both "fallback mktemp failed; running fallback push without capture"
+    git push "${new_args[@]}" 2>&1 | sed -E "$PAT_REDACT_SED"
+    fallback_rc="${PIPESTATUS[0]:-1}"
+  else
+    local ftmp="$FALLBACK_OUT_TMP"
+    # The pipeline: git → sed (redactor) → tee (sink to file + stdout).
+    # PIPESTATUS[0] still captures git's exit code; tee's exit
+    # ($PIPESTATUS[2]) and sed's ($PIPESTATUS[1]) are non-fatal for
+    # routing purposes.
+    git push "${new_args[@]}" 2>&1 | sed -E "$PAT_REDACT_SED" | tee "$ftmp"
+    fallback_rc="${PIPESTATUS[0]:-1}"
+    log_both "fallback push: rc=$fallback_rc bytes_captured=$(wc -c < "$ftmp" 2>/dev/null || echo 0)"
+    if [ "$fallback_rc" -ne 0 ]; then
+      dump_to_log "fallback push (rc=$fallback_rc)" "$ftmp"
+    fi
+  fi
   if [ "$fallback_rc" -ne 0 ]; then
+    log_both "fallback push failed; rc=$fallback_rc (forensic trail: $WRAPPER_LOG)"
     return "$fallback_rc"
   fi
+  log_both "fallback push succeeded"
 
   # Restore upstream tracking via the symbolic remote so .git/config
   # stays free of the credential URL. Skip silently if the user didn't
@@ -222,7 +317,7 @@ main() {
       git config "branch.${local_branch}.remote" "$remote"
       git config "branch.${local_branch}.merge" "$merge_ref"
     else
-      log_err "fallback push succeeded but could not parse refspec; upstream not restored — run 'git push -u $remote <branch>' manually if needed"
+      log_both "fallback push succeeded but could not parse refspec; upstream not restored — run 'git push -u $remote <branch>' manually if needed"
     fi
   fi
 }

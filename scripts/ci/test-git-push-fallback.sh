@@ -191,6 +191,175 @@ assert_match "fallback push args contain direct vade-coo URL" 'vade-coo:test_pat
 assert_no_match ".git/config contains no PAT" 'test_pat_DO_NOT_LEAK_2222' \
   "$(cat "$REPO/.git/config")"
 
+echo "== silent-failure hardening: workflow-scope rejection (#280) =="
+
+# Repro the #280 case directly: proxy rejects with the workflow-scope
+# OAuth message that should trip PROXY_FAILURE_PATTERNS=workflow.*scope.
+# The fix has to (a) match the marker, (b) fire the fallback, (c) leave
+# a diagnostic trail when the fallback itself fails so the next session
+# isn't stuck with rc=1 and zero output.
+
+WORKFLOW_WORK="$(mktemp -d)"
+WORKFLOW_LOG="$WORKFLOW_WORK/git-mock.log"
+WORKFLOW_STATE="$WORKFLOW_WORK/state"
+WORKFLOW_WRAPPER_LOG="$WORKFLOW_WORK/wrapper.log"
+
+cat > "$WORKFLOW_WORK/git" <<MOCKEOF
+#!/usr/bin/env bash
+case "\$1" in
+  push)
+    {
+      printf 'MOCK PUSH ARGS:'
+      for a in "\$@"; do printf ' [%s]' "\$a"; done
+      printf '\n'
+    } >> "$WORKFLOW_LOG"
+    if [ -f "$WORKFLOW_STATE" ]; then
+      # Fallback push: succeed.
+      exit 0
+    fi
+    : > "$WORKFLOW_STATE"
+    # Primary push: emit the canonical workflow-scope rejection.
+    cat >&2 <<'ERR'
+remote: refusing to allow an OAuth App to create or update workflow \`.github/workflows/foo.yml\` without \`workflow\` scope
+To http://127.0.0.1:35033/git/vade-app/vade-runtime
+ ! [remote rejected] claude/foo -> claude/foo (refusing to allow an OAuth App to create or update workflow without workflow scope)
+error: failed to push some refs to 'http://127.0.0.1:35033/git/vade-app/vade-runtime'
+ERR
+    exit 1
+    ;;
+  *)
+    exec $REAL_GIT "\$@"
+    ;;
+esac
+MOCKEOF
+chmod +x "$WORKFLOW_WORK/git"
+
+WORKFLOW_REPO="$WORKFLOW_WORK/repo"
+mkdir -p "$WORKFLOW_REPO"
+(
+  cd "$WORKFLOW_REPO"
+  $REAL_GIT init -q -b main >/dev/null 2>&1
+  $REAL_GIT -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
+  $REAL_GIT checkout -q -b claude/workflow-test
+  $REAL_GIT remote add origin "http://local_proxy@127.0.0.1:8080/git/vade-app/vade-runtime"
+)
+
+WORKFLOW_STUB_HOME="$WORKFLOW_WORK/stub-home"
+mkdir -p "$WORKFLOW_STUB_HOME"
+
+(
+  cd "$WORKFLOW_REPO"
+  PATH="$WORKFLOW_WORK:$PATH"
+  HOME="$WORKFLOW_STUB_HOME" \
+  GITHUB_MCP_PAT="test_pat_workflow_280" \
+  VADE_GIT_PUSH_FALLBACK_LOG="$WORKFLOW_WRAPPER_LOG" \
+    bash "$WRAPPER" -u origin claude/workflow-test
+) > "$WORKFLOW_WORK/wrapper.out" 2>&1
+workflow_rc=$?
+
+workflow_out="$(cat "$WORKFLOW_WORK/wrapper.out")"
+
+assert_eq "workflow-scope: wrapper exits 0 after fallback rescue" "0" "$workflow_rc"
+assert_match "workflow-scope: stderr surfaced 'retrying via' message" \
+  'retrying via https://vade-coo:\*\*\*@github\.com' "$workflow_out"
+assert_match "workflow-scope: stderr surfaced the workflow-scope marker" \
+  'workflow.*scope' "$workflow_out"
+
+# Mock saw two pushes (primary proxy attempt + direct-URL fallback).
+workflow_push_count="$(grep -c '^MOCK PUSH ARGS:' "$WORKFLOW_LOG" 2>/dev/null || echo 0)"
+assert_eq "workflow-scope: mock saw two push attempts" "2" "$workflow_push_count"
+
+# Durable log was written.
+assert_match "workflow-scope: durable log records 'wrapper start'" \
+  'wrapper start: args=' "$(cat "$WORKFLOW_WRAPPER_LOG" 2>/dev/null || true)"
+assert_match "workflow-scope: durable log records 'proxy-failure marker matched'" \
+  'proxy-failure marker matched' "$(cat "$WORKFLOW_WRAPPER_LOG" 2>/dev/null || true)"
+assert_match "workflow-scope: durable log records fallback rc=0" \
+  'fallback push: rc=0' "$(cat "$WORKFLOW_WRAPPER_LOG" 2>/dev/null || true)"
+
+echo "== silent-failure hardening: fallback also fails, forensic trail (#280) =="
+
+# Both pushes fail. Without #280's fix, this is exactly the silent-rc=1
+# case observed twice in production. Now: wrapper still exits non-zero
+# but the durable log MUST contain both push outputs for triage.
+
+DOUBLE_FAIL_WORK="$(mktemp -d)"
+DOUBLE_FAIL_LOG="$DOUBLE_FAIL_WORK/git-mock.log"
+DOUBLE_FAIL_WRAPPER_LOG="$DOUBLE_FAIL_WORK/wrapper.log"
+
+cat > "$DOUBLE_FAIL_WORK/git" <<MOCKEOF
+#!/usr/bin/env bash
+case "\$1" in
+  push)
+    {
+      printf 'MOCK PUSH ARGS:'
+      for a in "\$@"; do printf ' [%s]' "\$a"; done
+      printf '\n'
+    } >> "$DOUBLE_FAIL_LOG"
+    # Determine which attempt this is by checking arg list for a github.com URL.
+    is_fallback=0
+    for a in "\$@"; do
+      case "\$a" in
+        *github.com*) is_fallback=1; break ;;
+      esac
+    done
+    if [ "\$is_fallback" -eq 1 ]; then
+      printf 'remote: fallback also rejected (auth or network)\n' >&2
+      exit 1
+    else
+      printf 'remote: HTTP 403\n' >&2
+      exit 1
+    fi
+    ;;
+  *)
+    exec $REAL_GIT "\$@"
+    ;;
+esac
+MOCKEOF
+chmod +x "$DOUBLE_FAIL_WORK/git"
+
+DOUBLE_FAIL_REPO="$DOUBLE_FAIL_WORK/repo"
+mkdir -p "$DOUBLE_FAIL_REPO"
+(
+  cd "$DOUBLE_FAIL_REPO"
+  $REAL_GIT init -q -b main >/dev/null 2>&1
+  $REAL_GIT -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
+  $REAL_GIT checkout -q -b claude/double-fail
+  $REAL_GIT remote add origin "http://local_proxy@127.0.0.1:8080/git/vade-app/vade-runtime"
+)
+
+DOUBLE_FAIL_STUB_HOME="$DOUBLE_FAIL_WORK/stub-home"
+mkdir -p "$DOUBLE_FAIL_STUB_HOME"
+
+(
+  cd "$DOUBLE_FAIL_REPO"
+  PATH="$DOUBLE_FAIL_WORK:$PATH"
+  HOME="$DOUBLE_FAIL_STUB_HOME" \
+  GITHUB_MCP_PAT="test_pat_double_fail_280" \
+  VADE_GIT_PUSH_FALLBACK_LOG="$DOUBLE_FAIL_WRAPPER_LOG" \
+    bash "$WRAPPER" -u origin claude/double-fail
+) > "$DOUBLE_FAIL_WORK/wrapper.out" 2>&1
+double_fail_rc=$?
+
+assert_eq "double-fail: wrapper exits non-zero" "1" "$double_fail_rc"
+
+# CRITICAL: the durable log must contain forensics for both pushes.
+double_fail_log="$(cat "$DOUBLE_FAIL_WRAPPER_LOG" 2>/dev/null || true)"
+assert_match "double-fail: durable log dumps primary push output" \
+  '\-\-\- primary push \(rc=1\) \-\-\-' "$double_fail_log"
+assert_match "double-fail: durable log dumps fallback push output" \
+  '\-\-\- fallback push \(rc=1\) \-\-\-' "$double_fail_log"
+assert_match "double-fail: durable log captures the original 'HTTP 403'" \
+  'HTTP 403' "$double_fail_log"
+assert_match "double-fail: durable log captures the fallback rejection" \
+  'fallback also rejected' "$double_fail_log"
+
+# Durable log MUST NOT contain the PAT.
+assert_no_match "double-fail: durable log contains no PAT" \
+  'test_pat_double_fail_280' "$double_fail_log"
+
+rm -rf "$WORKFLOW_WORK" "$DOUBLE_FAIL_WORK"
+
 echo
 printf 'Results: %d pass, %d fail\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
