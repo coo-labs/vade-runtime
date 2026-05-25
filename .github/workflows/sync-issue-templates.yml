@@ -73,3 +73,25 @@ jobs:
 
             `deleteOrphaned: true` is in effect — files deleted from the canonical are deleted here too.
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+
+      # Enable squash auto-merge on each sync PR from the source side. The
+      # auto-merge-sync-pr-reusable.yml thin-trigger pattern in consumers
+      # cannot succeed because the default GITHUB_TOKEN lacks
+      # mergePullRequest permission (coo-harness#326). Driving the merge
+      # from here with VADE_FIELDS_ADMIN_PAT closes that gap with a single
+      # source-side change rather than 9 cross-repo edits.
+      - name: Enable auto-merge on consumer sync PRs
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        env:
+          GH_TOKEN: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
+        run: |
+          consumers="$(yq '.group.repos' .github/sync.yml)"
+          for repo in $consumers; do
+            [ -z "$repo" ] && continue
+            pr="$(gh pr list -R "$repo" --label sync:templates --state open --json number --jq '.[0].number // empty')"
+            if [ -n "$pr" ]; then
+              echo "::notice::Enabling squash auto-merge: $repo#$pr"
+              gh pr merge "$pr" --squash --auto --repo "$repo" \
+                || echo "::warning::Failed to enable auto-merge on $repo#$pr"
+            fi
+          done
