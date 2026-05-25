@@ -58,7 +58,7 @@ sync_claude_config "$WORKSPACE_ROOT/vade-runtime/.claude" "$WORKSPACE_ROOT/.clau
 # tagging-taxonomy, agentmail) shouldn't lose to a same-named primitive
 # in a data repo.
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$WORKSPACE_ROOT/.claude" \
-  vade-runtime vade-coo-memory vade-core
+  vade-runtime vade-coo-memory
 # The synced settings.json's hook commands reference
 # $CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh — sync_claude_config
 # above already installs that shim at $WORKSPACE_ROOT/.claude/vade-hooks/

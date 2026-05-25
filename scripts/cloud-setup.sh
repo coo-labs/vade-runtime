@@ -58,7 +58,7 @@ ensure_hooks_dispatch_shim "$RUNTIME_DIR/.claude" "$WORKSPACE_ROOT/.claude"
 # repo whose data they manipulate; the aggregator surfaces them at
 # user-scope so they're invokable from any session cwd.
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$HOME/.claude" \
-  vade-runtime vade-coo-memory vade-core
+  vade-runtime vade-coo-memory
 ensure_workspace_mcp_config "$RUNTIME_DIR/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
 ensure_workspace_identity_link "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
