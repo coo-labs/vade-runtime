@@ -417,10 +417,7 @@ jobs:
 
   sub-issue-linkage:
     # Pattern A — Epic-type issues use native sub-issue API. Advisory.
-    # Predicate-migration note: pre-Stage-3 of the issue-fields-and-types migration
-    # (MEMO-2026-05-21-xfqh) keyed on the `type:epic` label; post-Stage-3 the
-    # predicate is the native issue type. The script GraphQL-queries both
-    # `issueType` and `subIssues` and returns early when the type isn't Epic.
+    # Predicate is the native issue type (queried via GraphQL).
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
@@ -466,15 +463,8 @@ jobs:
             }
 
             const typeName = result?.repository?.issue?.issueType?.name ?? null;
-            const isEpicByType = typeName === 'Epic';
-            // Fallback for the legacy path: pre-Stage-3 issues that still
-            // carry only the `type:epic` label without a native type set.
-            const isEpicByLabel = (issue.labels || [])
-              .some(l => (l.name || l) === 'type:epic');
-
-            if (!isEpicByType && !isEpicByLabel) {
-              core.info(`Skipping Pattern A: issue type is ${typeName || 'unset'}, ` +
-                `no legacy type:epic label.`);
+            if (typeName !== 'Epic') {
+              core.info(`Skipping Pattern A: issue type is ${typeName || 'unset'}.`);
               return;
             }
 
@@ -496,18 +486,15 @@ jobs:
               c.body && c.body.includes(marker) && c.user.type === 'Bot'
             );
 
-            const epicPredicate = isEpicByType
-              ? `is typed \`Epic\``
-              : `carries the legacy \`type:epic\` label`;
             const commentBody = `${marker}\n\n` +
               `### Issue hygiene — advisory (Pattern A: sub-issue linkage)\n\n` +
-              `This issue ${epicPredicate} but has no native sub-issues linked ` +
+              `This issue is typed \`Epic\` but has no native sub-issues linked ` +
               `(\`subIssues\` count = 0). Markdown \`#N\` checklists are insufficient — ` +
               `they're invisible to GraphQL queries and the project board's tracker UI.\n\n` +
               `Add sub-issues via the GitHub UI's "Add sub-issue" button on this issue, ` +
               `or via the GraphQL \`addSubIssue\` mutation.\n\n` +
-              `See \`coo/operations/issue-pr-hygiene.md\` §"Sub-issue linkage" + ` +
-              `\`coo/label_taxonomy.md\` §6 (in coo-labs/coo-memory).\n\n` +
+              `See \`coo/operations/issue-pr-hygiene.md\` §"Sub-issue linkage" ` +
+              `(in coo-labs/coo-memory).\n\n` +
               `*This is advisory; the check does not block merge. ` +
               `Apply label \`hygiene:exempt\` to suppress on this issue.*`;
 

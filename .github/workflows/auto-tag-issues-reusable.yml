@@ -10,8 +10,7 @@ name: Auto-tag new issues (reusable)
 # resolution fails despite access_level=organization; bridge-form-fields-to-natives.yml
 # is the live in-org precedent for "public canonical, mixed consumers").
 # Operations doc: coo-labs/coo-memory/coo/operations/workflow-centralization.md
-# Canonical taxonomy: https://github.com/coo-labs/coo-memory/blob/main/coo/label_taxonomy.md
-# Canonical fields:   https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md
+# Canonical taxonomy: https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md
 # Canonical project:  https://github.com/orgs/coo-labs/projects/1 (VADE)
 #   Project node ID:  PVT_kwDOEGdN_84BUV2r
 #
@@ -166,19 +165,14 @@ jobs:
             you, ignore it — surfacing classification disagreements
             is out of scope for this workflow.
 
-            2. Classify across the dimensions below. Canonical refs:
-               https://github.com/coo-labs/coo-memory/blob/main/coo/label_taxonomy.md
-               + https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md
+            2. Classify across the dimensions below. Canonical ref:
+               https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md
 
-               **Retired dimensions** (do NOT apply these as labels):
-               `type:*`, `readiness:*`, `prio:*` were retired 2026-05-21
-               per MEMO-2026-05-21-xfqh. Native issue type is set by the
-               issue template's `type:` front-matter; Priority / Readiness
-               field values are bridged from the template's dropdown
-               widgets by `bridge-form-fields-trigger.yml`. Applying
-               the legacy labels on top is duplicate metadata — the bug
-               this workflow was fixed to stop doing
-               (coo-memory#879).
+               Issue type is set by the issue template's `type:`
+               front-matter; Priority / Readiness / Effort field values
+               are bridged from the template's dropdown widgets by
+               `bridge-form-fields-trigger.yml`. This workflow only
+               applies labels (`area:*`, qualifiers) and milestone.
 
                - `area:*` — one or two, from this repo's vocabulary:
                  area:memory, area:identity, area:agents, area:skills, area:governance
