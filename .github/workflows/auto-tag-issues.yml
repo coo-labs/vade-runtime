@@ -22,6 +22,7 @@ permissions:
   issues: write
   contents: read
   id-token: write  # anthropics/claude-code-action@v1 mints its GitHub token via OIDC
+  actions: read  # required to resolve a workflow_call ref in a private repo (vcm)
 
 jobs:
   tag:

@@ -25,6 +25,7 @@ permissions:
   issues: write
   contents: read
   checks: write
+  actions: read  # required to resolve a workflow_call ref in a private repo (vcm)
 
 jobs:
   hygiene:

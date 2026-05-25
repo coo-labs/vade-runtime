@@ -21,6 +21,7 @@ on:
 permissions:
   issues: write
   contents: read
+  actions: read  # required to resolve a workflow_call ref in a private repo (vcm)
 
 jobs:
   post-launch-link:
