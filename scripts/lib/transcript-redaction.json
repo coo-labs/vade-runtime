@@ -1,5 +1,5 @@
 {
-  "_comment": "Redaction patterns applied to Claude Code session transcripts before commit/upload. Order matters — longer/more-structured shapes first, prefixed shapes next, generic JWT, then entropy fallback. See vade-app/vade-agent-logs#64 design comment + security review.",
+  "_comment": "Redaction patterns applied to Claude Code session transcripts before commit/upload. Order matters — longer/more-structured shapes first, prefixed shapes next, generic JWT, then entropy fallback. See coo-labs/vade-agent-logs#64 design comment + security review.",
   "version": 1,
   "patterns": [
     {
@@ -175,7 +175,7 @@
       "regex": "AGE-SECRET-KEY-1[A-Z0-9]{50,80}",
       "replacement": "[REDACTED:age-identity]",
       "secret_var": "TRANSCRIPTS_AGE_IDENTITY",
-      "notes": "age X25519 private identity (Bech32-encoded, uppercase). Prefix is the literal `AGE-SECRET-KEY-1`, body is 58-char Bech32 in practice; range 50–80 tolerates format extension. High false-positive resistance — the prefix is unique. Used by the Stage-1 transcript-analyzer (Batch 3 of vade-app/vade-agent-logs#64) to decrypt R2-stored transcripts."
+      "notes": "age X25519 private identity (Bech32-encoded, uppercase). Prefix is the literal `AGE-SECRET-KEY-1`, body is 58-char Bech32 in practice; range 50–80 tolerates format extension. High false-positive resistance — the prefix is unique. Used by the Stage-1 transcript-analyzer (Batch 3 of coo-labs/vade-agent-logs#64) to decrypt R2-stored transcripts."
     },
     {
       "id": "aws-akid",

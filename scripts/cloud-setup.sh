@@ -18,7 +18,7 @@ set -euo pipefail
 # in lib/common.sh fire normally. On Ven's local Mac the analogous flag
 # is set only by the `claude-coo` zsh wrapper, gating COO-mode writes
 # to opt-in sessions and leaving bare `claude` launches untouched —
-# even when fired from inside the vade-app workspace where project-
+# even when fired from inside the coo-labs workspace where project-
 # scope hooks would otherwise re-trigger the COO pipeline.
 export VADE_COO_MODE=1
 

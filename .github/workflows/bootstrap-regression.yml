@@ -1,7 +1,7 @@
 name: Bootstrap regression
 
 # Layer-1 script-level CI for the cloud bootstrap chain.
-# Tracks vade-app/vade-runtime#86. Layer-2 (SDK-driven harness test)
+# Tracks coo-labs/vade-runtime#86. Layer-2 (SDK-driven harness test)
 # lives at #85 and is out of scope here.
 #
 # What this catches that production currently catches via "open a fresh
@@ -90,7 +90,7 @@ jobs:
     # Fast standalone job for the redaction engine + Secret Registration
     # Rule. Independent of the heavy bootstrap-regression job above
     # because it doesn't need a staged workspace — just python3 + jq.
-    # Origin: vade-app/vade-agent-logs#64.
+    # Origin: coo-labs/vade-agent-logs#64.
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

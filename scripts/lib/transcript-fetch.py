@@ -4,7 +4,7 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-transcript-fetch.py — vade-app/vade-agent-logs#64 Batch 3.
+transcript-fetch.py — coo-labs/vade-agent-logs#64 Batch 3.
 
 Pair to session-end-transcript-export.py. Given a session_id, fetches
 the encrypted ciphertext from R2, verifies its sha256 against the

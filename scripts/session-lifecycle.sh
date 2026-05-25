@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print a session-lifecycle reminder for Claude Code agents working in
-# any vade-app repo. Two modes:
+# any coo-labs repo. Two modes:
 #
 #   session-lifecycle.sh         → boot reminder (SessionStart hook)
 #   session-lifecycle.sh --end   → end-of-session reminder (Stop hook)
@@ -85,12 +85,12 @@ if [ "$MODE" = "start" ]; then
   fi
 
   # Prior idle-close stub logs: if the watchdog
-  # (vade-app/vade-agent-logs#67) fired a mechanical close on a recent
+  # (coo-labs/vade-agent-logs#67) fired a mechanical close on a recent
   # session, the next interactive COO owes a real summary. Surface
   # any unpaired stubs from the last 3 days so the agent doesn't have
   # to discover them.
   agent_logs_dir=""
-  for _cand in "$HOME/GitHub/vade-app/vade-agent-logs" "/home/user/vade-agent-logs"; do
+  for _cand in "$HOME/GitHub/coo-labs/vade-agent-logs" "/home/user/vade-agent-logs"; do
     if [ -d "$_cand" ]; then agent_logs_dir="$_cand"; break; fi
   done
   if [ -n "$agent_logs_dir" ] && [ -d "$agent_logs_dir/sessions" ]; then
@@ -105,7 +105,7 @@ if [ "$MODE" = "start" ]; then
         stub_dir="$(dirname "$stub")"
         if [ -f "$stub_dir/coo-summary-on-${sid}.md" ]; then continue; fi
         if [ -z "${idle_close_header_printed:-}" ]; then
-          echo "  • Prior session(s) ended on idle (vade-app/vade-agent-logs#67):"
+          echo "  • Prior session(s) ended on idle (coo-labs/vade-agent-logs#67):"
           idle_close_header_printed=1
         fi
         echo "      - ${stub#"$agent_logs_dir/"}"
@@ -131,7 +131,7 @@ fi
 # as its last step. When the marker is present, cleanup is done —
 # consume it and exit silently rather than injecting a 50-line reminder
 # into the next turn's context. When absent, emit a one-line nudge.
-# Fixes vade-app/vade-runtime#245 (Stop hook fires every turn, causing
+# Fixes coo-labs/vade-runtime#245 (Stop hook fires every turn, causing
 # per-turn context pollution).
 END_MARKER="$HOME/.vade/.end-session-done"
 if [ -f "$END_MARKER" ]; then

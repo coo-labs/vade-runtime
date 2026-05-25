@@ -164,32 +164,32 @@ out="$(env -u CLAUDE_CODE_REMOTE_SESSION_ID -u CLAUDE_CODE_SESSION_ID \
 assert_not_contains "no session env: not augmented" "$out" "claude.ai/code/session_"
 
 # ---- TEST 16: -R <repo> before subcommand — augments ----
-out="$("$WRAPPER" -R vade-app/vade-coo-memory issue comment 1 --body "with -R")"
+out="$("$WRAPPER" -R coo-labs/vade-coo-memory issue comment 1 --body "with -R")"
 assert_contains "-R before subcommand: issue comment augments" "$out" "$EXPECTED_URL"
 assert_contains "-R before subcommand: body preserved" "$out" "with -R"
 
 # ---- TEST 17: --repo <repo> before subcommand — augments ----
-out="$("$WRAPPER" --repo vade-app/vade-runtime pr comment 2 --body "with --repo")"
+out="$("$WRAPPER" --repo coo-labs/vade-runtime pr comment 2 --body "with --repo")"
 assert_contains "--repo before subcommand: pr comment augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 18: --repo=<repo> (=value form) before subcommand — augments ----
-out="$("$WRAPPER" --repo=vade-app/vade-core issue create --title t --body "with --repo=")"
+out="$("$WRAPPER" --repo=coo-labs/vade-core issue create --title t --body "with --repo=")"
 assert_contains "--repo=value before subcommand: issue create augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 19: -R then pr review --body — augments ----
-out="$("$WRAPPER" -R vade-app/vade-runtime pr review 9 --request-changes --body "needs work")"
+out="$("$WRAPPER" -R coo-labs/vade-runtime pr review 9 --request-changes --body "needs work")"
 assert_contains "-R before pr review --body: augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 20: -R then pr list — pass-through (uncovered subcommand) ----
-out="$("$WRAPPER" -R vade-app/vade-runtime pr list --state open)"
+out="$("$WRAPPER" -R coo-labs/vade-runtime pr list --state open)"
 assert_not_contains "-R before pr list: pass-through" "$out" "$EXPECTED_URL"
 
 # ---- TEST 21: -R then pr review --approve (no body) — pass-through ----
-out="$("$WRAPPER" -R vade-app/vade-runtime pr review 9 --approve)"
+out="$("$WRAPPER" -R coo-labs/vade-runtime pr review 9 --approve)"
 assert_not_contains "-R before pr review --approve: no augmentation" "$out" "$EXPECTED_URL"
 
 # ---- TEST 22: -R interleaved (subcommand then -R then action) — augments ----
-out="$("$WRAPPER" issue -R vade-app/vade-runtime comment 1 --body "interleaved")"
+out="$("$WRAPPER" issue -R coo-labs/vade-runtime comment 1 --body "interleaved")"
 assert_contains "-R interleaved: issue comment augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 23: --hostname before subcommand — augments ----
@@ -198,7 +198,7 @@ assert_contains "--hostname before subcommand: augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 24: -R then --body-file — augments file content ----
 echo "from a file (with -R)" > "$WORK/body2.txt"
-out="$("$WRAPPER" -R vade-app/vade-coo-memory issue comment 1 --body-file "$WORK/body2.txt")"
+out="$("$WRAPPER" -R coo-labs/vade-coo-memory issue comment 1 --body-file "$WORK/body2.txt")"
 assert_contains "-R before --body-file: file content augmented" "$out" "$EXPECTED_URL"
 assert_contains "-R before --body-file: original content preserved" "$out" "from a file (with -R)"
 
@@ -230,27 +230,27 @@ export GH_TOKEN="MCP_PAT_TESTING"  # default state at session start
 
 printf '\nPAT routing tests:\n'
 
-# --- vade-app/* (MCP PAT, no swap) ---
+# --- coo-labs/* (MCP PAT, no swap) ---
 
-# Existing --repo flag form, vade-app — no swap
-out="$("$WRAPPER" --repo vade-app/foo pr comment 1 --body "x")"
-assert_contains "vade-app via --repo: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+# Existing --repo flag form, coo-labs — no swap
+out="$("$WRAPPER" --repo coo-labs/foo pr comment 1 --body "x")"
+assert_contains "coo-labs via --repo: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-# Positional repo arg, vade-app — no swap (new coverage)
-out="$("$WRAPPER" repo view vade-app/foo)"
-assert_contains "gh repo view vade-app/foo: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+# Positional repo arg, coo-labs — no swap (new coverage)
+out="$("$WRAPPER" repo view coo-labs/foo)"
+assert_contains "gh repo view coo-labs/foo: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-# gh api repos/vade-app/...
-out="$("$WRAPPER" api repos/vade-app/foo/issues)"
-assert_contains "gh api repos/vade-app: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+# gh api repos/coo-labs/...
+out="$("$WRAPPER" api repos/coo-labs/foo/issues)"
+assert_contains "gh api repos/coo-labs: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-# gh api orgs/vade-app
-out="$("$WRAPPER" api orgs/vade-app/repos)"
-assert_contains "gh api orgs/vade-app: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+# gh api orgs/coo-labs
+out="$("$WRAPPER" api orgs/coo-labs/repos)"
+assert_contains "gh api orgs/coo-labs: keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-# --- non-vade-app (PUBLIC PAT swap) ---
+# --- non-coo-labs (PUBLIC PAT swap) ---
 
-# Existing --repo flag form, non-vade-app — swaps
+# Existing --repo flag form, non-coo-labs — swaps
 out="$("$WRAPPER" --repo venpopov/foo pr comment 1 --body "x")"
 assert_contains "venpopov via --repo: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
@@ -261,7 +261,7 @@ assert_contains "gh repo fork venpopov/foo: swaps to PUBLIC_PAT" "$out" "GH_TOKE
 out="$("$WRAPPER" repo fork anthropics/claude-code --org vade-coo)"
 assert_contains "gh repo fork anthropics/... --org vade-coo: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# gh repo create non-vade-app
+# gh repo create non-coo-labs
 out="$("$WRAPPER" repo create venpopov/new-repo --public)"
 assert_contains "gh repo create venpopov/new-repo: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
@@ -273,19 +273,19 @@ assert_contains "gh repo clone https URL: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=
 out="$("$WRAPPER" repo clone git@github.com:anthropics/foo)"
 assert_contains "gh repo clone SSH URL: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# gh api repos/<non-vade-app>/...
+# gh api repos/<non-coo-labs>/...
 out="$("$WRAPPER" api repos/anthropics/claude-code/issues)"
 assert_contains "gh api repos/anthropics/...: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# gh api repos/<non-vade-app>/.../forks (the today fork failure case)
+# gh api repos/<non-coo-labs>/.../forks (the today fork failure case)
 out="$("$WRAPPER" api -X POST repos/venpopov/foo/forks)"
 assert_contains "gh api -X POST repos/venpopov/.../forks: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# gh api orgs/<non-vade-app>
+# gh api orgs/<non-coo-labs>
 out="$("$WRAPPER" api orgs/anthropics/repos)"
 assert_contains "gh api orgs/anthropics: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# gh api users/<non-vade-app>
+# gh api users/<non-coo-labs>
 out="$("$WRAPPER" api users/octocat)"
 assert_contains "gh api users/octocat: swaps to PUBLIC_PAT" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
@@ -295,15 +295,15 @@ assert_contains "gh api /repos/... (leading slash): swaps to PUBLIC_PAT" "$out" 
 
 # --- template/flag-value disambiguation ---
 
-# gh repo create --template anthropics/foo vade-app/new — must pick vade-app, not anthropics
-out="$("$WRAPPER" repo create --template anthropics/foo vade-app/new --public)"
-assert_contains "gh repo create --template foreign/X vade-app/Y: keeps MCP_PAT (target wins)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+# gh repo create --template anthropics/foo coo-labs/new — must pick coo-labs, not anthropics
+out="$("$WRAPPER" repo create --template anthropics/foo coo-labs/new --public)"
+assert_contains "gh repo create --template foreign/X coo-labs/Y: keeps MCP_PAT (target wins)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-# Symmetric: --template vade-app/foo venpopov/new — must pick venpopov, swap
-out="$("$WRAPPER" repo create --template vade-app/foo venpopov/new --public)"
-assert_contains "gh repo create --template vade-app/X venpopov/Y: swaps to PUBLIC_PAT (target wins)" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
+# Symmetric: --template coo-labs/foo venpopov/new — must pick venpopov, swap
+out="$("$WRAPPER" repo create --template coo-labs/foo venpopov/new --public)"
+assert_contains "gh repo create --template coo-labs/X venpopov/Y: swaps to PUBLIC_PAT (target wins)" "$out" "GH_TOKEN=PUBLIC_PAT_TESTING"
 
-# --- GITHUB_PUBLIC_PAT unset: no override even for non-vade-app ---
+# --- GITHUB_PUBLIC_PAT unset: no override even for non-coo-labs ---
 
 out="$(env -u GITHUB_PUBLIC_PAT GITHUB_MCP_PAT="$GITHUB_MCP_PAT" GH_TOKEN="$GH_TOKEN" CLAUDE_CODE_REMOTE_SESSION_ID="$CLAUDE_CODE_REMOTE_SESSION_ID" COO_GH_REAL="$WORK/gh-real" "$WRAPPER" repo fork venpopov/foo)"
 assert_contains "GITHUB_PUBLIC_PAT unset: no swap, keeps MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
@@ -353,28 +353,28 @@ export GITHUB_APP_INSTALLATION_ID="888777"
 
 # --- org-admin auto-routes ---
 
-out="$("$WRAPPER" api orgs/vade-app/issue-types)"
-assert_contains "gh api orgs/vade-app/issue-types: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+out="$("$WRAPPER" api orgs/coo-labs/issue-types)"
+assert_contains "gh api orgs/coo-labs/issue-types: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
 
-out="$("$WRAPPER" api orgs/vade-app/issue-types/123)"
-assert_contains "gh api orgs/vade-app/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+out="$("$WRAPPER" api orgs/coo-labs/issue-types/123)"
+assert_contains "gh api orgs/coo-labs/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
 
-out="$("$WRAPPER" api -X PUT orgs/vade-app/issue-types/123)"
-assert_contains "gh api -X PUT orgs/vade-app/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+out="$("$WRAPPER" api -X PUT orgs/coo-labs/issue-types/123)"
+assert_contains "gh api -X PUT orgs/coo-labs/issue-types/<id>: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
 
-out="$("$WRAPPER" api orgs/vade-app/properties/values)"
-assert_contains "gh api orgs/vade-app/properties/values: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+out="$("$WRAPPER" api orgs/coo-labs/properties/values)"
+assert_contains "gh api orgs/coo-labs/properties/values: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
 
-out="$("$WRAPPER" api orgs/vade-app/custom-repository-roles)"
-assert_contains "gh api orgs/vade-app/custom-repository-roles: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+out="$("$WRAPPER" api orgs/coo-labs/custom-repository-roles)"
+assert_contains "gh api orgs/coo-labs/custom-repository-roles: mints App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
 
 # --- non-org-admin paths stay on MCP_PAT (regression coverage) ---
 
-out="$("$WRAPPER" api orgs/vade-app/repos)"
-assert_contains "gh api orgs/vade-app/repos: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+out="$("$WRAPPER" api orgs/coo-labs/repos)"
+assert_contains "gh api orgs/coo-labs/repos: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-out="$("$WRAPPER" api repos/vade-app/vade-coo-memory)"
-assert_contains "gh api repos/vade-app/...: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+out="$("$WRAPPER" api repos/coo-labs/vade-coo-memory)"
+assert_contains "gh api repos/coo-labs/...: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
 # --- explicit opt-in via GH_USE_APP_TOKEN=1 ---
 
@@ -390,12 +390,12 @@ out="$(env -u GITHUB_APP_ID -u GITHUB_APP_INSTALLATION_ID \
   GITHUB_MCP_PAT="$GITHUB_MCP_PAT" GITHUB_PUBLIC_PAT="$GITHUB_PUBLIC_PAT" \
   GH_TOKEN="$GH_TOKEN" CLAUDE_CODE_REMOTE_SESSION_ID="$CLAUDE_CODE_REMOTE_SESSION_ID" \
   COO_GH_REAL="$WORK/gh-real" VADE_RUNTIME_DIR="$VADE_RUNTIME_DIR" \
-  "$WRAPPER" api orgs/vade-app/issue-types)"
+  "$WRAPPER" api orgs/coo-labs/issue-types)"
 assert_contains "GITHUB_APP_ID unset: org-admin path keeps MCP_PAT (no mint)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
 # --- minter failure: warn + fall back to PAT (no silent 403 swap) ---
 
-out="$(MOCK_MINTER_FAIL=1 "$WRAPPER" api orgs/vade-app/issue-types 2>&1)"
+out="$(MOCK_MINTER_FAIL=1 "$WRAPPER" api orgs/coo-labs/issue-types 2>&1)"
 assert_contains "minter failure: warns" "$out" "App-token mint failed"
 assert_contains "minter failure: falls back to MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
@@ -406,7 +406,7 @@ out="$(VADE_RUNTIME_DIR="/nonexistent-vade-runtime" \
   GITHUB_MCP_PAT="$GITHUB_MCP_PAT" GITHUB_PUBLIC_PAT="$GITHUB_PUBLIC_PAT" \
   GH_TOKEN="$GH_TOKEN" CLAUDE_CODE_REMOTE_SESSION_ID="$CLAUDE_CODE_REMOTE_SESSION_ID" \
   COO_GH_REAL="$WORK/gh-real" \
-  "$WRAPPER" api orgs/vade-app/issue-types 2>&1)"
+  "$WRAPPER" api orgs/coo-labs/issue-types 2>&1)"
 assert_contains "minter missing: warns" "$out" "minter not found"
 assert_contains "minter missing: falls back to MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 

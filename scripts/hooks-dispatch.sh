@@ -20,7 +20,7 @@
 #      the shim was installed via symlink by sync_claude_config
 #   4. readlink of /home/user/.mcp.json — the MCP-config symlink target's
 #      parent is vade-runtime (cloud case, layout-agnostic)
-#   5. $HOME/GitHub/vade-app/vade-runtime (local Mac default)
+#   5. $HOME/GitHub/coo-labs/vade-runtime (local Mac default)
 #
 # Every invocation appends one line to ~/.vade/boot.log recording which
 # rule won + whether the target script was found. Non-fatal on every
@@ -117,9 +117,9 @@ if [ -z "$RESOLVED_SCRIPT" ] && [ -L /home/user/.mcp.json ]; then
 fi
 
 # Rule 5: local Mac default
-if [ -z "$RESOLVED_SCRIPT" ] && [ -d "$HOME/GitHub/vade-app/vade-runtime" ]; then
-  if target="$(_script_for "$HOME/GitHub/vade-app/vade-runtime" "$HOOK_NAME")" && [ -n "$target" ]; then
-    RESOLVED_RUNTIME="$HOME/GitHub/vade-app/vade-runtime"
+if [ -z "$RESOLVED_SCRIPT" ] && [ -d "$HOME/GitHub/coo-labs/vade-runtime" ]; then
+  if target="$(_script_for "$HOME/GitHub/coo-labs/vade-runtime" "$HOOK_NAME")" && [ -n "$target" ]; then
+    RESOLVED_RUNTIME="$HOME/GitHub/coo-labs/vade-runtime"
     RESOLVED_RULE="mac_default"
     RESOLVED_SCRIPT="$target"
   fi

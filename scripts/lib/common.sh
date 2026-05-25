@@ -694,7 +694,7 @@ QUARTO_VERSION_DEFAULT="1.9.37"
 # /home/user/.local/ tree survives snapshot → resume). Adopted via B1
 # reframe of briefing 004-cloud-binary-vendor (docker-pull variant
 # infeasible on cloud_default; see follow-up issue).
-BINARY_VENDOR_REPO_DEFAULT="vade-app/vade-runtime"
+BINARY_VENDOR_REPO_DEFAULT="coo-labs/vade-runtime"
 BINARY_VENDOR_TAG_DEFAULT="binary-vendor-latest"
 BINARY_VENDOR_ASSET_DEFAULT="binary-vendor.tar.gz"
 # Hardcoded production fingerprints; env-overridable so the bootstrap-
@@ -1418,7 +1418,7 @@ fetch_coo_secrets() {
   fi
 
   # Cross-org public-repo PAT (classic, `public_repo` scope), used by
-  # gh-coo-wrap to route writes targeting owners outside vade-app/* to a
+  # gh-coo-wrap to route writes targeting owners outside coo-labs/* to a
   # broader-scope token. MEMO-2026-05-11-6xv2. Best-effort: missing item
   # warns and leaves GITHUB_PUBLIC_PAT unset — the wrapper falls back to
   # pass-through behavior and any cross-org write 403s with a clean
@@ -1447,7 +1447,7 @@ fetch_coo_secrets() {
     log "  WARN: op://COO/mem0-vade-coo/credential unavailable; MEM0_API_KEY will be unset (mem0-rest.sh break-glass path disabled)"
   fi
 
-  # Transcript-export pipeline (vade-app/vade-agent-logs#64). All three
+  # Transcript-export pipeline (coo-labs/vade-agent-logs#64). All three
   # are best-effort; absence disables the export hook, which writes
   # <sessionId>.export-error.txt and exits 0 (never blocks session end).
   if r2_access_key_id="$(retry 3 op read 'op://COO/r2-transcripts/access-key-id')" && [ -n "$r2_access_key_id" ]; then

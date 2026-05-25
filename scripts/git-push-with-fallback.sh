@@ -6,7 +6,7 @@
 # HTTP 403 on push (often only the second push onward of a session) and,
 # separately, substitutes a token without `workflow` scope on workflow-file
 # pushes. Pushing directly to github.com with the COO PAT is reliable.
-# See vade-app/vade-runtime#67 for the diagnostic write-up.
+# See coo-labs/vade-runtime#67 for the diagnostic write-up.
 #
 # Usage:
 #   scripts/git-push-with-fallback.sh [<git push args>...]
@@ -24,7 +24,7 @@
 # unset, the wrapper passes the original failure through with a
 # pointer at coo-bootstrap.sh.
 #
-# Credential-leak hardening (vade-app/vade-runtime#124):
+# Credential-leak hardening (coo-labs/vade-runtime#124):
 #   The fallback push targets a credential-bearing URL. To prevent the
 #   PAT from leaking into stdout or .git/config when `-u` /
 #   `--set-upstream` is present, the wrapper:
@@ -146,14 +146,14 @@ main() {
   fi
   repo_owner="${repo_path%%/*}"
 
-  # PAT selection by remote owner (MEMO-2026-05-12-22m9). vade-app/*
+  # PAT selection by remote owner (MEMO-2026-05-12-22m9). coo-labs/*
   # remotes use the fine-grained MCP PAT (default write surface);
   # other remotes use the classic public-repo PAT when available.
   # Mirrors the gh-coo-wrap routing layer for symmetric coverage —
   # `git push` to a fork at venpopov/foo would otherwise fall back
   # with the wrong PAT and re-403.
   local fallback_pat fallback_pat_name fallback_user
-  if [ "$repo_owner" != "vade-app" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
+  if [ "$repo_owner" != "coo-labs" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
     fallback_pat="$GITHUB_PUBLIC_PAT"
     fallback_pat_name="GITHUB_PUBLIC_PAT"
     fallback_user="vade-coo"

@@ -3,7 +3,7 @@
 #
 # Locks down the wrapper's contract — the bash side that holds the
 # Python child via `setsid -f` and block-waits on a marker file up to
-# VADE_TRANSCRIPT_EXPORT_BUDGET_SEC. Origin: vade-app/vade-runtime#200.
+# VADE_TRANSCRIPT_EXPORT_BUDGET_SEC. Origin: coo-labs/vade-runtime#200.
 #
 # Four asserts:
 #

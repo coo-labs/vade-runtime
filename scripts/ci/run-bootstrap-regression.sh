@@ -101,7 +101,7 @@ cat > "$COO_MEM_DST/CLAUDE.md" <<'EOF'
 
 Placeholder file so ensure_workspace_identity_link has a target and
 integrity-check C1 passes. The real CLAUDE.md lives at
-https://github.com/vade-app/vade-coo-memory/blob/main/CLAUDE.md.
+https://github.com/coo-labs/vade-coo-memory/blob/main/CLAUDE.md.
 EOF
 mkdir -p "$CORE_DST/.claude"
 

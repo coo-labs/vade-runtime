@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-git-push-fallback: unit-test the credential-leak hardening in
-# scripts/git-push-with-fallback.sh (vade-app/vade-runtime#124).
+# scripts/git-push-with-fallback.sh (coo-labs/vade-runtime#124).
 #
 # Strategy: source the wrapper's helper functions in isolation and
 # pipe-test their behavior on representative arg shapes. Also exercise
@@ -77,18 +77,18 @@ assert_eq "explicit refs/heads/ in dst" \
 
 echo "== PAT_REDACT_SED =="
 
-leak_input='branch claude/foo set up to track '"'"'https://vade-coo:github_pat_AAAA1234@github.com/vade-app/vade-runtime.git/claude/foo'"'"'.'
+leak_input='branch claude/foo set up to track '"'"'https://vade-coo:github_pat_AAAA1234@github.com/coo-labs/vade-runtime.git/claude/foo'"'"'.'
 redacted="$(printf '%s' "$leak_input" | sed -E "$PAT_REDACT_SED")"
 assert_no_match "PAT redacted from git tracking-set line" 'github_pat_' "$redacted"
 assert_eq "redacted URL has *** placeholder" \
-  "branch claude/foo set up to track 'https://vade-coo:***@github.com/vade-app/vade-runtime.git/claude/foo'." \
+  "branch claude/foo set up to track 'https://vade-coo:***@github.com/coo-labs/vade-runtime.git/claude/foo'." \
   "$redacted"
 
 multi_input='https://octocat:ghp_BBBB5678@github.com/foo/bar.git'
 redacted_multi="$(printf '%s' "$multi_input" | sed -E "$PAT_REDACT_SED")"
 assert_eq "redaction is user-agnostic" "https://octocat:***@github.com/foo/bar.git" "$redacted_multi"
 
-clean_input='https://github.com/vade-app/vade-runtime.git'
+clean_input='https://github.com/coo-labs/vade-runtime.git'
 clean_out="$(printf '%s' "$clean_input" | sed -E "$PAT_REDACT_SED")"
 assert_eq "redaction leaves clean URLs alone" "$clean_input" "$clean_out"
 
@@ -143,7 +143,7 @@ mkdir -p "$REPO"
   $REAL_GIT init -q -b main >/dev/null 2>&1
   $REAL_GIT -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
   $REAL_GIT checkout -q -b claude/test-branch
-  $REAL_GIT remote add origin "http://local_proxy@127.0.0.1:8080/git/vade-app/vade-runtime"
+  $REAL_GIT remote add origin "http://local_proxy@127.0.0.1:8080/git/coo-labs/vade-runtime"
 )
 
 # Isolate HOME so the wrapper's `lib/common.sh` doesn't source the

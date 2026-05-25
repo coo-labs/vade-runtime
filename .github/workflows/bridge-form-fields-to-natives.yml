@@ -2,14 +2,14 @@ name: Bridge issue-form widgets to native fields (reusable)
 
 # Reusable workflow that parses an issue body for `### <Label>\n\n<value>`
 # sections produced by the issue-form templates (`task.yml`, `bug.yml`, etc.
-# in vade-app/vade-coo-memory and mirrored across the four primary repos)
+# in coo-labs/vade-coo-memory and mirrored across the four primary repos)
 # and writes the corresponding native Issue field values via the
 # `setIssueFieldValue` GraphQL mutation.
 #
 # Called from per-repo trigger workflows (`bridge-form-fields-trigger.yml`)
 # in vade-coo-memory / vade-runtime / vade-core / vade-agent-logs.
 #
-# Canonical design: vade-app/vade-coo-memory#811 + MEMO-2026-05-21-xfqh.
+# Canonical design: coo-labs/vade-coo-memory#811 + MEMO-2026-05-21-xfqh.
 # Pinning matrix + field IDs: coo/operations/issue-fields-and-types.md.
 #
 # Fires only on `issues.opened` (one-shot bridging at creation time).
@@ -26,9 +26,9 @@ name: Bridge issue-form widgets to native fields (reusable)
 #     secret slot needs the new value pasted in too (third rotation
 #     surface; see MEMO-2026-05-21-zf7d).
 #
-# Cross-repo workflow access requires vade-app/vade-runtime's
+# Cross-repo workflow access requires coo-labs/vade-runtime's
 # Settings → Actions → General → Access set to
-# "Accessible from repositories in the 'vade-app' organization".
+# "Accessible from repositories in the 'coo-labs' organization".
 
 on:
   workflow_call:
@@ -38,7 +38,7 @@ on:
         type: number
         required: true
       repo-full-name:
-        description: Full owner/repo of the calling repository (e.g. vade-app/vade-coo-memory).
+        description: Full owner/repo of the calling repository (e.g. coo-labs/vade-coo-memory).
         type: string
         required: true
       dry-run:
@@ -62,7 +62,7 @@ jobs:
       - name: Checkout vade-runtime (script source)
         uses: actions/checkout@v4
         with:
-          repository: vade-app/vade-runtime
+          repository: coo-labs/vade-runtime
           ref: main
 
       - name: Run bridge

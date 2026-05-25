@@ -12,7 +12,7 @@ ensure_dirs
 
 install_deps /workspace
 
-# gh CLI for COO attribution fallback (see vade-app/vade-runtime#36 and
+# gh CLI for COO attribution fallback (see coo-labs/vade-runtime#36 and
 # ensure_gh_cli in lib/common.sh). No-op if gh is already present
 # (local macOS via brew is common). Non-fatal on failure.
 ensure_gh_cli || log "Warning: gh CLI install failed; continuing without the attribution fallback."

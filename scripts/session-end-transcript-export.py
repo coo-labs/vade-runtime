@@ -4,7 +4,7 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-session-end-transcript-export.py — vade-app/vade-agent-logs#64 Batch 2.
+session-end-transcript-export.py — coo-labs/vade-agent-logs#64 Batch 2.
 
 Active component of the Stop-hook chain. Runs after a Claude Code
 session ends; never blocks session end.
@@ -649,7 +649,7 @@ def _open_meta_pr(
                 "pr",
                 "create",
                 "-R",
-                "vade-app/vade-agent-logs",
+                "coo-labs/vade-agent-logs",
                 "--base",
                 "main",
                 "--head",

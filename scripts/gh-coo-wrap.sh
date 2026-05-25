@@ -62,14 +62,14 @@ SESSION_URL=""
 # expanded by MEMO-2026-05-12-22m9 — coverage extension to positional
 # repo args and `gh api` URL paths).
 #
-# `$GITHUB_MCP_PAT` is fine-grained, scoped to vade-app/* — the default
+# `$GITHUB_MCP_PAT` is fine-grained, scoped to coo-labs/* — the default
 # bounded write surface. `$GITHUB_PUBLIC_PAT` is a classic PAT with
 # `public_repo` scope, provisioned for writes to public repos outside
-# vade-app/* (anthropics/claude-code, upstream skill repos, etc).
+# coo-labs/* (anthropics/claude-code, upstream skill repos, etc).
 #
-# Routing: if any covered surface in argv names an owner != vade-app
+# Routing: if any covered surface in argv names an owner != coo-labs
 # AND $GITHUB_PUBLIC_PAT is set, swap GH_TOKEN to the public PAT for
-# this invocation. vade-app/* and unrecognized-shape invocations pass
+# this invocation. coo-labs/* and unrecognized-shape invocations pass
 # through unchanged.
 #
 # Covered surfaces:
@@ -297,7 +297,7 @@ is_org_admin_api() {
 # Routing precedence:
 #   1. GH_USE_APP_TOKEN=1 → mint App token (explicit opt-in; for GraphQL).
 #   2. `gh api <org-admin-path>` → mint App token (auto).
-#   3. owner != vade-app + GITHUB_PUBLIC_PAT → public PAT (cross-org).
+#   3. owner != coo-labs + GITHUB_PUBLIC_PAT → public PAT (cross-org).
 #   4. default → $GITHUB_MCP_PAT via gh's auth context (no override here).
 #
 # App-token routing is attempted only when GITHUB_APP_ID is set in env
@@ -327,7 +327,7 @@ if [ -n "${GITHUB_APP_ID:-}" ] && { [ "${GH_USE_APP_TOKEN:-0}" = "1" ] || is_org
 else
   target_owner="$(extract_owner "$@")"
   [ -z "$target_owner" ] && target_owner="$(extract_owner_positional "$@")"
-  if [ -n "$target_owner" ] && [ "$target_owner" != "vade-app" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
+  if [ -n "$target_owner" ] && [ "$target_owner" != "coo-labs" ] && [ -n "${GITHUB_PUBLIC_PAT:-}" ]; then
     export GH_TOKEN="$GITHUB_PUBLIC_PAT"
   fi
 fi

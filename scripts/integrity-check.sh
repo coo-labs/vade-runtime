@@ -864,8 +864,8 @@ if [ -n "${COO_MEMORY_DIR:-}" ]; then
   F_REPO="$COO_MEMORY_DIR"
 elif [ -d "$WORKSPACE_ROOT/vade-coo-memory" ]; then
   F_REPO="$WORKSPACE_ROOT/vade-coo-memory"
-elif [ -d "$HOME/GitHub/vade-app/vade-coo-memory" ]; then
-  F_REPO="$HOME/GitHub/vade-app/vade-coo-memory"
+elif [ -d "$HOME/GitHub/coo-labs/vade-coo-memory" ]; then
+  F_REPO="$HOME/GitHub/coo-labs/vade-coo-memory"
 else
   F_REPO="/home/user/vade-coo-memory"
 fi
@@ -1041,7 +1041,7 @@ if [ -d "$F_REPO/.git" ] && check_cmd git; then
     fi
     if [ -n "$pr_num" ] && check_cmd gh; then
       pr_body=$(GH_TOKEN="${GITHUB_MCP_PAT:-${GH_TOKEN:-}}" \
-        gh api "repos/vade-app/vade-coo-memory/pulls/$pr_num" \
+        gh api "repos/coo-labs/vade-coo-memory/pulls/$pr_num" \
         --jq '.body' 2>/dev/null || true)
       if printf '%s' "$pr_body" | grep -q 'ven-human-action:'; then
         continue

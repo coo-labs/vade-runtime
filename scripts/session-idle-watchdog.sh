@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# session-idle-watchdog.sh — vade-app/vade-agent-logs#67.
+# session-idle-watchdog.sh — coo-labs/vade-agent-logs#67.
 #
 # Background daemon that fires the mechanical session-end protocol when
 # a Claude Code session goes idle without an explicit Stop. Solves the
@@ -359,7 +359,7 @@ cmd_close() {
     echo "open threads — so adoption-tracker grep paths still resolve."
     echo
     echo "Authoring this stub: \`vade-runtime/scripts/session-idle-watchdog.sh\`"
-    echo "(vade-app/vade-agent-logs#67)."
+    echo "(coo-labs/vade-agent-logs#67)."
   } > "$stub_path"
   log "wrote stub session log: $stub_path"
 
@@ -451,7 +451,7 @@ _resolve_agent_logs_dir() {
     printf '%s\n' "$VADE_AGENT_LOGS_DIR"; return 0
   fi
   for cand in \
-    "$HOME/GitHub/vade-app/vade-agent-logs" \
+    "$HOME/GitHub/coo-labs/vade-agent-logs" \
     "/home/user/vade-agent-logs" \
     "$RUNTIME_ROOT/../vade-agent-logs"; do
     if [ -d "$cand" ]; then printf '%s\n' "$cand"; return 0; fi
@@ -613,7 +613,7 @@ _git_commit_and_push() {
 
   local msg_subject msg_body commit_rc
   msg_subject="watchdog: idle close for ${session_id}"
-  msg_body=$'Mechanical session-end protocol fired by\nvade-runtime/scripts/session-idle-watchdog.sh — the interactive COO\ndid not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\nvade-app/vade-agent-logs#67'
+  msg_body=$'Mechanical session-end protocol fired by\nvade-runtime/scripts/session-idle-watchdog.sh — the interactive COO\ndid not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\ncoo-labs/vade-agent-logs#67'
 
   if git -C "$repo" -c commit.gpgsign=false commit \
        -m "$msg_subject" -m "$msg_body" >>"$WATCHDOG_LOG" 2>&1; then
@@ -682,7 +682,7 @@ main() {
       ;;
     -h|--help|help)
       cat <<'EOF'
-session-idle-watchdog.sh — vade-app/vade-agent-logs#67.
+session-idle-watchdog.sh — coo-labs/vade-agent-logs#67.
 
 Usage:
   session-idle-watchdog.sh --start

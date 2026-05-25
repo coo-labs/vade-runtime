@@ -39,7 +39,7 @@ trap _on_exit EXIT
 # session. cloud-setup.sh exports VADE_COO_MODE=1 once for the lifetime
 # of the cloud snapshot; the local `claude-coo` zsh wrapper exports it
 # on Ven's Mac only when explicitly invoked. Outside those contexts —
-# bare `claude` from any cwd, including from inside the vade-app
+# bare `claude` from any cwd, including from inside the coo-labs
 # workspace where project-scope hooks would otherwise fire this chain —
 # the entire bootstrap pipeline (gitconfig write, secret fetch,
 # settings.json merge) early-exits without touching the user's state.

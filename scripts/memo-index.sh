@@ -25,7 +25,7 @@ CANDIDATES=(
   "$SELF_DIR/../../vade-coo-memory"     # runtime/scripts → workspace → vade-coo-memory
   "${CLAUDE_PROJECT_DIR:-}/../vade-coo-memory"
   "${CLAUDE_PROJECT_DIR:-}/vade-coo-memory"
-  "$HOME/GitHub/vade-app/vade-coo-memory"
+  "$HOME/GitHub/coo-labs/vade-coo-memory"
   "/home/user/vade-coo-memory"
 )
 
