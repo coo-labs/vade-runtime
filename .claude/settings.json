@@ -268,7 +268,9 @@
       "Bash(cp /home/user/vade-runtime/.claude/settings.json /home/user/.claude/settings.json && diff /home/user/.claude/settings.json /home/user/vade-runtime/.claude/settings.json && echo \"sync OK\")",
       "Edit(/tmp/**)",
       "Write(/tmp/**)",
-      "Read(/tmp/**)"
+      "Read(/tmp/**)",
+      "Bash(jq '.permissions.allow |= map\\(select\\(\\(. | contains\\(\"vade-canvas\"\\) | not\\) and \\(. | contains\\(\"canvas-\"\\) | not\\)\\)\\)' .claude/settings.json)",
+      "Bash(mv .claude/settings.json.tmp .claude/settings.json)"
     ],
     "additionalDirectories": [
       "/tmp"
