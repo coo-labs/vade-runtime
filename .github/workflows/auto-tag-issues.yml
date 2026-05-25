@@ -25,7 +25,9 @@ permissions:
 
 jobs:
   tag:
-    uses: vade-app/vade-coo-memory/.github/workflows/auto-tag-issues-reusable.yml@main
+    # Same-repo call uses relative path (see coo-on-assign.yml note).
+    # External consumers use: vade-app/vade-runtime/.github/workflows/auto-tag-issues-reusable.yml@main
+    uses: ./.github/workflows/auto-tag-issues-reusable.yml
     with:
       issue-number: ${{ github.event.issue.number || inputs.issue_number }}
       mode: ${{ github.event_name == 'workflow_dispatch' && 'full' || 'gapfill' }}

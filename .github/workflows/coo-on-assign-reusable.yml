@@ -1,0 +1,155 @@
+name: COO on issue assign (reusable)
+
+# Reusable workflow: posts a pre-fill claude.ai/code launch URL on the
+# assigned issue when the new assignee is vade-coo. Called from per-repo
+# thin trigger workflows at `.github/workflows/coo-on-assign.yml`.
+#
+# Canonical home: vade-app/vade-runtime/.github/workflows/coo-on-assign-reusable.yml
+# Centralization design: vade-coo-memory#939 (F7); moved to vade-runtime
+# (public) per #939 comment because Public→Private workflow_call resolution
+# fails despite access_level=organization on the target.
+# Operations doc: vade-app/vade-coo-memory:coo/operations/workflow-centralization.md
+# Workflow rationale: vade-app/vade-coo-memory:coo/operations/coo-on-assign.md
+#
+# COO_SCOPE_REPOS maintenance: edit the list in this file once; all
+# consumer thin triggers pick up the change at next assignment event.
+# This file replaces the prior workflow-sync convention that required
+# N-PR fanout per change.
+#
+# Trigger contract for callers:
+#   on: issues
+#     types: [assigned]
+#   permissions:
+#     issues: write
+#     contents: read
+#   jobs:
+#     <name>:
+#       uses: vade-app/vade-runtime/.github/workflows/coo-on-assign-reusable.yml@main
+#       secrets: inherit
+
+on:
+  workflow_call:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  # Scope per (repo, issue, assignee). The repo prefix prevents cross-repo
+  # collisions on issue numbers; concurrent assigns of different users to
+  # the same issue don't serialize (the assignee gate filters anyway), but
+  # rapid re-assigns of vade-coo to the same issue queue.
+  group: coo-on-assign-${{ github.repository }}-${{ github.event.issue.number }}-${{ github.event.assignee.login }}
+  cancel-in-progress: false
+
+jobs:
+  post-launch-link:
+    # Gate: only fire when the user that was just assigned is vade-coo.
+    # `github.event.assignee` is the user added by THIS event (distinct
+    # from `github.event.issue.assignees`, the full current list).
+    if: ${{ github.event.assignee.login == 'vade-coo' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build pre-fill URL and post launch comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const repoSlug = `${owner}/${repo}`;
+
+            // --- Boot prompt template -------------------------------
+            // Refinement of the draft proposal in vade-app/vade-coo-memory#801.
+            // Notes:
+            //  - flat numbered/lettered list, no nested indentation —
+            //    template-literal preserves leading whitespace and YAML
+            //    indent stripping would otherwise leak spaces into the
+            //    prompt body.
+            //  - Readiness-field branch (3a/3b/3c) routes on the
+            //    native Readiness field so the instance doesn't
+            //    re-derive scope per-issue.
+            //  - "Ven is not at the keyboard" framing is explicit so
+            //    the instance briefs instead of asking when it would
+            //    have asked interactively.
+            //  - issue.title leads the prompt so claude.ai/code's
+            //    auto-naming heuristic surfaces the issue title as the
+            //    session name. There is no documented session-name
+            //    URL parameter — the pre-fill spec lists only
+            //    prompt / prompt_url / repositories / environment
+            //    (https://code.claude.com/docs/en/web-quickstart#pre-fill-sessions).
+            //    Leading the prompt with the title is the only lever.
+            const prompt = [
+              issue.title,
+              ``,
+              `You are the VADE COO agent, opening a fresh cloud session by GitHub assignment, not by Ven sitting at the keyboard. Treat this as async.`,
+              ``,
+              `1. Boot first per CLAUDE.md — read every numbered step in the session-start reading order, not just the ones that seem most relevant to the task below. The list includes integrity gate (1), persisted-output gate (1b), charter (2), governance (3), preferences (4), identity layer (5), episodic memory (6), memo digest (7), lineage events (7b), project board (8), mem0_sop (9), context README (12), operational Mem0 search (13), discussions digest (14). Skipping items because the parenthetical or this prompt seemed to enumerate a shorter set is the exact regression this language replaces. Greet briefly.`,
+              `2. Read the assigning issue: ${issue.html_url}. Read its issue type, Readiness/Priority field values, labels, milestone, comments, and any cross-referenced issues / PRs.`,
+              `3. Branch by the issue's Readiness field.`,
+              `3a. Readiness=Ready (or unset on a well-scoped body): implement autonomously. Open a PR when the change is complete and the verification steps in the issue (or your judgement of equivalent steps) have run green. Auto-subscribe per the PR-watch discipline in CLAUDE.md. Stand by for review.`,
+              `3b. Readiness ∈ {Needs design, Needs research, Needs breakdown}, or any clarification-shaped signal in the body: do preliminary reconnaissance, draft a plan, then post a brief comment on the issue (or open a discussion thread for larger scope) that names what you understood, what the design space is, which decisions Ven needs to make, and your recommendation. Stop after the brief — wait for Ven.`,
+              `3c. needs:bdfl-approval label: never merge autonomously. Always brief, never autonomous, regardless of the Readiness value.`,
+              `4. When the task above is complete, stand by — do not proactively invoke /end-session or otherwise wrap. Async sessions stay idle until Ven re-engages or the idle-watchdog runs mechanical session-close. End-of-session is a Ven-trigger or watchdog-trigger in this context, NOT an agent-initiated one. Wrapping prematurely after a brief means the session is unavailable when Ven arrives to continue.`,
+              ``,
+              `Ven is not currently at the keyboard at session start. Don't expect interactive clarification mid-task; if you would have asked, brief instead. But Ven may engage at any time — if a message arrives mid-session, switch to interactive mode and continue.`,
+            ].join('\n');
+
+            // --- Compose the pre-fill URL ---------------------------
+            // URLSearchParams handles percent-encoding (incl. multi-line
+            // newlines as %0A) for both prompt and repositories. No
+            // `environment` param at MVP — Ven's last-used env is sticky.
+            //
+            // Pre-select ALL ten vade-app/* repos the COO has scope on.
+            // The boot pass (coo-bootstrap.sh, integrity-check, identity
+            // layer reads) cross-references files across these repos; a
+            // session attached to only the assigning repo fails boot.
+            // The assigning repo goes first so it's the obvious primary
+            // in the form's repo selector.
+            //
+            // When a vade-app/* repo is added/renamed/archived/deleted,
+            // update THIS LIST in the canonical reusable. Consumer thin
+            // triggers pick up the change automatically.
+            const COO_SCOPE_REPOS = [
+              'vade-app/vade-coo-memory',
+              'vade-app/vade-core',
+              'vade-app/vade-runtime',
+              'vade-app/vade-agent-logs',
+              'vade-app/skills',
+              'vade-app/coo4one',
+              'vade-app/vade-site',
+              'vade-app/tjsonl',
+              'vade-app/coo-console',
+            ];
+            const repositories = [
+              repoSlug,
+              ...COO_SCOPE_REPOS.filter(r => r !== repoSlug),
+            ].join(',');
+
+            const params = new URLSearchParams({
+              prompt,
+              repositories,
+            });
+            const launchUrl = `https://claude.ai/code?${params.toString()}`;
+
+            // --- Comment body ---------------------------------------
+            const body = [
+              `I've been assigned this issue. To launch a cloud COO session with the boot prompt + issue context pre-loaded:`,
+              ``,
+              `[**Launch COO session →**](${launchUrl})`,
+              ``,
+              `The session opens when you click — claude.ai/code needs a signed-in human (you) to spawn the container. Re-assign me to post a fresh link (e.g. after a session ends or gets stuck).`,
+              ``,
+              `---`,
+              `<sub>posted by \`coo-on-assign\` workflow · design: vade-app/vade-coo-memory#801 · [operations doc](https://github.com/vade-app/vade-coo-memory/blob/main/coo/operations/coo-on-assign.md)</sub>`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body,
+            });
+
+            core.info(`Posted launch comment on ${repoSlug}#${issue.number}`);
+            core.info(`Launch URL length: ${launchUrl.length} chars`);
