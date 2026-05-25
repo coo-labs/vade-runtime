@@ -24,5 +24,9 @@ permissions:
 
 jobs:
   post-launch-link:
-    uses: vade-app/vade-coo-memory/.github/workflows/coo-on-assign-reusable.yml@main
+    # Same-repo call uses relative path (no ref) per GitHub docs:
+    # https://docs.github.com/en/actions/sharing-automations/reusing-workflows#calling-a-reusable-workflow
+    # — resolves the reusable from the same commit as the caller.
+    # External consumers use: vade-app/vade-runtime/.github/workflows/coo-on-assign-reusable.yml@main
+    uses: ./.github/workflows/coo-on-assign-reusable.yml
     secrets: inherit

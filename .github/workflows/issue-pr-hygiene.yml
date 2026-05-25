@@ -28,7 +28,9 @@ permissions:
 
 jobs:
   hygiene:
-    uses: vade-app/vade-coo-memory/.github/workflows/issue-pr-hygiene-reusable.yml@main
+    # Same-repo call uses relative path (see coo-on-assign.yml note).
+    # External consumers use: vade-app/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml@main
+    uses: ./.github/workflows/issue-pr-hygiene-reusable.yml
     with:
       pattern-b-mode: advisory
     secrets: inherit

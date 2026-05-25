@@ -16,5 +16,7 @@ permissions:
 
 jobs:
   add:
-    uses: vade-app/vade-coo-memory/.github/workflows/auto-add-prs-to-project-reusable.yml@main
+    # Same-repo call uses relative path (see coo-on-assign.yml note).
+    # External consumers use: vade-app/vade-runtime/.github/workflows/auto-add-prs-to-project-reusable.yml@main
+    uses: ./.github/workflows/auto-add-prs-to-project-reusable.yml
     secrets: inherit
