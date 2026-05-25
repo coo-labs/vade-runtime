@@ -154,21 +154,79 @@ When asked to tag a new issue, run this in order:
 
 ## Search recipes — "what should I work on?"
 
-Native fields are searchable as first-class GitHub search
-qualifiers (case-insensitive on org-level Issue-field entities).
-Find issues a coding agent can take:
+**Layer rule** (canonical: [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface"): issue fields live on a dedicated REST endpoint (`/repos/<o>/<r>/issues/<n>/issue-field-values`), not on the search API. GitHub issue-search qualifiers (`gh issue list --search`) honor `type:<Type>` but **do not** honor `readiness:*` / `priority:*` / `effort:*` — those silently fall back to text matching and return wrong results. Filter on issue-field values via REST iteration or the project board, not via `--search`.
+
+What works on `--search`:
+- `type:<Type>` — native issue type (works since 2026-03)
+- `label:<label>` — labels
+- `milestone:<title>` — milestones
+- All standard qualifiers (`is:open`, `assignee:`, `author:`, etc.)
+
+What does NOT work on `--search`:
+- `readiness:<value>`, `priority:<value>`, `effort:<value>` — silently fuzzy-match issue body text; results are wrong
+- Any non-type issue-field qualifier
+
+### Find issues a coding agent can take (Readiness=Ready)
+
+GraphQL — one query per repo, return number+title for all Ready issues:
 
 ```bash
-gh issue list --repo coo-labs/coo-memory \
-  --search "readiness:Ready" --state open
+gh api graphql -f query='
+  query($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) {
+      issues(first: 100, states: OPEN) {
+        nodes {
+          number title
+          issueFieldValues(first: 25) {
+            nodes {
+              ... on IssueFieldSingleSelectValue {
+                name
+                field { ... on IssueFieldCommon { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }' -F owner=coo-labs -F repo=coo-memory \
+  --jq '.data.repository.issues.nodes
+        | map(select(.issueFieldValues.nodes
+                     | any(.field.name == "Readiness" and .name == "Ready")))
+        | .[] | "#\(.number) \(.title)"'
 ```
 
-Find the research queue:
+REST per-issue is the fallback when GraphQL paging is awkward (>100 open):
 
 ```bash
-gh issue list --repo coo-labs/coo-memory \
-  --search "readiness:'Needs research'" --state open
+REPO=coo-labs/coo-memory; READINESS_FIELD_ID=42387399
+for n in $(gh issue list --repo $REPO --state open --limit 500 --json number --jq '.[].number'); do
+  v=$(gh api repos/$REPO/issues/$n/issue-field-values 2>/dev/null \
+    | jq -r ".[] | select(.issue_field_id == $READINESS_FIELD_ID) | .single_select_option.name // empty")
+  [ "$v" = "Ready" ] && echo "#$n"
+done
 ```
+
+Field IDs (from canonical ops doc): Priority `41357630`, Effort `41357633`, Readiness `42387399`. See [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface" for the full table + REST shape gotchas.
+
+### Find the research queue (Readiness="Needs research")
+
+Same GraphQL shape — substitute `.name == "Ready"` → `.name == "Needs research"`.
+
+### Find Feature-typed work that's Ready
+
+Combine `type:` (works on `--search`) with the field check (GraphQL or REST):
+
+```bash
+gh issue list --repo coo-labs/coo-memory --search "type:Feature" --state open \
+  --json number --jq '.[].number' \
+  | while read n; do
+      v=$(gh api repos/coo-labs/coo-memory/issues/$n/issue-field-values 2>/dev/null \
+        | jq -r '.[] | select(.issue_field_id == 42387399) | .single_select_option.name // empty')
+      [ "$v" = "Ready" ] && echo "#$n"
+    done
+```
+
+### Label-based filters (these still use `--search` / `--label`)
 
 Blocked on BDFL (anywhere):
 
@@ -178,13 +236,6 @@ for r in coo-memory coo-harness vade-canvas coo-logs; do
 done
 ```
 
-Issues that need breakdown before anyone picks them up:
-
-```bash
-gh issue list --repo coo-labs/<repo> \
-  --search "readiness:'Needs breakdown'" --state open
-```
-
 Active work in a specific area across repos:
 
 ```bash
@@ -192,18 +243,6 @@ for r in coo-memory coo-harness vade-canvas coo-logs; do
   gh issue list --repo coo-labs/$r --label "area:memory" --state open
 done
 ```
-
-Ready feature work in vade-canvas:
-
-```bash
-gh issue list --repo coo-labs/vade-canvas \
-  --search "type:Feature readiness:Ready" --state open
-```
-
-The `priority:` qualifier does not yet resolve in `gh issue list
---search` (REST/GraphQL only). Use the side-panel Priority filter
-on the project board, or `gh api graphql -f query='{ ... issueFieldValues ... }'`
-for programmatic access.
 
 ## Routing hints (for future agent routers)
 
