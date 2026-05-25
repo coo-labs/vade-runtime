@@ -10,9 +10,7 @@
 # aggregate_workspace_claude_config in scripts/lib/common.sh). Keep
 # coo-harness first — its plumbing primitives shouldn't lose to a
 # same-named primitive in a data repo.
-#
-# Post-F11 (coo-harness#313, MEMO-2026-05-24-q3tk): vade-core / canvas
-# primitives are out of scope and intentionally not listed.
+
 repos:
   - coo-harness
   - coo-memory
