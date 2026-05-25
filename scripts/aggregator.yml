@@ -1,0 +1,18 @@
+# Repos whose .claude/ subdirectory aggregates into the workspace .claude/.
+#
+# Add a repo here to formally join the boot surface (its slash commands,
+# agents, skills, and hooks become discoverable from any cwd under the
+# workspace). The aggregator is invoked from cloud-setup.sh,
+# session-start-sync.sh, and local-setup.sh; all three resolve entries
+# below relative to $WORKSPACE_ROOT at call time.
+#
+# Order matters: first-source-wins on name conflicts (per
+# aggregate_workspace_claude_config in scripts/lib/common.sh). Keep
+# coo-harness first — its plumbing primitives shouldn't lose to a
+# same-named primitive in a data repo.
+#
+# Post-F11 (coo-harness#313, MEMO-2026-05-24-q3tk): vade-core / canvas
+# primitives are out of scope and intentionally not listed.
+repos:
+  - coo-harness
+  - coo-memory

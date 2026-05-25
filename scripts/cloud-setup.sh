@@ -56,9 +56,12 @@ ensure_hooks_dispatch_shim "$RUNTIME_DIR/.claude" "$WORKSPACE_ROOT/.claude"
 # user-scope .claude/ via per-file symlinks. Per the data-ownership
 # rule (MEMO 2026-04-25-02), slash commands and skills live in the
 # repo whose data they manipulate; the aggregator surfaces them at
-# user-scope so they're invokable from any session cwd.
+# user-scope so they're invokable from any session cwd. Repo list is
+# loaded from scripts/aggregator.yml so future joins are a config
+# edit, not a script change (coo-memory#952).
+mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$HOME/.claude" \
-  coo-harness coo-memory
+  "${_AGGREGATOR_REPOS[@]}"
 ensure_workspace_mcp_config "$RUNTIME_DIR/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
 ensure_workspace_identity_link "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
