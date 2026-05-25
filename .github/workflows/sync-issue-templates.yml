@@ -25,14 +25,20 @@ name: Sync issue templates
 # (coo-harness#321). Consumer list is read at job-time from
 # coo-labs/.github/repos.yaml (the F17 canonical registry); the previous
 # .github/sync.yml + drift-check were vestigial after the action removal.
+#
+# Trigger-path principle (coo-harness#320): fire on output changes (the
+# templates) only — not on implementation changes (this workflow file or
+# the sync script). Implementation edits should be tested via
+# workflow_dispatch with dry_run=true, not by force-merging through 8
+# consumer repos. The original incident: vrt#319's second sync wave at
+# 2026-05-25T10:44 fired purely on a workflow-file edit during the F9
+# rename (a no-content change), opening 8 live PRs across consumers.
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/workflows/sync-issue-templates.yml'
-      - 'scripts/sync-templates-to-consumers.sh'
   workflow_dispatch:
     inputs:
       dry_run:
