@@ -3,8 +3,8 @@
 #
 # Drives the full snapshot-build → session-resume cycle in fake-env mode:
 #
-#   1. Stage a cloud-style workspace at $VADE_CI_WORKSPACE_ROOT/{vade-runtime,
-#      vade-coo-memory,vade-core} from the PR checkout.
+#   1. Stage a cloud-style workspace at $VADE_CI_WORKSPACE_ROOT/{coo-harness,
+#      coo-memory,vade-canvas} from the PR checkout.
 #   2. Generate fixture SSH keys + their fingerprints; export them so
 #      install_coo_ssh_keys' fingerprint check passes.
 #   3. Install PATH-shadowed mocks for `op` and `curl` (latter only
@@ -34,13 +34,13 @@
 #
 # Invariants the suite covers correspond 1:1 to integrity-check.sh
 # Groups A–F. E1–E4 (live MCP probes) skip in CI by design; F1–F4 skip
-# cleanly because the staged vade-coo-memory is a stub without .git.
+# cleanly because the staged coo-memory is a stub without .git.
 #
 # Locally invokable: `bash scripts/ci/run-bootstrap-regression.sh .`
-# from a vade-runtime checkout. Set VADE_CI_WORKSPACE_ROOT to a
+# from a coo-harness checkout. Set VADE_CI_WORKSPACE_ROOT to a
 # scratch path (e.g. /tmp/vade-ci-workspace) when running locally to
 # avoid clobbering production /home/user/ working trees. SOURCE_DIR
-# must NOT be the same as $VADE_CI_WORKSPACE_ROOT/vade-runtime — the
+# must NOT be the same as $VADE_CI_WORKSPACE_ROOT/coo-harness — the
 # stage step `rm -rf`s the destination first.
 set -euo pipefail
 
@@ -49,7 +49,7 @@ SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 WORKSPACE_ROOT="${VADE_CI_WORKSPACE_ROOT:-/home/user}"
 RUNTIME_DST="$WORKSPACE_ROOT/coo-harness"
-COO_MEM_DST="$WORKSPACE_ROOT/vade-coo-memory"
+COO_MEM_DST="$WORKSPACE_ROOT/coo-memory"
 CORE_DST="$WORKSPACE_ROOT/vade-canvas"
 
 TEST_HOME="${VADE_CI_TEST_HOME:-/tmp/vade-ci-home}"
@@ -97,7 +97,7 @@ rm -rf "$WORKSPACE_ROOT/CLAUDE.md" "$WORKSPACE_ROOT/.mcp.json" \
        "$WORKSPACE_ROOT/.vade-cloud-state"
 mkdir -p "$COO_MEM_DST/coo" "$COO_MEM_DST/identity"
 cat > "$COO_MEM_DST/CLAUDE.md" <<'EOF'
-# vade-coo-memory CLAUDE.md (CI bootstrap-regression stub)
+# coo-memory CLAUDE.md (CI bootstrap-regression stub)
 
 Placeholder file so ensure_workspace_identity_link has a target and
 integrity-check C1 passes. The real CLAUDE.md lives at
