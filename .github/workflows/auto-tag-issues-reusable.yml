@@ -9,7 +9,7 @@ name: Auto-tag new issues (reusable)
 # so private + public consumers can both invoke (Public→Private workflow_call
 # resolution fails despite access_level=organization; bridge-form-fields-to-natives.yml
 # is the live in-org precedent for "public canonical, mixed consumers").
-# Operations doc: coo-labs/vade-coo-memory:coo/operations/workflow-centralization.md
+# Operations doc: coo-labs/vade-coo-memory/coo/operations/workflow-centralization.md
 # Canonical taxonomy: https://github.com/coo-labs/vade-coo-memory/blob/main/coo/label_taxonomy.md
 # Canonical fields:   https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/issue-fields-and-types.md
 # Canonical project:  https://github.com/orgs/coo-labs/projects/1 (VADE)
