@@ -477,6 +477,63 @@ _sync_claude_subdir() {
   done
 }
 
+# Print the list of repos to aggregate, one per line.
+#
+# Reads coo-harness/scripts/aggregator.yml (a flat YAML list under
+# the `repos:` key). Falls back to the hardcoded default
+# `coo-harness coo-memory` if the manifest is missing or unparseable,
+# preserving back-compat with pre-aggregator-config snapshots and
+# unblocking CI runs that stage a sandbox without the manifest.
+#
+# Resolves the manifest path from this file's location (one dir up
+# from lib/common.sh), not from $WORKSPACE_ROOT or a caller-supplied
+# $RUNTIME_DIR, so the manifest travels with the boot kernel
+# (coo-harness) and the helper is callable from any of cloud-setup.sh,
+# session-start-sync.sh, or local-setup.sh without extra wiring.
+#
+# Prefers yq when present (already on the Ubuntu runner and cloud
+# image); falls back to an awk parse that recognises `- name` entries
+# under a `repos:` key. The awk path tolerates leading whitespace and
+# inline `# comment` suffixes, but it intentionally does NOT support
+# flow-style sequences (`repos: [a, b]`) — keep the file block-style.
+load_aggregator_repos() {
+  # Resolve sibling-of-common.sh: this file lives at coo-harness/scripts/lib/,
+  # so the manifest is one directory up. Independent of caller's $RUNTIME_DIR
+  # / $SCRIPT_DIR so the helper works from cloud-setup, session-start-sync,
+  # and local-setup without each having to set RUNTIME_DIR.
+  local manifest="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/aggregator.yml"
+  if [ ! -f "$manifest" ]; then
+    log_err "  warn: aggregator manifest not found at $manifest; falling back to default repo list"
+    printf '%s\n' coo-harness coo-memory
+    return 0
+  fi
+  local repos=""
+  if check_cmd yq; then
+    repos="$(yq -r '.repos[]' "$manifest" 2>/dev/null || true)"
+  fi
+  if [ -z "$repos" ]; then
+    # Awk fallback: walk the file, capture `- entry` lines that follow
+    # the `repos:` key, stop on the next top-level key or EOF.
+    repos="$(awk '
+      /^[[:space:]]*#/ { next }
+      /^repos:[[:space:]]*$/ { in_block=1; next }
+      in_block && /^[^[:space:]-]/ { in_block=0 }
+      in_block && /^[[:space:]]*-[[:space:]]*/ {
+        sub(/^[[:space:]]*-[[:space:]]*/, "")
+        sub(/[[:space:]]*#.*$/, "")
+        sub(/[[:space:]]+$/, "")
+        if (length($0) > 0) print
+      }
+    ' "$manifest" 2>/dev/null || true)"
+  fi
+  if [ -z "$repos" ]; then
+    log_err "  warn: aggregator manifest at $manifest parsed empty; falling back to default repo list"
+    printf '%s\n' coo-harness coo-memory
+    return 0
+  fi
+  printf '%s\n' "$repos"
+}
+
 # Aggregate per-repo .claude/{commands,agents,skills,hooks} into the
 # workspace .claude/ via per-file symlinks.
 #
@@ -498,6 +555,11 @@ _sync_claude_subdir() {
 #   dst_root        — where the aggregated .claude/ should land. On cloud
 #                     this is $HOME/.claude (user-scope); on local this is
 #                     $WORKSPACE_ROOT/.claude (project-scope).
+#   repo1, ...      — repo directory names under workspace_root. The
+#                     canonical source for this list is the manifest at
+#                     coo-harness/scripts/aggregator.yml (see
+#                     load_aggregator_repos); callers should read it from
+#                     there rather than hardcoding repo names.
 aggregate_workspace_claude_config() {
   local workspace_root="$1"; shift
   local dst_root="$1"; shift

@@ -47,9 +47,12 @@ sync_claude_config "$SCRIPT_DIR/../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
 # data-ownership rule (MEMO 2026-04-25-02), slash commands and skills
 # live in the repo whose data they manipulate; the aggregator surfaces
 # them at the workspace .claude/ so they're invokable from any cwd
-# under the workspace.
+# under the workspace. Repo list is loaded from
+# scripts/aggregator.yml so future joins are a config edit, not a
+# script change (coo-memory#952).
+mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT_DERIVED" "$WORKSPACE_ROOT_DERIVED/.claude" \
-  coo-harness coo-memory
+  "${_AGGREGATOR_REPOS[@]}"
 ensure_workspace_mcp_config "$SCRIPT_DIR/../.mcp.json" "$WORKSPACE_ROOT_DERIVED/.mcp.json"
 ensure_workspace_identity_link "$WORKSPACE_ROOT_DERIVED/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT_DERIVED/CLAUDE.md"
 # Stale-snapshot fallback for the mem0 stdio MCP (coo-harness#109).

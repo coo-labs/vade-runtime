@@ -54,11 +54,13 @@ sync_claude_config "$WORKSPACE_ROOT/coo-harness/.claude" "$WORKSPACE_ROOT/.claud
 # Aggregate per-repo primitives (slash commands, agents, skills, hooks)
 # from data-owning repos into the workspace .claude/ via per-file
 # symlinks. Source order = priority; first-wins on name conflicts.
-# vade-runtime is listed first because plumbing (settings.json hooks,
+# coo-harness is listed first because plumbing (settings.json hooks,
 # tagging-taxonomy, agentmail) shouldn't lose to a same-named primitive
-# in a data repo.
+# in a data repo. Repo list is loaded from scripts/aggregator.yml so
+# future joins are a config edit, not a script change (coo-memory#952).
+mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$WORKSPACE_ROOT/.claude" \
-  coo-harness coo-memory
+  "${_AGGREGATOR_REPOS[@]}"
 # The synced settings.json's hook commands reference
 # $CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh — sync_claude_config
 # above already installs that shim at $WORKSPACE_ROOT/.claude/vade-hooks/
