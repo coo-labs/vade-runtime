@@ -82,6 +82,15 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" strip-bash-xtrace"
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" agent-model-guard"
+          }
+        ]
       }
     ],
     "PostToolUse": [
