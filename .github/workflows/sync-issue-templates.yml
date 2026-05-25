@@ -53,6 +53,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # F17b drift-check (coo-memory#999): the BetaHuhn sync action reads
+      # .github/sync.yml as a static config file (no env substitution), so
+      # we keep the consumer list committed but assert it matches the
+      # canonical registry at coo-labs/.github/repos.yaml. Fails CI if a
+      # repo was added/archived in the registry but not reflected here.
+      - name: Verify sync.yml repos list matches registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          expected="$(gh api repos/coo-labs/.github/contents/repos.yaml --jq '.content | @base64d' \
+            | yq -r '.repos[] | select(.status == "active" and .tier != "meta" and .name != "coo-harness") | "coo-labs/" + .name' \
+            | sort)"
+          actual="$(yq -r '.group.repos' .github/sync.yml | grep -v '^[[:space:]]*$' | sort)"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::.github/sync.yml repos list drifted from coo-labs/.github/repos.yaml — update sync.yml to match active non-meta repos minus coo-harness"
+            echo "--- expected (from registry) ---"
+            echo "$expected"
+            echo "--- actual (sync.yml) ---"
+            echo "$actual"
+            echo "--- diff ---"
+            diff <(echo "$expected") <(echo "$actual") || true
+            exit 1
+          fi
+          echo "sync.yml repos list matches registry ($(echo "$expected" | wc -l | tr -d ' ') consumers)."
+
       - name: Sync ISSUE_TEMPLATE/ to consumers
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619  # v1.21.1
         with:

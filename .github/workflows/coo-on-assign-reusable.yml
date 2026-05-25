@@ -11,10 +11,11 @@ name: COO on issue assign (reusable)
 # Operations doc: coo-labs/coo-memory:coo/operations/workflow-centralization.md
 # Workflow rationale: coo-labs/coo-memory:coo/operations/coo-on-assign.md
 #
-# COO_SCOPE_REPOS maintenance: edit the list in this file once; all
-# consumer thin triggers pick up the change at next assignment event.
-# This file replaces the prior workflow-sync convention that required
-# N-PR fanout per change.
+# COO_SCOPE_REPOS source: fetched at job time from the canonical registry
+# at coo-labs/.github/repos.yaml (status == "active" filter; meta tier
+# excluded). Adding/archiving a repo there auto-propagates to every
+# consumer thin trigger on next assignment event — no edit needed in
+# this file. F17b migration: coo-memory#999.
 #
 # Trigger contract for callers:
 #   on: issues
@@ -50,8 +51,33 @@ jobs:
     if: ${{ github.event.assignee.login == 'vade-coo' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Load active repos from canonical registry
+        id: registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Read coo-labs/.github/repos.yaml; emit active non-meta repos as
+          # a JSON array of fully-qualified slugs for github-script to consume.
+          # `.github` is public so github.token can read it without elevated
+          # perms. Failure here fails the job loudly (set -e) rather than
+          # silently falling back to a hardcoded list.
+          repos_json="$(gh api repos/coo-labs/.github/contents/repos.yaml --jq '.content | @base64d' \
+            | yq -r '.repos[] | select(.status == "active" and .tier != "meta") | "coo-labs/" + .name' \
+            | jq -R . | jq -s .)"
+          if [ -z "$repos_json" ] || [ "$repos_json" = "[]" ]; then
+            echo "::error::registry returned empty active-repo list; bailing rather than posting a launch URL with no repos pre-selected"
+            exit 1
+          fi
+          {
+            echo "active_repos<<EOF"
+            echo "$repos_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build pre-fill URL and post launch comment
         uses: actions/github-script@v7
+        env:
+          COO_SCOPE_REPOS_JSON: ${{ steps.registry.outputs.active_repos }}
         with:
           script: |
             const issue = context.payload.issue;
@@ -107,20 +133,11 @@ jobs:
             // The assigning repo goes first so it's the obvious primary
             // in the form's repo selector.
             //
-            // When a coo-labs/* repo is added/renamed/archived/deleted,
-            // update THIS LIST in the canonical reusable. Consumer thin
-            // triggers pick up the change automatically.
-            const COO_SCOPE_REPOS = [
-              'coo-labs/coo-memory',
-              'coo-labs/vade-canvas',
-              'coo-labs/coo-harness',
-              'coo-labs/coo-logs',
-              'coo-labs/skills',
-              'coo-labs/coo4one',
-              'coo-labs/site',
-              'coo-labs/tjsonl',
-              'coo-labs/coo-console',
-            ];
+            // Loaded from the canonical registry at coo-labs/.github/repos.yaml
+            // in the prior step (filter: status == "active" and tier != "meta").
+            // Adding/archiving a repo there auto-propagates to every consumer
+            // thin trigger on next assignment event. F17b: coo-memory#999.
+            const COO_SCOPE_REPOS = JSON.parse(process.env.COO_SCOPE_REPOS_JSON);
             const repositories = [
               repoSlug,
               ...COO_SCOPE_REPOS.filter(r => r !== repoSlug),
