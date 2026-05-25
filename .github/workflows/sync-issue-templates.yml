@@ -1,0 +1,75 @@
+name: Sync issue templates
+
+# Canonical for the org's per-type ISSUE_TEMPLATE inventory. Fires on push to
+# main when .github/ISSUE_TEMPLATE/** or the sync config changes; opens a sync
+# PR in each of the 8 consumer repos listed in .github/sync.yml.
+#
+# Centralization: vade-coo-memory#938 (F8). Mechanism rationale (sync-action
+# vs symlink vs build-time): vade-coo-memory/coo/audits/2026-05-24_org-infrastructure-audit/
+# f7-f8-centralization-design.md §"Issue templates". Operations doc:
+# vade-coo-memory/coo/operations/template-centralization.md.
+#
+# Canonical-host pivot (vcm → vrt): vrt aligns with the F7 pattern — harness
+# owns operational infrastructure; ops doc + case-law live in vcm. The
+# sync-action mechanism does not have F7's public→private constraint (it runs
+# entirely in the source repo + writes via PAT), so the choice is principled
+# rather than mechanically forced. Templates are bridge surface; their natural
+# home is alongside the bridge workflow already in vrt.
+#
+# Auth: secrets.VADE_FIELDS_ADMIN_PAT (org-secret mirror of GITHUB_MCP_PAT,
+# visibility=all, fine-grained, contents:write + pull-requests:write on all
+# vade-app/* repos per the secrets schema entry for `vade-coo-self-2026-04`).
+# Same secret bridge-form-fields-to-natives.yml uses.
+#
+# Action pinning: BetaHuhn/repo-file-sync-action SHA-pinned to the v1.21.1
+# release commit (the action's last release, 2024-05-05). Staleness is a known
+# risk; fallback is a custom gh-CLI workflow. See template-centralization.md
+# §"Action staleness".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/sync.yml'
+      - '.github/workflows/sync-issue-templates.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run (no PRs opened in consumers)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-issue-templates
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync ISSUE_TEMPLATE/ to consumers
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619  # v1.21.1
+        with:
+          GH_PAT: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
+          IS_FINE_GRAINED: true
+          CONFIG_PATH: .github/sync.yml
+          PR_LABELS: 'sync,sync:templates'
+          BRANCH_PREFIX: sync/issue-templates
+          COMMIT_PREFIX: 'sync(templates):'
+          PR_BODY: |
+            Auto-synced from `vade-app/vade-runtime` canonical issue templates (F8).
+
+            **Edit the canonical**, not this PR: [`vade-runtime/.github/ISSUE_TEMPLATE/`](https://github.com/vade-app/vade-runtime/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
+
+            - Canonical issue: [vade-coo-memory#938](https://github.com/vade-app/vade-coo-memory/issues/938)
+            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/vade-app/vade-coo-memory/blob/main/coo/operations/template-centralization.md)
+            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/vade-app/vade-coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
+
+            `deleteOrphaned: true` is in effect — files deleted from the canonical are deleted here too.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
