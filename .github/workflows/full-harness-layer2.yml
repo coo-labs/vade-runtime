@@ -1,0 +1,133 @@
+name: Full-harness Layer-2
+
+# Layer-2 SDK-driven CI for the cloud bootstrap chain (vade-runtime#85,
+# Phase C of the boot-architecture audit commission
+# vade-app/vade-coo-memory#762; Move 5).
+#
+# Complements `bootstrap-regression.yml` (Layer-1, script-level fake-env
+# mocks). Layer-2 builds the real Docker image from the PR diff, runs
+# `scripts/cloud-setup.sh` inside the container under the same
+# fake-env mock pattern Layer-1 uses, spawns a live Claude Agent SDK
+# session via the `claude` CLI (baked into the image per Dockerfile)
+# pointed at the working tree, and asks the agent to perform the
+# post-merge confirmation prompt — boot the COO and report whether
+# `summary.ok=true` in integrity-check.json. Catches the SDK-shaped
+# class of regressions a script-level fake-env harness cannot:
+#   - Claude Code reading settings.json and loading skills + MCP
+#   - SessionStart hook chain firing in the right order
+#   - coo-identity-digest output as the agent sees it
+#   - the agent's own reading behavior under the current CLAUDE.md
+#
+# Triggers narrowly on boot-affecting paths. Override-up via the
+# `ci:full-harness` PR label for PRs that need the harness but don't
+# touch a path-filtered file.
+#
+# Cost-budgeted. Per-run cost is recorded in the sticky PR comment;
+# the spike doc in the Phase C PR body captures the model + assumptions
+# until an empirical first-run number lands. Default ceiling is $5/PR
+# (proposed; BDFL ratifies after the spike output) — exceeding it does
+# not fail the workflow today, just surfaces in the comment.
+#
+# Standing constraints (per the audit plan §"Standing constraints"):
+#   - No PreToolUse Edit/Task gate (briefing-007 emancipatory-auditor 0/2 DROP).
+#   - No "no env pre-exports" structural lint (Layer-1 round-trip is the form).
+#   - No drift-gate workflow that fails PRs without doc-citation.
+#   - This IS the new gating workflow beyond Layer-1; no others to follow.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'scripts/coo-bootstrap.sh'
+      - 'scripts/cloud-setup.sh'
+      - 'scripts/lib/common.sh'
+      - 'scripts/session-start-sync.sh'
+      - 'scripts/integrity-check.sh'
+      - '.claude/settings.json'
+      - '.mcp.json'
+      - 'Dockerfile'
+      - '.github/workflows/full-harness-layer2.yml'
+      - 'scripts/ci/layer2-harness.sh'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to attach sticky comment to (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  # One run per PR; cancel superseded runs because a Layer-2 cycle is
+  # expensive (Docker build + SDK turn). Branch-only workflow_dispatch
+  # runs (no PR number) get a ref-keyed group.
+  group: full-harness-layer2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layer2:
+    # Run whenever the workflow's `paths` trigger fires, when the PR
+    # carries the `ci:full-harness` label, or via workflow_dispatch.
+    # The `labeled` event fires once per label-add; gate the body on
+    # the label name so unrelated label-adds (e.g. `area:ci`) don't
+    # spend an SDK turn.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'labeled') ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'ci:full-harness')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build runtime image from PR Dockerfile
+        # --no-cache enforces a true fresh container — no layer cache
+        # masks a regression in the bake step. This is the same shape
+        # docker-bake-check.yml uses for the binary-vendor check.
+        run: docker build --no-cache -t vade-runtime-layer2:${{ github.sha }} .
+
+      - name: Run Layer-2 harness inside the image
+        id: harness
+        env:
+          IMG: vade-runtime-layer2:${{ github.sha }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Pinned model for cost predictability. Sonnet is the default;
+          # bump to Opus only if a regression surfaces a class that
+          # demands the larger model. Override via repo/workflow var.
+          LAYER2_AGENT_MODEL: ${{ vars.LAYER2_AGENT_MODEL || 'claude-sonnet-4-5-20250929' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          PR_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/layer2-harness.sh"
+
+      - name: Post or update sticky PR comment
+        if: always() && (github.event.pull_request.number || inputs.pr)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+          REPO: ${{ github.repository }}
+          VADE_CI_SUMMARY_OUT: /tmp/layer2-harness-summary.md
+          VADE_CI_COMMENT_HEADER: '<!-- layer2-harness-comment -->'
+          VADE_CI_LOG_TAG: ci-layer2-harness
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/post-or-update-pr-comment.sh"
+
+      - name: Upload harness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: layer2-harness-${{ github.run_id }}
+          path: |
+            /tmp/layer2-harness-summary.md
+            /tmp/layer2-harness-result.json
+            /tmp/layer2-harness-sdk-output.jsonl
+            /tmp/layer2-harness-integrity-check.json
+            /tmp/layer2-harness-build.log
+          if-no-files-found: warn
+          retention-days: 14

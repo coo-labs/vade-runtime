@@ -10,6 +10,13 @@
 #
 # Fail modes are loud (exit non-zero) so the caller can decide whether
 # to continue the VADE setup without COO identity.
+#
+# Path-trigger anchor: this script is one of the boot-impacting paths
+# the Layer-2 full-harness workflow watches
+# (.github/workflows/full-harness-layer2.yml). The blank line above
+# this comment is the trivial-touch fixture from Phase C of the boot-
+# architecture audit (vade-app/vade-coo-memory#762) used to validate
+# that path filter on the workflow's own introduction PR.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
