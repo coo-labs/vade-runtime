@@ -1,6 +1,6 @@
 ---
 name: tagging-taxonomy
-description: Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across vade-app repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer per MEMO-2026-05-21-xfqh; `area:*` and qualifier labels are what remains label-encoded.
+description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across vade-app repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer per MEMO-2026-05-21-xfqh; operational reference: `coo/operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
 ---
 
 # VADE issue tagging taxonomy
