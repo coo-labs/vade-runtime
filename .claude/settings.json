@@ -1,6 +1,8 @@
 {
   "model": "opusplan",
   "effortLevel": "high",
+  "showThinkingSummaries": true,
+  "alwaysThinkingEnabled": true,
   "hooks": {
     "SessionStart": [
       {
