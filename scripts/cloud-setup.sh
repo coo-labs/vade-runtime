@@ -228,31 +228,6 @@ else
   log "Warning: @takescake/1password-mcp install failed at build time; first session will pay an npx-on-demand fetch."
 fi
 
-# Hosted-MCP wiring per vade-runtime#5. When the operator sets
-# VADE_BEARER_TOKEN (the canonical name per issue#5 + vade-core/docs/
-# remote-mcp.md) in the cloud-env config, alias it to VADE_AUTH_TOKEN
-# so the existing vade-runtime/.mcp.json `${VADE_AUTH_TOKEN}` substitution
-# in the vade-canvas SSE entry resolves at MCP-server-spawn time. The
-# internal env-var name stays untouched until a coordinated cross-repo
-# rename across vade-runtime/.mcp.json + vade-core/.mcp.json is scheduled.
-#
-# VADE_MCP_URL is documented for forward compatibility — the URL is
-# currently hardcoded as https://mcp.vade-app.dev/sse in .mcp.json; if
-# a future revision substitutes `${VADE_MCP_URL}`, the propagation
-# below ensures the env var reaches MCP-server-spawn time.
-#
-# When neither env var is set: the vade-canvas entry stays in
-# .mcp.json but ${VADE_AUTH_TOKEN} substitutes to empty; the SSE
-# transport surfaces a 401 (recognizable to operators) and the rest of
-# Claude Code (edit-only flow, other MCPs) is unaffected.
-if [ -n "${VADE_BEARER_TOKEN:-}" ] && [ -z "${VADE_AUTH_TOKEN:-}" ]; then
-  export VADE_AUTH_TOKEN="$VADE_BEARER_TOKEN"
-  build_log_record OK "cloud-setup: aliased VADE_BEARER_TOKEN → VADE_AUTH_TOKEN for hosted-MCP wiring (vade-runtime#5)"
-fi
-if [ -n "${VADE_MCP_URL:-}" ]; then
-  build_log_record INFO "cloud-setup: VADE_MCP_URL=$VADE_MCP_URL (informational; .mcp.json URL hardcoded for now)"
-fi
-
 # COO identity bootstrap runs only when OP_SERVICE_ACCOUNT_TOKEN is set
 # in the cloud environment config. Non-fatal on failure — the base VADE
 # env should still come up even if 1Password is unreachable.

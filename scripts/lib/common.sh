@@ -1457,21 +1457,6 @@ fetch_coo_secrets() {
     log "  WARN: op://COO/transcripts-age-key/credential unavailable; transcript decryption (Stage-1 analyzer) disabled — encryption still works (recipient pubkey is committed at scripts/lib/transcripts-recipient.age)"
   fi
 
-  # vade-canvas MCP bearer (vade-core#93). Resolves the ${VADE_AUTH_TOKEN}
-  # placeholder in vade-core/.mcp.json so COO sessions that cwd into
-  # vade-core/ can talk to mcp.vade-app.dev/sse. Best-effort: missing
-  # vault item warns and leaves VADE_AUTH_TOKEN unset (the .mcp.json
-  # then resolves to "Bearer " and the SSE handshake 401s with a clear
-  # cause in coo-bootstrap.log). Bearer must also appear in Fly's
-  # VADE_AUTH_TOKENS.agents[] for the canvas MCP to accept it.
-  if vade_auth_token="$(retry 3 op read 'op://COO/vade-canvas-coo/credential')" && [ -n "$vade_auth_token" ]; then
-    log "  read vade-canvas COO bearer (len=${#vade_auth_token})"
-    got=$((got+1))
-  else
-    vade_auth_token=""
-    log "  WARN: op://COO/vade-canvas-coo/credential unavailable; VADE_AUTH_TOKEN will be unset (vade-core/.mcp.json placeholder resolves empty; vade-canvas MCP unreachable from vade-core/ cwd)"
-  fi
-
   # Cloudflare API token for COO-driven Worker deploys + DNS edits on
   # vade-app.dev. Carve-out scope: MEMO-2026-05-09-vwk2 (in-scope:
   # `wrangler deploy/secret` on existing Workers, DNS CRUD on
