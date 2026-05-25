@@ -3,7 +3,7 @@
 #
 # Locks down the wrapper's contract — the bash side that holds the
 # Python child via `setsid -f` and block-waits on a marker file up to
-# VADE_TRANSCRIPT_EXPORT_BUDGET_SEC. Origin: coo-labs/vade-runtime#200.
+# VADE_TRANSCRIPT_EXPORT_BUDGET_SEC. Origin: coo-labs/coo-harness#200.
 #
 # Four asserts:
 #
@@ -35,7 +35,7 @@
 #   - The Python redact + encrypt + R2 PutObject + auto-PR flow
 #     (covered by test-transcript-export.py + live E6/E7/E8).
 #   - Hook-chain triggering by the Claude Code harness (Layer-2,
-#     vade-runtime#85).
+#     coo-harness#85).
 #   - Real container teardown timing.
 
 set -euo pipefail

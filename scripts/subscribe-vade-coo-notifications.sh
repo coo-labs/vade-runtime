@@ -2,7 +2,7 @@
 # subscribe-vade-coo-notifications: poll GitHub's notifications API for the
 # vade-coo user; emit one stdout line per new participating notification.
 #
-# Closes vade-coo-memory#841: a session-side push-shaped primitive for
+# Closes coo-memory#841: a session-side push-shaped primitive for
 # @vade-coo mentions across all repos, without depending on a session-spawn
 # (coo-on-assign workflow) or a per-issue subscription. Cloud sessions can't
 # be pushed to; this is the cleanest pull-as-push the cloud product permits.

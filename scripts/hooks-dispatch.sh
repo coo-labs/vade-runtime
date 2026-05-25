@@ -8,7 +8,7 @@
 #
 #   bash "$HOME/.claude/vade-hooks/dispatch.sh" session-lifecycle --end
 #
-# The shim's job is to find the real script in vade-runtime/scripts/
+# The shim's job is to find the real script in coo-harness/scripts/
 # without settings.json baking in a repo-specific path. Portability is
 # concentrated here — settings.json references only $HOME-relative
 # paths, which are defined on every platform Claude Code runs on.
@@ -20,7 +20,7 @@
 #      the shim was installed via symlink by sync_claude_config
 #   4. readlink of /home/user/.mcp.json — the MCP-config symlink target's
 #      parent is vade-runtime (cloud case, layout-agnostic)
-#   5. $HOME/GitHub/coo-labs/vade-runtime (local Mac default)
+#   5. $HOME/GitHub/coo-labs/coo-harness (local Mac default)
 #
 # Every invocation appends one line to ~/.vade/boot.log recording which
 # rule won + whether the target script was found. Non-fatal on every
@@ -117,9 +117,9 @@ if [ -z "$RESOLVED_SCRIPT" ] && [ -L /home/user/.mcp.json ]; then
 fi
 
 # Rule 5: local Mac default
-if [ -z "$RESOLVED_SCRIPT" ] && [ -d "$HOME/GitHub/coo-labs/vade-runtime" ]; then
-  if target="$(_script_for "$HOME/GitHub/coo-labs/vade-runtime" "$HOOK_NAME")" && [ -n "$target" ]; then
-    RESOLVED_RUNTIME="$HOME/GitHub/coo-labs/vade-runtime"
+if [ -z "$RESOLVED_SCRIPT" ] && [ -d "$HOME/GitHub/coo-labs/coo-harness" ]; then
+  if target="$(_script_for "$HOME/GitHub/coo-labs/coo-harness" "$HOOK_NAME")" && [ -n "$target" ]; then
+    RESOLVED_RUNTIME="$HOME/GitHub/coo-labs/coo-harness"
     RESOLVED_RULE="mac_default"
     RESOLVED_SCRIPT="$target"
   fi

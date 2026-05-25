@@ -102,18 +102,18 @@ VADE_SETUP_RECEIPT="${VADE_CLOUD_STATE_DIR}/setup-receipt.json"
 # vade-runtime working tree path. The Night's Watch standing order at
 # coo/nightly_review_task.md §1.a calls scripts via "$VADE_RUNTIME_DIR/scripts/lib/...";
 # the call form silently breaks when the var resolves empty. In production
-# the cloud harness clones this repo into /home/user/vade-runtime; persist
+# the cloud harness clones this repo into /home/user/coo-harness; persist
 # the value into ~/.claude/settings.json env via merge_coo_settings_runtime_dir
 # so hook subprocesses (and Night's Watch invocations) inherit it.
-# vade-runtime#228.
-VADE_RUNTIME_DIR="${VADE_RUNTIME_DIR:-/home/user/vade-runtime}"
+# coo-harness#228.
+VADE_RUNTIME_DIR="${VADE_RUNTIME_DIR:-/home/user/coo-harness}"
 
 # vade-coo-memory working tree path. Sibling parity with VADE_RUNTIME_DIR;
 # gh-coo-wrap.sh and various skills/hooks resolve memory-repo paths via
 # $VADE_COO_MEMORY_DIR. Persisted into ~/.claude/settings.json env via
 # merge_coo_settings_memory_dir so hook subprocesses inherit it on resume.
-# vade-runtime#265.
-VADE_COO_MEMORY_DIR="${VADE_COO_MEMORY_DIR:-/home/user/vade-coo-memory}"
+# coo-harness#265.
+VADE_COO_MEMORY_DIR="${VADE_COO_MEMORY_DIR:-/home/user/coo-memory}"
 
 # Same shape as bootstrap_log_record but writes to the durable build log.
 # Use from cloud-setup.sh and anything else running at snapshot-build
@@ -375,15 +375,6 @@ ensure_dirs() {
     log "Warning: could not create $HOME/.vade subdirs. Check permissions."
 }
 
-ensure_tsx() {
-  if check_cmd tsx; then
-    log "tsx already installed: $(tsx --version 2>&1 | head -1)"
-    return 0
-  fi
-  log "Installing tsx globally..."
-  npm install -g tsx@4.21.0 --no-audit --no-fund
-}
-
 install_deps() {
   local dir="${1:-.}"
   if [ -f "$dir/package.json" ]; then
@@ -414,7 +405,7 @@ install_deps() {
 # subsequent runs). We preserve dest env via a node-based merge when
 # both files exist; otherwise we fall back to a plain copy.
 sync_claude_config() {
-  local src="${1:-/home/user/vade-runtime/.claude}"
+  local src="${1:-/home/user/coo-harness/.claude}"
   local dst="${2:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
   if [ ! -d "$src" ]; then
     log "sync_claude_config: source $src missing; skipping"
@@ -587,14 +578,14 @@ _sync_claude_settings() {
 # .mcp.json. Claude Code loads project-scope .mcp.json from its cwd,
 # and in the cloud env cwd is /home/user, which has no .mcp.json of
 # its own — so project MCPs stay dark even when env vars are populated.
-# Symlinking to vade-runtime/.mcp.json fixes this and keeps a single
+# Symlinking to coo-harness/.mcp.json fixes this and keeps a single
 # source of truth: the same file loads at cwd=/home/user (via symlink)
-# and at cwd=/home/user/vade-runtime (natively). Before MEMO 2026-04-22-08
+# and at cwd=/home/user/coo-harness (natively). Before MEMO 2026-04-22-08
 # the shared config lived in a separate workspace-mcp.json; the two
 # were unified.
 # Idempotent: if the symlink already points at the right target, no-op.
 ensure_workspace_mcp_config() {
-  local src="${1:-/home/user/vade-runtime/.mcp.json}"
+  local src="${1:-/home/user/coo-harness/.mcp.json}"
   local dst="${2:-/home/user/.mcp.json}"
   if [ ! -f "$src" ]; then
     log "mcp-link: source $src missing; skipping"
@@ -611,14 +602,14 @@ ensure_workspace_mcp_config() {
   log "mcp-link: linked $dst → $src"
 }
 
-# Ensure /home/user/CLAUDE.md symlinks to vade-coo-memory/CLAUDE.md so
+# Ensure /home/user/CLAUDE.md symlinks to coo-memory/CLAUDE.md so
 # Claude Code's built-in memory auto-loader picks up the COO identity
 # instructions at session start (cwd=/home/user). Without this,
 # identity surfaces only via coo-identity-digest's echo, which fires
 # after MCP resolution and isn't visible to the harness memory system.
 # Idempotent, mirrors ensure_workspace_mcp_config's guards.
 ensure_workspace_identity_link() {
-  local src="${1:-/home/user/vade-coo-memory/CLAUDE.md}"
+  local src="${1:-/home/user/coo-memory/CLAUDE.md}"
   local dst="${2:-/home/user/CLAUDE.md}"
   if [ ! -f "$src" ]; then
     log "identity-link: source $src missing; skipping"
@@ -636,14 +627,7 @@ ensure_workspace_identity_link() {
 }
 
 print_versions() {
-  local tsx_version claude_version
-
-  if check_cmd tsx; then
-    tsx_version="$(tsx --version 2>/dev/null | head -1)"
-  else
-    tsx_version="$(npx tsx --version 2>/dev/null | head -1 || true)"
-    [ -n "$tsx_version" ] || tsx_version="not found"
-  fi
+  local claude_version
 
   if check_cmd claude; then
     claude_version="$(claude --version 2>/dev/null || true)"
@@ -660,7 +644,6 @@ print_versions() {
   log "  node: $(node --version 2>/dev/null || echo 'not found')"
   log "  npm:  $(npm --version 2>/dev/null || echo 'not found')"
   log "  git:  $(git --version 2>/dev/null || echo 'not found')"
-  log "  tsx:  $tsx_version"
   log "  claude: $claude_version"
 }
 
@@ -668,13 +651,13 @@ print_versions() {
 # Used by scripts/coo-bootstrap.sh when OP_SERVICE_ACCOUNT_TOKEN is set.
 # Fetch COO identity material from a 1Password vault named "COO" via the
 # op CLI. Vault/item contract and the cloud-env boot flow are documented
-# in vade-coo-memory/coo/cloud-env-bootstrap.md.
+# in coo-memory/coo/cloud-env-bootstrap.md.
 
 OP_VERSION_DEFAULT="2.31.0"
 GH_VERSION_DEFAULT="2.91.0"
 # Mem0 stdio MCP server. Bypasses the Node `undici` DNS-cache-overflow
 # failure that kills Claude Code's MCP HTTP transport against
-# api.mem0.ai (vade-runtime#36/#109). Pinned because the upstream repo
+# api.mem0.ai (coo-harness#36/#109). Pinned because the upstream repo
 # (mem0ai/mem0-mcp) was archived in 2025-12 — bump deliberately.
 MEM0_MCP_SERVER_VERSION_DEFAULT="0.2.1"
 # Quarto CLI for markdown → slide-deck rendering. Bundles its own
@@ -694,7 +677,7 @@ QUARTO_VERSION_DEFAULT="1.9.37"
 # /home/user/.local/ tree survives snapshot → resume). Adopted via B1
 # reframe of briefing 004-cloud-binary-vendor (docker-pull variant
 # infeasible on cloud_default; see follow-up issue).
-BINARY_VENDOR_REPO_DEFAULT="coo-labs/vade-runtime"
+BINARY_VENDOR_REPO_DEFAULT="coo-labs/coo-harness"
 BINARY_VENDOR_TAG_DEFAULT="binary-vendor-latest"
 BINARY_VENDOR_ASSET_DEFAULT="binary-vendor.tar.gz"
 # Hardcoded production fingerprints; env-overridable so the bootstrap-
@@ -922,7 +905,7 @@ PREWARM_PY
 }
 
 # Refresh the external-touch (F6) cache by invoking
-# vade-coo-memory/bin/external-touch.py --refresh-cache. Two callers:
+# coo-memory/bin/external-touch.py --refresh-cache. Two callers:
 #
 #   1. cloud-setup.sh after coo-bootstrap → builds the cache into the
 #      snapshot so F6 reports ok on the first session of a fresh
@@ -945,7 +928,7 @@ prewarm_external_touch_cache() {
     build_log_record WARN "external-touch: prewarm called without workspace_root; skipping"
     return 0
   fi
-  local script="$workspace_root/vade-coo-memory/bin/external-touch.py"
+  local script="$workspace_root/coo-memory/bin/external-touch.py"
   local cache_path="${VADE_EXTERNAL_TOUCH_CACHE:-$VADE_CLOUD_STATE_DIR/external-touch-cache.json}"
 
   if [ ! -f "$script" ]; then
@@ -1002,7 +985,7 @@ ensure_op_cli() {
   # Linux-only auto-install. On macOS (Darwin) the expectation is that
   # `brew install 1password-cli` has already satisfied check_cmd; if it
   # hasn't, this function refuses rather than dropping a non-runnable
-  # Linux binary into ${HOME}/.local/bin (vade-runtime#81).
+  # Linux binary into ${HOME}/.local/bin (coo-harness#81).
   local bindir
   bindir="$(_snapshot_user_bindir)"
   case ":$PATH:" in
@@ -1090,7 +1073,7 @@ ensure_op_cli() {
 # into ${HOME}/.local/bin. Bindir resolution is shared with ensure_op_cli
 # via _snapshot_user_bindir.
 #
-# Rationale: vade-runtime#36 documented the streamable-HTTP transport
+# Rationale: coo-harness#36 documented the streamable-HTTP transport
 # failure ("DNS cache overflow") that motivated `gh` as a parallel path.
 # Epic #112 Stream 1 retired the github-coo MCP entirely; `gh` is now
 # the sole GitHub write path under vade-coo attribution. Authenticated
@@ -1176,7 +1159,7 @@ ensure_gh_cli() {
 # stdio entry points at this binary directly so Claude Code spawns it
 # as a subprocess at process start — bypassing the Node `undici`
 # DNS-cache-overflow failure that kills the streamable-HTTP transport
-# against api.mem0.ai (vade-runtime#36 class extended to non-MCP egress
+# against api.mem0.ai (coo-harness#36 class extended to non-MCP egress
 # in #109). Same egress as the failing transport, different wire: the
 # stdio server uses Python `httpx` for its REST hop, which is not
 # subject to undici's bug.
@@ -1255,7 +1238,7 @@ ensure_mem0_mcp_server() {
 # the snapshot-persistent tree so the bundle survives resume.
 #
 # Rationale: introduced for the 2026-shiffrin-conference deck
-# (vade-coo-memory/coo/_drafts/2026-shiffrin-conference/), kept as a
+# (coo-memory/coo/_drafts/2026-shiffrin-conference/), kept as a
 # standing tool for future markdown-to-{revealjs,pptx,pdf} workflows.
 # Best-effort at build time; cloud-setup logs a warning on failure and
 # the first session that needs Quarto fetches on demand.
@@ -1447,7 +1430,7 @@ fetch_coo_secrets() {
     log "  WARN: op://COO/mem0-vade-coo/credential unavailable; MEM0_API_KEY will be unset (mem0-rest.sh break-glass path disabled)"
   fi
 
-  # Transcript-export pipeline (coo-labs/vade-agent-logs#64). All three
+  # Transcript-export pipeline (coo-labs/coo-logs#64). All three
   # are best-effort; absence disables the export hook, which writes
   # <sessionId>.export-error.txt and exits 0 (never blocks session end).
   if r2_access_key_id="$(retry 3 op read 'op://COO/r2-transcripts/access-key-id')" && [ -n "$r2_access_key_id" ]; then
@@ -1472,21 +1455,6 @@ fetch_coo_secrets() {
   else
     age_identity=""
     log "  WARN: op://COO/transcripts-age-key/credential unavailable; transcript decryption (Stage-1 analyzer) disabled — encryption still works (recipient pubkey is committed at scripts/lib/transcripts-recipient.age)"
-  fi
-
-  # vade-canvas MCP bearer (vade-core#93). Resolves the ${VADE_AUTH_TOKEN}
-  # placeholder in vade-core/.mcp.json so COO sessions that cwd into
-  # vade-core/ can talk to mcp.vade-app.dev/sse. Best-effort: missing
-  # vault item warns and leaves VADE_AUTH_TOKEN unset (the .mcp.json
-  # then resolves to "Bearer " and the SSE handshake 401s with a clear
-  # cause in coo-bootstrap.log). Bearer must also appear in Fly's
-  # VADE_AUTH_TOKENS.agents[] for the canvas MCP to accept it.
-  if vade_auth_token="$(retry 3 op read 'op://COO/vade-canvas-coo/credential')" && [ -n "$vade_auth_token" ]; then
-    log "  read vade-canvas COO bearer (len=${#vade_auth_token})"
-    got=$((got+1))
-  else
-    vade_auth_token=""
-    log "  WARN: op://COO/vade-canvas-coo/credential unavailable; VADE_AUTH_TOKEN will be unset (vade-core/.mcp.json placeholder resolves empty; vade-canvas MCP unreachable from vade-core/ cwd)"
   fi
 
   # Cloudflare API token for COO-driven Worker deploys + DNS edits on
@@ -1518,7 +1486,7 @@ fetch_coo_secrets() {
     log "  WARN: op://COO/cloudflare-api-token-vade-coo/account_id unavailable; CLOUDFLARE_ACCOUNT_ID will be unset (E9 probe will skip; wrangler may prompt for account selection)"
   fi
 
-  # vade-coo-app GitHub App identifiers (MEMO-2026-05-21 vade-coo-memory#837).
+  # vade-coo-app GitHub App identifiers (MEMO-2026-05-21 coo-memory#837).
   # Public values only: app_id and installation_id propagate to env so the
   # `gh-app-token.sh` minter skips two op reads per fresh-token mint. The
   # private key (op://COO/vade-coo-app/private_key) intentionally stays in
@@ -1629,7 +1597,7 @@ merge_coo_settings_env() {
 # knows VADE_CLOUD_STATE_DIR and the snapshot user bindir during its own
 # run, but they evaporate after exit — leaving CLAUDE.md fallbacks
 # (which assume $HOME == cwd) and `command -v op` to fail in fresh shells.
-# vade-runtime#83.
+# coo-harness#83.
 merge_coo_settings_paths() {
   local bindir
   bindir="$(_snapshot_user_bindir)"
@@ -1641,7 +1609,7 @@ merge_coo_settings_paths() {
 # (where the live shell PATH is whatever Claude Code's hook subprocess inherited —
 # typically a thin non-login PATH on macOS) don't clobber the rich PATH that
 # coo-bootstrap captured at install time. The state-dir value is host-stable and
-# safe to re-write on every session start; PATH is not. vade-runtime#171.
+# safe to re-write on every session start; PATH is not. coo-harness#171.
 merge_coo_settings_state_dir() {
   _write_claude_settings_state_dir "$VADE_CLOUD_STATE_DIR"
 }
@@ -1650,7 +1618,7 @@ merge_coo_settings_state_dir() {
 # rationale as merge_coo_settings_state_dir: host-stable path, no PATH rewrite,
 # safe to re-write on every session start. Hook subprocesses and the Night's
 # Watch nightly scripts depend on this for the §1.a standing-order call form.
-# vade-runtime#228.
+# coo-harness#228.
 merge_coo_settings_runtime_dir() {
   _write_claude_settings_runtime_dir "$VADE_RUNTIME_DIR"
 }
@@ -1660,7 +1628,7 @@ merge_coo_settings_runtime_dir() {
 # host-stable path, no PATH rewrite, safe to re-write on every session start.
 # Hook subprocesses, skills, and the gh-coo-wrap shim resolve memory-repo
 # paths via $VADE_COO_MEMORY_DIR (see gh-coo-wrap.sh:257); persist it so
-# they inherit the value on resume. vade-runtime#265.
+# they inherit the value on resume. coo-harness#265.
 merge_coo_settings_memory_dir() {
   _write_claude_settings_memory_dir "$VADE_COO_MEMORY_DIR"
 }
@@ -1797,7 +1765,7 @@ _write_claude_settings_env() {
 #   and build.log live. Without this in env, CLAUDE.md's documented
 #   ${VADE_CLOUD_STATE_DIR:-$HOME/.vade-cloud-state} fallback resolves
 #   to /root/.vade-cloud-state on the cloud harness (HOME=/root) — wrong
-#   tree. vade-runtime#83.
+#   tree. coo-harness#83.
 # - PATH: prepend the snapshot user bindir so `op`, `gh` (when installed
 #   here), and any other ensure_*_cli tooling resolve in shells the
 #   harness spawns after bootstrap exits. ensure_op_cli prepends to its
@@ -1806,7 +1774,7 @@ _write_claude_settings_env() {
 #   Critical: Claude Code does NOT shell-expand env values from
 #   settings.json — it passes them as-is to subprocesses. So we must
 #   write the *literal expanded* PATH at bootstrap time, not a
-#   "${PATH}" placeholder. The first cut of vade-runtime#83 wrote
+#   "${PATH}" placeholder. The first cut of coo-harness#83 wrote
 #   the literal string "/home/user/.local/bin:${PATH}" and broke fresh
 #   sessions (ls/which/bash all "command not found" because ${PATH}
 #   was treated as a directory name). This pass captures the actual
@@ -1880,7 +1848,7 @@ _write_claude_settings_paths() {
 # the PATH key. Used from the SessionStart sync path on macOS where the hook
 # subprocess inherits a thin PATH (no Homebrew); rewriting PATH from that
 # value would replace the well-formed PATH bootstrap captured at install
-# time. Idempotent. vade-runtime#171.
+# time. Idempotent. coo-harness#171.
 _write_claude_settings_state_dir() {
   [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
   local cloud_state_dir="$1"
@@ -1917,7 +1885,7 @@ _write_claude_settings_state_dir() {
 # the PATH key. Same shape as _write_claude_settings_state_dir; split from
 # any PATH-rewriting helper for the same rationale (hook subprocesses
 # inherit a thin PATH that would clobber the well-formed install-time
-# PATH if rewritten). Idempotent. vade-runtime#228.
+# PATH if rewritten). Idempotent. coo-harness#228.
 _write_claude_settings_runtime_dir() {
   [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
   local runtime_dir="$1"
@@ -1952,7 +1920,7 @@ _write_claude_settings_runtime_dir() {
 
 # Write VADE_COO_MEMORY_DIR into ~/.claude/settings.json env without touching
 # the PATH key. Same shape and rationale as _write_claude_settings_runtime_dir.
-# vade-runtime#265.
+# coo-harness#265.
 _write_claude_settings_memory_dir() {
   [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
   local memory_dir="$1"
@@ -2012,62 +1980,6 @@ ensure_openssh_client() {
     return 0
   fi
   log "openssh-client install failed (no sudo or apt denied); fingerprint check will be skipped"
-  return 1
-}
-
-# Ensure poppler-utils is present (provides pdftoppm / pdftotext /
-# pdfinfo). pdftoppm is used by the notebooklm-pipeline skill's Step 7
-# to extract per-page PNGs from generated slide-deck PDFs for embed-
-# ready review. The base cloud image ships libpoppler134 transitively
-# but not the CLI tools, so absent this install the slide-deck post-
-# processing step fails with "command not found" mid-skill — surfacing
-# the friction late rather than at snapshot-build time.
-# Returns 0 if available (or successfully installed), 1 otherwise.
-ensure_poppler_utils() {
-  if check_cmd pdftoppm; then
-    return 0
-  fi
-  if ! check_cmd apt-get; then
-    log "poppler-utils missing and apt-get unavailable; slide-deck PDF→PNG extraction will be skipped"
-    return 1
-  fi
-  log "Installing poppler-utils (provides pdftoppm for notebooklm-pipeline slide-deck post-processing)"
-  if sudo -n true 2>/dev/null; then
-    sudo apt-get update -qq >/dev/null 2>&1 || true
-    sudo apt-get install -y --no-install-recommends poppler-utils >/dev/null 2>&1
-  else
-    apt-get update -qq >/dev/null 2>&1 || true
-    apt-get install -y --no-install-recommends poppler-utils >/dev/null 2>&1
-  fi
-  if check_cmd pdftoppm; then
-    log "poppler-utils installed"
-    return 0
-  fi
-  log "poppler-utils install failed (no sudo or apt denied); slide-deck PDF→PNG extraction will be skipped"
-  return 1
-}
-
-# Ensure notebooklm-py is present (the library the notebooklm-pipeline
-# skill drives). Without this pre-install the wrapper pays a ~5–10 s
-# pip-install latency + noisy stderr on every fresh snapshot's first
-# invocation. Chromium itself is pre-baked at /opt/pw-browsers via the
-# image-level PLAYWRIGHT_BROWSERS_PATH, so this only needs to land the
-# Python package.
-# Returns 0 if importable (or successfully installed), 1 otherwise.
-ensure_notebooklm_py() {
-  if python3 -c 'import notebooklm' >/dev/null 2>&1; then
-    return 0
-  fi
-  if ! check_cmd python3; then
-    log "python3 missing; cannot pre-install notebooklm-py"
-    return 1
-  fi
-  log "Pre-installing notebooklm-py[browser] for notebooklm-pipeline skill"
-  if python3 -m pip install --quiet --user 'notebooklm-py[browser]' >/dev/null 2>&1; then
-    log "notebooklm-py installed"
-    return 0
-  fi
-  log "notebooklm-py install failed; first session that runs the skill will pay the install cost"
   return 1
 }
 
@@ -2207,7 +2119,7 @@ write_coo_gitconfig() {
 
 # Install the vade-coo git shim at the snapshot-persistent bindir,
 # making `git push` route through git-push-with-fallback.sh by default
-# (vade-runtime#67 adoption-as-default — the wrapper has been merged
+# (coo-harness#67 adoption-as-default — the wrapper has been merged
 # since #74, but no path made it the default until this shim).
 #
 # The shim is a symlink to scripts/git-shim.sh in this repo. Removing

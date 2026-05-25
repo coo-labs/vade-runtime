@@ -2,14 +2,14 @@ name: Bridge issue-form widgets to native fields (reusable)
 
 # Reusable workflow that parses an issue body for `### <Label>\n\n<value>`
 # sections produced by the issue-form templates (`task.yml`, `bug.yml`, etc.
-# in coo-labs/vade-coo-memory and mirrored across the four primary repos)
+# in coo-labs/coo-memory and mirrored across the four primary repos)
 # and writes the corresponding native Issue field values via the
 # `setIssueFieldValue` GraphQL mutation.
 #
 # Called from per-repo trigger workflows (`bridge-form-fields-trigger.yml`)
-# in vade-coo-memory / vade-runtime / vade-core / vade-agent-logs.
+# in coo-memory / coo-harness / vade-canvas / coo-logs.
 #
-# Canonical design: coo-labs/vade-coo-memory#811 + MEMO-2026-05-21-xfqh.
+# Canonical design: coo-labs/coo-memory#811 + MEMO-2026-05-21-xfqh.
 # Pinning matrix + field IDs: coo/operations/issue-fields-and-types.md.
 #
 # Fires only on `issues.opened` (one-shot bridging at creation time).
@@ -22,11 +22,11 @@ name: Bridge issue-form widgets to native fields (reusable)
 #     holds the same value as the COO's `GITHUB_MCP_PAT` env var
 #     (the COO PAT at `op://COO/vade-coo-self-2026-04/token`),
 #     renamed around the GitHub Actions reserved `GITHUB_*` prefix
-#     per vade-coo-memory#848. When the COO PAT rotates, this org
+#     per coo-memory#848. When the COO PAT rotates, this org
 #     secret slot needs the new value pasted in too (third rotation
 #     surface; see MEMO-2026-05-21-zf7d).
 #
-# Cross-repo workflow access requires coo-labs/vade-runtime's
+# Cross-repo workflow access requires coo-labs/coo-harness's
 # Settings → Actions → General → Access set to
 # "Accessible from repositories in the 'coo-labs' organization".
 
@@ -38,7 +38,7 @@ on:
         type: number
         required: true
       repo-full-name:
-        description: Full owner/repo of the calling repository (e.g. coo-labs/vade-coo-memory).
+        description: Full owner/repo of the calling repository (e.g. coo-labs/coo-memory).
         type: string
         required: true
       dry-run:
@@ -59,10 +59,10 @@ jobs:
   bridge:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout vade-runtime (script source)
+      - name: Checkout coo-harness (script source)
         uses: actions/checkout@v4
         with:
-          repository: coo-labs/vade-runtime
+          repository: coo-labs/coo-harness
           ref: main
 
       - name: Run bridge

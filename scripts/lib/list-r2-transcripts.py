@@ -4,7 +4,7 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-list-r2-transcripts.py — vade-coo-memory#499.
+list-r2-transcripts.py — coo-memory#499.
 
 Print R2 transcript keys under a given prefix, one per line (text mode)
 or as a JSON array of {key, size, last_modified} (--json mode).

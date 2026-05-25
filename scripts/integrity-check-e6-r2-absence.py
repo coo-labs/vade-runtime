@@ -13,11 +13,11 @@ Sibling to:
 E6 catches **total-loss-of-export**: local Claude Code session jsonls
 exist under ~/.claude/projects within the last window, but R2 has zero
 objects in the matching date prefixes. That is the failure mode of
-vade-runtime#181 (agent-teams SIGKILL, 48h outage 2026-04-29 → 04-30)
-and vade-runtime#198 (recurrence). Both went undetected for ~24h
+coo-harness#181 (agent-teams SIGKILL, 48h outage 2026-04-29 → 04-30)
+and coo-harness#198 (recurrence). Both went undetected for ~24h
 because the only signal was the next nightly run finding no R2 objects.
 
-E6 turns that signal into a boot-time invariant. Post-vade-runtime#216
+E6 turns that signal into a boot-time invariant. Post-coo-harness#216
 the partial-export hazard is structurally impossible (E8 covers the
 residual), but the *absence* hazard — hook never runs at all because
 of a future container-teardown bug, env-var rename, or settings.json
@@ -41,7 +41,7 @@ Plus a one-line human summary on stderr.
 Exits 0 always — the wrapper interprets `ok`. The wrapper also fences
 on R2 creds + uv + timeout availability.
 
-vade-runtime#201 — E6 boot-time integrity invariant.
+coo-harness#201 — E6 boot-time integrity invariant.
 """
 from __future__ import annotations
 
@@ -160,13 +160,13 @@ def _count_local_jsonls(
     fresh) but its Stop-hook export hasn't fired yet, so counting it
     inflates local_count and produces a false E6 alarm on quiet days where
     the only "recent local activity" is the in-flight session itself
-    (vade-runtime#229). Three exclusion paths, in order:
+    (coo-harness#229). Three exclusion paths, in order:
 
     1. `in_flight` (set of realpaths): /proc-based; catches any jsonl
        currently held open by any process (harness's active session log).
        Most precise when it works, but the cloud harness opens-write-closes
        per append rather than holding the fd, so this returns empty there
-       (vade-runtime#232).
+       (coo-harness#232).
     2. `exclude_session`: env-var-driven; skips jsonls whose stem matches
        the given id. Works when `CLAUDE_CODE_SESSION_ID` matches the jsonl
        filename UUID (interactive Bash subprocess), but unreliable at
@@ -174,7 +174,7 @@ def _count_local_jsonls(
        cloud event-style id (`cse_*`) instead.
     3. `inflight_recency_s`: any jsonl with mtime within the last N
        seconds is considered in-flight regardless of name or fd state
-       (vade-runtime#232). The fd-less, env-form-agnostic backstop —
+       (coo-harness#232). The fd-less, env-form-agnostic backstop —
        catches the in-flight session at SessionStart hook time on cloud
        where the first two paths fail. 60s default covers boot-time
        runs (jsonl mtime ~1s old when there's activity) without masking
@@ -232,7 +232,7 @@ def main() -> int:
         help="Session id (jsonl stem) to exclude from local_count. The "
         "in-flight session's jsonl is being written continuously and "
         "would otherwise inflate the count on quiet days. Defaults to "
-        "$CLAUDE_CODE_SESSION_ID. vade-runtime#229.",
+        "$CLAUDE_CODE_SESSION_ID. coo-harness#229.",
     )
     ap.add_argument(
         "--inflight-recency-s",
@@ -245,7 +245,7 @@ def main() -> int:
         "$CLAUDE_CODE_SESSION_ID at hook time is `cse_*` rather than the "
         "jsonl UUID, and where no process holds the jsonl fd open). "
         "Default 60 (also via VADE_E6_INFLIGHT_RECENCY_S). Set to 0 to "
-        "disable. vade-runtime#232.",
+        "disable. coo-harness#232.",
     )
     ap.add_argument("--verbose", action="store_true", help="Per-row detail to stderr.")
     args = ap.parse_args()
@@ -374,7 +374,7 @@ def main() -> int:
             f"{local_count} local jsonls in last {args.window_h}h under "
             f"{projects_dir} but R2 has 0 objects (prefixes: "
             f"{','.join(prefixes)}) — transcript-export pipeline silent; "
-            f"see vade-runtime#201, MEMO-2026-05-04-mzeq"
+            f"see coo-harness#201, MEMO-2026-05-04-mzeq"
         )
         _emit(
             {

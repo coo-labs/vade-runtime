@@ -104,9 +104,9 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix=f"transcript-export-test-{sid}-") as scratch:
         scratch_path = Path(scratch)
-        # Mac-default layout that the hook prefers (Path.home() / GitHub / vade-app / vade-agent-logs).
+        # Mac-default layout that the hook prefers (Path.home() / GitHub / vade-app / coo-logs).
         fake_home = scratch_path / "home"
-        agent_logs = fake_home / "GitHub" / "vade-app" / "vade-agent-logs"
+        agent_logs = fake_home / "GitHub" / "vade-app" / "coo-logs"
         projects = fake_home / ".claude" / "projects" / "test-proj"
         projects.mkdir(parents=True, exist_ok=True)
         agent_logs.mkdir(parents=True, exist_ok=True)
@@ -144,7 +144,7 @@ def main() -> int:
 
         # The wrapper detaches the Python child via `setsid -f` so it can
         # survive harness teardown under CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-        # (vade-runtime#181 / #182). The sidecar is written asynchronously
+        # (coo-harness#181 / #182). The sidecar is written asynchronously
         # after the wrapper returns. Poll for up to 60s; the synthetic jsonl
         # is small (~4 events) so under normal conditions the export
         # completes in 1–2s.
@@ -197,7 +197,7 @@ def main() -> int:
             fail(f"events_processed != 4: {meta['events_processed']}")
         if meta["r2"].get("uploaded") is not False:
             fail(f"dry-run should set r2.uploaded=false; got {meta['r2']}")
-        # vade-runtime#207 fix shape (b): meta_key must be set in r2_target,
+        # coo-harness#207 fix shape (b): meta_key must be set in r2_target,
         # pointing at the flat-by-id R2 prefix used for the canonical record.
         expected_meta_key = f"transcripts/meta/{sid}.meta.json"
         if meta["r2"].get("meta_key") != expected_meta_key:

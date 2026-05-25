@@ -3,7 +3,7 @@
 # line per new top-level comment or reply.
 #
 # Analog to the harness `mcp__github__subscribe_pr_activity` primitive,
-# closing the v0 of vade-runtime#206. There is no upstream MCP tool for
+# closing the v0 of coo-harness#206. There is no upstream MCP tool for
 # discussion activity yet; this script is the bridge until one lands.
 #
 # Suitable for the `Monitor` tool: each printed line is one event
@@ -38,7 +38,7 @@ Poll a GitHub discussion thread; emit one stdout line per new comment
 or reply, suitable for `Monitor` tail-streaming.
 
 Arguments:
-  <owner/repo>     Target repository (e.g. coo-labs/vade-core)
+  <owner/repo>     Target repository (e.g. coo-labs/vade-canvas)
   <number>         Discussion number
   [poll_seconds]   Polling interval, default 60
 
@@ -48,8 +48,8 @@ Environment:
   VADE_CLOUD_STATE_DIR  State directory root (defaults to ~/.vade-cloud-state)
 
 Examples:
-  subscribe-discussion.sh coo-labs/vade-core 126
-  subscribe-discussion.sh coo-labs/vade-core 999 30
+  subscribe-discussion.sh coo-labs/vade-canvas 126
+  subscribe-discussion.sh coo-labs/vade-canvas 999 30
 EOF
 }
 

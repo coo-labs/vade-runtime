@@ -2,7 +2,7 @@
   "mcpServers": {
     "mem0": {
       "type": "stdio",
-      "command": "/home/user/vade-runtime/scripts/mem0-mcp-projection.py",
+      "command": "/home/user/coo-harness/scripts/mem0-mcp-projection.py",
       "args": [],
       "env": {
         "MEM0_API_KEY": "${MEM0_API_KEY}",
@@ -27,13 +27,6 @@
       ],
       "env": {
         "OP_SERVICE_ACCOUNT_TOKEN": "${OP_SERVICE_ACCOUNT_TOKEN}"
-      }
-    },
-    "vade-canvas": {
-      "type": "sse",
-      "url": "https://mcp.vade-app.dev/sse",
-      "headers": {
-        "Authorization": "Bearer ${VADE_AUTH_TOKEN}"
       }
     }
   }

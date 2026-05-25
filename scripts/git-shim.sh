@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vade-coo git shim — intercepts `git push` and routes through
 # git-push-with-fallback.sh so the cloud git-proxy 403 wraparound
-# (vade-runtime#67) is the default behavior, not an opt-in.
+# (coo-harness#67) is the default behavior, not an opt-in.
 #
 # Installed by coo-bootstrap.sh as a symlink at <bindir>/git, where
 # bindir is _snapshot_user_bindir (typically /home/user/.local/bin on

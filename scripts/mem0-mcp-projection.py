@@ -2,8 +2,8 @@
 """
 mem0-mcp-projection.py — stdin/stdout JSON-RPC proxy for the Mem0 MCP server.
 
-coo-labs/vade-runtime#154. Closes the #1 transcript-bloat case from the
-2026-04-28 audit (vade-coo-memory#249, epic vade-coo-memory#258).
+coo-labs/coo-harness#154. Closes the #1 transcript-bloat case from the
+2026-04-28 audit (coo-memory#249, epic coo-memory#258).
 
 Wraps the upstream mem0 stdio MCP binary and post-processes
 `tools/call` results when the called tool is `search_memories` or

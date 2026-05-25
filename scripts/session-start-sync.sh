@@ -7,7 +7,7 @@
 # that gap by re-running the idempotent pieces of cloud-setup.sh /
 # local-setup.sh that don't need 1Password access:
 #
-#   1. sync_claude_config  — mirror vade-runtime/.claude into the
+#   1. sync_claude_config  — mirror coo-harness/.claude into the
 #      workspace .claude (preserves the env block populated by
 #      coo-bootstrap so MCPs still pick up credentials).
 #   2. ensure_workspace_mcp_config — workspace .mcp.json symlink.
@@ -36,7 +36,7 @@ WORKSPACE_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default (/home/user/.vade-cloud-state);
 # on Mac local-setup.sh exports ~/.vade/local-state but hook subprocesses don't inherit its env.
 # Redirect when the cloud path is absent and the local path exists so integrity-check.sh (and
-# other hooks) write to the correct location. vade-runtime#171.
+# other hooks) write to the correct location. coo-harness#171.
 if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
   VADE_CLOUD_STATE_DIR="$HOME/.vade/local-state"
 fi
@@ -49,10 +49,10 @@ sync_claude_config "$SCRIPT_DIR/../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
 # them at the workspace .claude/ so they're invokable from any cwd
 # under the workspace.
 aggregate_workspace_claude_config "$WORKSPACE_ROOT_DERIVED" "$WORKSPACE_ROOT_DERIVED/.claude" \
-  vade-runtime vade-coo-memory vade-core
+  coo-harness coo-memory
 ensure_workspace_mcp_config "$SCRIPT_DIR/../.mcp.json" "$WORKSPACE_ROOT_DERIVED/.mcp.json"
-ensure_workspace_identity_link "$WORKSPACE_ROOT_DERIVED/vade-coo-memory/CLAUDE.md" "$WORKSPACE_ROOT_DERIVED/CLAUDE.md"
-# Stale-snapshot fallback for the mem0 stdio MCP (vade-runtime#109).
+ensure_workspace_identity_link "$WORKSPACE_ROOT_DERIVED/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT_DERIVED/CLAUDE.md"
+# Stale-snapshot fallback for the mem0 stdio MCP (coo-harness#109).
 # cloud-setup.sh is the canonical installer; this catches snapshots
 # built before that change, or local dev environments where build-time
 # setup doesn't run. Idempotent — short-circuits when the binary is
@@ -76,20 +76,20 @@ ensure_gh_coo_wrap "$SCRIPT_DIR/gh-coo-wrap.sh"
 # rewrites the PATH key from the live shell PATH. On macOS the SessionStart hook
 # subprocess inherits a thin non-login PATH (no Homebrew), and rewriting from that
 # would clobber the well-formed PATH coo-bootstrap captured at install time.
-# vade-runtime#171.
+# coo-harness#171.
 merge_coo_settings_state_dir
 # Persist VADE_RUNTIME_DIR into ~/.claude/settings.json env so subprocesses
 # (hooks, scheduled-runtime invocations, agents) inherit it and any
 # script call form `"$VADE_RUNTIME_DIR/..."` resolves at hook time
 # without an explicit-path fallback. Same state-dir-only rationale as
-# the call above (no PATH rewrite). vade-runtime#228 carries the
+# the call above (no PATH rewrite). coo-harness#228 carries the
 # specific evidence (the Night's Watch standing-order call form).
 merge_coo_settings_runtime_dir
 # Persist VADE_COO_MEMORY_DIR into ~/.claude/settings.json env. Sibling
 # parity with VADE_RUNTIME_DIR — gh-coo-wrap.sh and various skills/hooks
 # resolve the memory-repo path via $VADE_COO_MEMORY_DIR, and without
 # this merge it doesn't survive into subprocess env across resume.
-# vade-runtime#265.
+# coo-harness#265.
 merge_coo_settings_memory_dir
 # Refresh the external-touch (F6) cache when it's older than 24h.
 # Build-time prewarm in cloud-setup.sh handles the fresh-snapshot case;
@@ -100,5 +100,5 @@ merge_coo_settings_memory_dir
 prewarm_external_touch_cache "$WORKSPACE_ROOT_DERIVED" 24
 # integrity-check.sh runs in coo-identity-digest.sh instead of here,
 # so the check fires after the platform's repo-sync has settled
-# (vade-runtime#XXX; moved from here to eliminate boot-time false alarms).
+# (coo-harness#XXX; moved from here to eliminate boot-time false alarms).
 boot_log_record session-start-sync end ok

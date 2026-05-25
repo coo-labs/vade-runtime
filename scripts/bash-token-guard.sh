@@ -26,7 +26,7 @@
 #     length checks (`${#VAR}`), redirect to /dev/null, pipe into
 #     another command.
 #
-# Reference: vade-runtime#165, MEMO-2026-04-22-04 (PAT discipline).
+# Reference: coo-harness#165, MEMO-2026-04-22-04 (PAT discipline).
 
 set -uo pipefail
 
@@ -329,7 +329,7 @@ fi
 if [ -n "$leak_reason" ]; then
   jq -n --arg reason "$leak_reason" '{
     decision: "block",
-    reason: ("[bash-token-guard] " + $reason + ". Refusing to print PAT/API-key bytes to a terminal or file. Use: existence check `[ -n \"$VAR\" ] && echo set`, length check `echo \"${#VAR}\"`, or pipe into a consumer like `gh auth login --with-token`. See vade-runtime#165, MEMO-2026-04-22-04.")
+    reason: ("[bash-token-guard] " + $reason + ". Refusing to print PAT/API-key bytes to a terminal or file. Use: existence check `[ -n \"$VAR\" ] && echo set`, length check `echo \"${#VAR}\"`, or pipe into a consumer like `gh auth login --with-token`. See coo-harness#165, MEMO-2026-04-22-04.")
   }'
   exit 0
 fi

@@ -301,19 +301,19 @@ is_org_admin_api() {
 #   4. default → $GITHUB_MCP_PAT via gh's auth context (no override here).
 #
 # App-token routing is attempted only when GITHUB_APP_ID is set in env
-# (the boot-time signal that Phase 1 of vade-coo-memory#837 has been
+# (the boot-time signal that Phase 1 of coo-memory#837 has been
 # completed). When unset (App not yet provisioned), routing falls through
 # to the cross-org branch and the org-admin call lands on the PAT — which
 # 403s with the same error class the App fixes. Failure mode is symmetric
 # with the pre-App state, not silently wrong.
 if [ -n "${GITHUB_APP_ID:-}" ] && { [ "${GH_USE_APP_TOKEN:-0}" = "1" ] || is_org_admin_api "$@"; }; then
-  # The minter lives in vade-runtime/scripts/, not next to this wrapper.
+  # The minter lives in coo-harness/scripts/, not next to this wrapper.
   # ensure_gh_coo_wrap (lib/common.sh) installs *only* gh-coo-wrap.sh to
   # ~/.local/bin/gh — the minter stays canonical at its repo path. Locate
   # via $VADE_RUNTIME_DIR (set in settings.json env at boot per D4
   # integrity-check); fall back to a hard-coded path for the in-cloud
   # default layout if the env var is missing.
-  minter="${VADE_RUNTIME_DIR:-/home/user/vade-runtime}/scripts/gh-app-token.sh"
+  minter="${VADE_RUNTIME_DIR:-/home/user/coo-harness}/scripts/gh-app-token.sh"
   if [ -x "$minter" ]; then
     app_token="$("$minter" 2>/dev/null || true)"
     if [ -n "$app_token" ]; then
@@ -333,10 +333,10 @@ else
 fi
 
 # Resolve issue/PR shape-check script. Advisory only; missing-tolerant.
-# Source: vade-coo-memory/bin/issue-pr-shape-check.py (lands via
-# vade-coo-memory#226). The wrapper uses the script when present;
+# Source: coo-memory/bin/issue-pr-shape-check.py (lands via
+# coo-memory#226). The wrapper uses the script when present;
 # absence is silent and never affects the gh invocation.
-SHAPE_CHECK="${VADE_COO_MEMORY_DIR:-/home/user/vade-coo-memory}/bin/issue-pr-shape-check.py"
+SHAPE_CHECK="${VADE_COO_MEMORY_DIR:-/home/user/coo-memory}/bin/issue-pr-shape-check.py"
 [ -x "$SHAPE_CHECK" ] || SHAPE_CHECK=""
 
 # shape_check_body <body>: surface advisory body-shape warnings to

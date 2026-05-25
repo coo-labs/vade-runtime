@@ -4,10 +4,10 @@ name: Sync issue templates
 # main when .github/ISSUE_TEMPLATE/** or the sync config changes; opens a sync
 # PR in each of the 8 consumer repos listed in .github/sync.yml.
 #
-# Centralization: vade-coo-memory#938 (F8). Mechanism rationale (sync-action
-# vs symlink vs build-time): vade-coo-memory/coo/audits/2026-05-24_org-infrastructure-audit/
+# Centralization: coo-memory#938 (F8). Mechanism rationale (sync-action
+# vs symlink vs build-time): coo-memory/coo/audits/2026-05-24_org-infrastructure-audit/
 # f7-f8-centralization-design.md §"Issue templates". Operations doc:
-# vade-coo-memory/coo/operations/template-centralization.md.
+# coo-memory/coo/operations/template-centralization.md.
 #
 # Canonical-host pivot (vcm → vrt): vrt aligns with the F7 pattern — harness
 # owns operational infrastructure; ops doc + case-law live in vcm. The
@@ -63,13 +63,13 @@ jobs:
           BRANCH_PREFIX: sync/issue-templates
           COMMIT_PREFIX: 'sync(templates):'
           PR_BODY: |
-            Auto-synced from `coo-labs/vade-runtime` canonical issue templates (F8).
+            Auto-synced from `coo-labs/coo-harness` canonical issue templates (F8).
 
-            **Edit the canonical**, not this PR: [`vade-runtime/.github/ISSUE_TEMPLATE/`](https://github.com/coo-labs/vade-runtime/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
+            **Edit the canonical**, not this PR: [`coo-harness/.github/ISSUE_TEMPLATE/`](https://github.com/coo-labs/coo-harness/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
 
-            - Canonical issue: [vade-coo-memory#938](https://github.com/coo-labs/vade-coo-memory/issues/938)
-            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/template-centralization.md)
-            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/coo-labs/vade-coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
+            - Canonical issue: [coo-memory#938](https://github.com/coo-labs/coo-memory/issues/938)
+            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/template-centralization.md)
+            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
 
             `deleteOrphaned: true` is in effect — files deleted from the canonical are deleted here too.
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}

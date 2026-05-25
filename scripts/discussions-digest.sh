@@ -49,7 +49,7 @@ fi
 NOW="$(node -e "console.log(new Date().toISOString())")"
 
 QUERY=$(cat <<'EOF'
-{"query":"query { repository(owner: \"coo-labs\", name: \"vade-core\") { discussions(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { title number url updatedAt category { name } comments { totalCount } author { login } } } } }"}
+{"query":"query { repository(owner: \"coo-labs\", name: \"vade-canvas\") { discussions(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { title number url updatedAt category { name } comments { totalCount } author { login } } } } }"}
 EOF
 )
 

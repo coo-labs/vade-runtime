@@ -9,11 +9,11 @@ the native field.
 Invoked from `.github/workflows/bridge-form-fields-to-natives.yml`
 (reusable workflow in vade-runtime) on `issues.opened` events in
 caller repos. Stage 2 of the issue-fields-and-types migration
-(MEMO-2026-05-21-xfqh + vade-coo-memory#811).
+(MEMO-2026-05-21-xfqh + coo-memory#811).
 
 Inputs (env):
     GH_TOKEN          PAT with org-level Issue field admin scope.
-    REPO_FULL_NAME    e.g. "coo-labs/vade-coo-memory".
+    REPO_FULL_NAME    e.g. "coo-labs/coo-memory".
     ISSUE_NUMBER      Numeric issue number.
     DRY_RUN           If "1", print intended mutations without applying.
 

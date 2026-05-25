@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Sync all vade-* repos in this folder with their GitHub origin.
+# Sync all coo-labs repos in this folder with their GitHub origin.
 # Auto-handles the safe cases; reports anything that needs a human.
 
-# a symlink to this file should be made from vade-app/sync-repos.sh
+# a symlink to this file should be made from coo-labs-workspace/sync-repos.sh
 
 set -u
 
 ROOT="${DEV_DIR}/vade-app"
 
-REPOS=(coo4one vade-agent-logs vade-coo-memory vade-core vade-governance vade-runtime)
+REPOS=(coo4one coo-logs coo-memory vade-canvas coo-harness site tjsonl skills coo-console)
 
 echo $ROOT
 

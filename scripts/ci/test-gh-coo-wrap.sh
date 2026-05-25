@@ -164,32 +164,32 @@ out="$(env -u CLAUDE_CODE_REMOTE_SESSION_ID -u CLAUDE_CODE_SESSION_ID \
 assert_not_contains "no session env: not augmented" "$out" "claude.ai/code/session_"
 
 # ---- TEST 16: -R <repo> before subcommand — augments ----
-out="$("$WRAPPER" -R coo-labs/vade-coo-memory issue comment 1 --body "with -R")"
+out="$("$WRAPPER" -R coo-labs/coo-memory issue comment 1 --body "with -R")"
 assert_contains "-R before subcommand: issue comment augments" "$out" "$EXPECTED_URL"
 assert_contains "-R before subcommand: body preserved" "$out" "with -R"
 
 # ---- TEST 17: --repo <repo> before subcommand — augments ----
-out="$("$WRAPPER" --repo coo-labs/vade-runtime pr comment 2 --body "with --repo")"
+out="$("$WRAPPER" --repo coo-labs/coo-harness pr comment 2 --body "with --repo")"
 assert_contains "--repo before subcommand: pr comment augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 18: --repo=<repo> (=value form) before subcommand — augments ----
-out="$("$WRAPPER" --repo=coo-labs/vade-core issue create --title t --body "with --repo=")"
+out="$("$WRAPPER" --repo=coo-labs/vade-canvas issue create --title t --body "with --repo=")"
 assert_contains "--repo=value before subcommand: issue create augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 19: -R then pr review --body — augments ----
-out="$("$WRAPPER" -R coo-labs/vade-runtime pr review 9 --request-changes --body "needs work")"
+out="$("$WRAPPER" -R coo-labs/coo-harness pr review 9 --request-changes --body "needs work")"
 assert_contains "-R before pr review --body: augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 20: -R then pr list — pass-through (uncovered subcommand) ----
-out="$("$WRAPPER" -R coo-labs/vade-runtime pr list --state open)"
+out="$("$WRAPPER" -R coo-labs/coo-harness pr list --state open)"
 assert_not_contains "-R before pr list: pass-through" "$out" "$EXPECTED_URL"
 
 # ---- TEST 21: -R then pr review --approve (no body) — pass-through ----
-out="$("$WRAPPER" -R coo-labs/vade-runtime pr review 9 --approve)"
+out="$("$WRAPPER" -R coo-labs/coo-harness pr review 9 --approve)"
 assert_not_contains "-R before pr review --approve: no augmentation" "$out" "$EXPECTED_URL"
 
 # ---- TEST 22: -R interleaved (subcommand then -R then action) — augments ----
-out="$("$WRAPPER" issue -R coo-labs/vade-runtime comment 1 --body "interleaved")"
+out="$("$WRAPPER" issue -R coo-labs/coo-harness comment 1 --body "interleaved")"
 assert_contains "-R interleaved: issue comment augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 23: --hostname before subcommand — augments ----
@@ -198,7 +198,7 @@ assert_contains "--hostname before subcommand: augments" "$out" "$EXPECTED_URL"
 
 # ---- TEST 24: -R then --body-file — augments file content ----
 echo "from a file (with -R)" > "$WORK/body2.txt"
-out="$("$WRAPPER" -R coo-labs/vade-coo-memory issue comment 1 --body-file "$WORK/body2.txt")"
+out="$("$WRAPPER" -R coo-labs/coo-memory issue comment 1 --body-file "$WORK/body2.txt")"
 assert_contains "-R before --body-file: file content augmented" "$out" "$EXPECTED_URL"
 assert_contains "-R before --body-file: original content preserved" "$out" "from a file (with -R)"
 
@@ -322,7 +322,7 @@ out="$("$WRAPPER" release create v1.0.0)"
 assert_contains "gh release create: keeps MCP_PAT (uncovered)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
 # ============================================================
-# App-token routing tests (vade-coo-memory#837).
+# App-token routing tests (coo-memory#837).
 # ============================================================
 # Org-admin REST endpoints (issue-types, properties, custom roles)
 # get routed to a GitHub App installation token, minted via
@@ -373,7 +373,7 @@ assert_contains "gh api orgs/coo-labs/custom-repository-roles: mints App token" 
 out="$("$WRAPPER" api orgs/coo-labs/repos)"
 assert_contains "gh api orgs/coo-labs/repos: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
-out="$("$WRAPPER" api repos/coo-labs/vade-coo-memory)"
+out="$("$WRAPPER" api repos/coo-labs/coo-memory)"
 assert_contains "gh api repos/coo-labs/...: keeps MCP_PAT (not org-admin)" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
 # --- explicit opt-in via GH_USE_APP_TOKEN=1 ---

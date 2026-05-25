@@ -2,13 +2,13 @@
 # memo-index (thin wrapper).
 #
 # The real memo-index logic lives at
-# vade-coo-memory/.claude/_lib/memo-index.sh — it travels with the
+# coo-memory/.claude/_lib/memo-index.sh — it travels with the
 # data it operates on (per the data-ownership rule from the 2026-04-25
 # emancipation refactor; see MEMO 2026-04-25-02).
 #
 # This thin wrapper exists so the SessionStart hook chain (which dispatches
 # `bash "$HOME/.claude/vade-hooks/dispatch.sh" memo-index` and resolves
-# scripts under vade-runtime/scripts/) continues to find a `memo-index.sh`
+# scripts under coo-harness/scripts/) continues to find a `memo-index.sh`
 # entry point. It walks up to find vade-coo-memory adjacent and re-invokes
 # the canonical script there.
 #
@@ -25,8 +25,8 @@ CANDIDATES=(
   "$SELF_DIR/../../vade-coo-memory"     # runtime/scripts → workspace → vade-coo-memory
   "${CLAUDE_PROJECT_DIR:-}/../vade-coo-memory"
   "${CLAUDE_PROJECT_DIR:-}/vade-coo-memory"
-  "$HOME/GitHub/coo-labs/vade-coo-memory"
-  "/home/user/vade-coo-memory"
+  "$HOME/GitHub/coo-labs/coo-memory"
+  "/home/user/coo-memory"
 )
 
 COO=""

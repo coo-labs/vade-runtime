@@ -1,84 +1,93 @@
-# vade-runtime — Repo Instructions for Claude Code
+# coo-harness — Repo Instructions for Claude Code
 
-This repository produces the **reproducible development
-environment** for VADE. Changes here affect every contributor's
-loop, so treat them carefully.
+This repository is the **COO's kernel**: boot orchestration for
+Claude Code sessions. SessionStart hooks, integrity checks, MCP
+projection, PAT routing, session lifecycle, transcript export.
 
 ## Session-start reading
 
 1. This file.
 2. `README.md`.
-3. `Dockerfile` and `.devcontainer/devcontainer.json` (once they
-   exist).
-4. The public authority and decision-rights document at
-   [vade-governance/authority.md](https://github.com/coo-labs/vade-governance/blob/main/authority.md)
+3. The public authority and decision-rights document at
+   [coo-memory/identity/public-authority.md](https://github.com/coo-labs/coo-memory/blob/main/identity/public-authority.md)
    — for what may and may not be done autonomously.
 
 ## Scope
 
-Work in this repository is scoped to the development container and
-toolchain pinning. Its job is to keep the dev environment clean,
-pinned, and fast.
+Boot orchestration: every primitive a Claude Code session needs at
+boot, in order. SessionStart hooks (`.claude/settings.json`), MCP
+server projection (`.mcp.json`), integrity invariants
+(`scripts/integrity-check.sh`), PAT routing
+(`scripts/gh-coo-wrap.sh`), session-lifecycle scripts (transcript
+export, end-session helpers), the boot-time skill aggregator.
+
+Divorced from canvas (per F11,
+[coo-harness#313](https://github.com/coo-labs/coo-harness/issues/313)
++ MEMO-2026-05-24-q3tk): canvas-MCP wiring, canvas-only skills
+(`canvas-ui`, `tldraw-docs`, `algorithmic-art`), and the
+`vade-canvas` aggregator arg are out of scope. Docker / devcontainer
+bits dropped after F3a verification
+([coo-harness#312](https://github.com/coo-labs/coo-harness/issues/312)).
 
 ## What may be done autonomously
 
-- Draft Dockerfile changes on a feature branch.
-- Update pinned tool versions, with reasoning captured in the
-  commit message.
-- Add or revise scripts under `scripts/`.
-- Open pull requests for review.
-- Run local builds to verify changes (`docker build .`).
+- Update boot scripts under `scripts/`.
+- Revise `.mcp.json` / `.claude/settings.json` for new MCP servers
+  or hook chains (boot-impact PR convention: handoff prompt
+  required, see `coo/operations/handoff-prompts.md` in coo-memory).
+- Update pinned tool versions in `versions.lock` with rationale.
+- Open PRs for review.
 
 ## What requires explicit approval
 
-- Pushing image tags to any registry.
 - Merging to `main`.
-- Changing the base image family (e.g. from Debian to Alpine).
-- Adding dependencies that aren't in-scope for VADE development.
+- Removing or adding env vars that flow through
+  `_write_claude_settings_env` (positional-arg surface; coordinated
+  change).
+- Changes to the COO-identity-bootstrap flow (`coo-bootstrap.sh`,
+  `install_coo_credentials`).
 
 ## Pinning discipline
 
-Every tool version added to the image must be pinned in
-`versions.lock` (once that file exists) with rationale. Unpinned
-dependencies cause silent dev-env drift across contributors, which
-is the exact class of bug this repository exists to prevent.
+Every binary version fetched from a CDN at boot time must be
+pinned in `versions.lock` with rationale. Unpinned dependencies
+cause silent drift across container snapshots — the exact class of
+bug the kernel's reproducibility discipline exists to prevent.
 
 ## Current state
 
-Alpha. Minimal Dockerfile in place (based on `node:20.19.1-bookworm-slim`)
-with Claude Code CLI and `tsx` pre-installed. `.devcontainer/devcontainer.json`
-forwards ports 5173 (Vite) and 7600 (MCP WebSocket bridge), and mounts
-a named volume for the `~/.vade/library/` canvas library. `scripts/bootstrap.sh`
-and `scripts/healthcheck.sh` handle first-run setup and smoke testing.
-See `versions.lock` for pinned tools.
-
-Next planned additions (deferred until needed): Rust toolchain via
-`rustup` when the first performance module lands, Python 3.12 when a
-canvas artifact needs scientific helpers.
+Production boot kernel. `scripts/cloud-setup.sh` pre-bakes `op`,
+`gh`, `uv`, `mem0-mcp-server`, and the 1Password MCP into a snapshot;
+subsequent sessions resume warm with these tools in place. Identity
+bootstrap (`scripts/coo-bootstrap.sh`) wires the `vade-coo` GitHub
+identity when `OP_SERVICE_ACCOUNT_TOKEN` is set in the cloud-env
+config.
 
 ## Bootstrap CI
 
-PRs that touch `scripts/`, `.claude/`, `.mcp.json`, `versions.lock`,
-or `Dockerfile` trigger
+PRs that touch `scripts/`, `.claude/`, `.mcp.json`, or
+`versions.lock` trigger
 `.github/workflows/bootstrap-regression.yml`, which stages a
 cloud-style workspace under `/home/user`, runs `scripts/cloud-setup.sh`
 + `scripts/session-start-sync.sh` end-to-end in **fake-env mode**
 (PATH-shadowed `op` and `curl`-to-`api.github.com/user` mocks under
 `scripts/ci/mocks/`), then asserts the integrity-check report has no
 degraded invariants modulo the `VADE_CI_ALLOWLIST` env. Catches
-script-level regressions like #66, #72, #73, #83 at PR-open time
-without burning a Claude Code session per check. Tracked at #86.
+script-level regressions at PR-open time without burning a Claude
+Code session per check. Tracked at
+[coo-harness#86](https://github.com/coo-labs/coo-harness/issues/86).
 
-Layer-2 (SDK-driven harness load test) is sibling work at #85.
+Layer-2 (SDK-driven harness load test) is sibling work at
+[coo-harness#85](https://github.com/coo-labs/coo-harness/issues/85).
 This Layer-1 suite does not exercise Claude Code reading
-`settings.json`, MCP startup, skill loading, or live 1Password / GitHub
-PAT round-trips — those stay in the manual fresh-container ritual
-until #85 closes.
+`settings.json`, MCP startup, skill loading, or live 1Password /
+GitHub PAT round-trips — those stay in the manual fresh-container
+ritual until #85 closes.
 
 What runs:
 1. `scripts/ci/run-bootstrap-regression.sh` stages
-   `$VADE_CI_WORKSPACE_ROOT/{vade-runtime,vade-coo-memory,vade-core}`
-   from the PR checkout (sibling repos are stubbed).
+   `$VADE_CI_WORKSPACE_ROOT/{vade-runtime,vade-coo-memory}` from the
+   PR checkout (sibling repos are stubbed).
 2. Generates fixture ed25519 keys per run; their fingerprints are
    exported as `COO_AUTH_FP_EXPECTED` / `COO_SIGN_FP_EXPECTED` so
    `install_coo_ssh_keys` validates against the substituted material.
@@ -99,8 +108,8 @@ allowlist via the workflow's `VADE_CI_ALLOWLIST` env or the
 `workflow_dispatch` input — cite the reason in the commit so the
 next operator can audit.
 
-Local run (from a vade-runtime checkout, against a scratch workspace
-to avoid clobbering production /home/user):
+Local run (from a coo-harness checkout, against a scratch workspace
+to avoid clobbering production `/home/user`):
 
 ```sh
 VADE_CI_WORKSPACE_ROOT=/tmp/vade-ci-workspace \

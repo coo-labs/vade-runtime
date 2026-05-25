@@ -1,7 +1,7 @@
 name: Issue / PR hygiene (reusable)
 
 # Reusable workflow: enforces the four issue/PR hygiene patterns
-# documented in coo-labs/vade-coo-memory:coo/operations/issue-pr-hygiene.md:
+# documented in coo-labs/coo-memory:coo/operations/issue-pr-hygiene.md:
 #
 #   A — Epic-type issues use GitHub's native sub-issue API (advisory)
 #   B — PRs that resolve issues include a closing keyword     (blocking or advisory, per caller)
@@ -13,20 +13,20 @@ name: Issue / PR hygiene (reusable)
 # extending Haiku per-PR would multiply cost without buying anything
 # for these regex-decidable patterns).
 #
-# Canonical home: coo-labs/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml
-# Centralization design: vade-coo-memory#939 (F7); absorbs vade-coo-memory#767.
-# Host=vade-runtime per #939 comment (Public→Private workflow_call fails).
-# Operations doc: coo-labs/vade-coo-memory:coo/operations/workflow-centralization.md
-# Pattern-B promotion cadence: coo-labs/vade-coo-memory:coo/adoption_tracker.md (≥14 days clean)
-# Authority + audit: coo-labs/vade-coo-memory:coo/audits/2026-05-01_issue-pr-hygiene/synthesis.md
+# Canonical home: coo-labs/coo-harness/.github/workflows/issue-pr-hygiene-reusable.yml
+# Centralization design: coo-memory#939 (F7); absorbs coo-memory#767.
+# Host=coo-harness per #939 comment (Public→Private workflow_call fails).
+# Operations doc: coo-labs/coo-memory:coo/operations/workflow-centralization.md
+# Pattern-B promotion cadence: coo-labs/coo-memory:coo/adoption_tracker.md (≥14 days clean)
+# Authority + audit: coo-labs/coo-memory:coo/audits/2026-05-01_issue-pr-hygiene/synthesis.md
 #
 # Per-repo behavior:
 #   - Pattern-B mode (blocking vs advisory) is the only per-caller knob.
 #   - Exempt-class detection is the UNION across all callers — safe to
 #     run universally because the patterns are whitelists. The exempts
 #     cover: dependabot/claude[bot] (universal), anthropic-code-agent
-#     stubs (vade-runtime-specific), auto-meta-sidecar headRefs (defensive),
-#     Night's Watch session-log paths (essential in vade-agent-logs, 96.9%
+#     stubs (coo-harness-specific), auto-meta-sidecar headRefs (defensive),
+#     Night's Watch session-log paths (essential in coo-logs, 96.9%
 #     of historical PRs).
 #
 # Trigger contract for callers (see issue-pr-hygiene.yml thin trigger):
@@ -46,7 +46,7 @@ name: Issue / PR hygiene (reusable)
 #     checks: write
 #   jobs:
 #     hygiene:
-#       uses: coo-labs/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml@main
+#       uses: coo-labs/coo-harness/.github/workflows/issue-pr-hygiene-reusable.yml@main
 #       with:
 #         pattern-b-mode: blocking  # or "advisory"
 #       secrets: inherit
@@ -121,7 +121,7 @@ jobs:
               return;
             }
 
-            // anthropic-code-agent stubs (essential for vade-runtime;
+            // anthropic-code-agent stubs (essential for coo-harness;
             // defensive elsewhere — the body prefix is the discriminator).
             if (author === 'app/anthropic-code-agent' &&
                 body.startsWith('Thanks for asking me to work on this')) {
@@ -136,7 +136,7 @@ jobs:
             }
 
             // Path-based exempt: Night's Watch session-logs
-            // (essential for vade-agent-logs — 96.9% of historical PRs;
+            // (essential for coo-logs — 96.9% of historical PRs;
             // defensive elsewhere since other repos have no sessions/ tree).
             const filesResp = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
@@ -207,7 +207,7 @@ jobs:
                 `stay open silently. Use one \`Closes\` keyword per issue:\n\n` +
                 `    Closes coo-labs/<repo>#N\n    Closes coo-labs/<repo>#M\n\n` +
                 `See coo/operations/issue-pr-hygiene.md §"Closing-keyword discipline" ` +
-                `(in coo-labs/vade-coo-memory).`;
+                `(in coo-labs/coo-memory).`;
               if (isBlocking) {
                 core.setFailed(`Pattern B (closing keywords) — BLOCKING\n\n${msg}`);
                 return;
@@ -253,7 +253,7 @@ jobs:
 
             const summary = reasons.join('\n\n');
             const seeDocs = `See coo/operations/issue-pr-hygiene.md §"Closing-keyword discipline" ` +
-              `(in coo-labs/vade-coo-memory).`;
+              `(in coo-labs/coo-memory).`;
 
             if (isBlocking) {
               core.setFailed(`Pattern B (closing keywords) — BLOCKING\n\n${summary}\n\n${seeDocs}`);
@@ -282,7 +282,7 @@ jobs:
             const pr = context.payload.pull_request;
             const body = pr.body || '';
             const title = pr.title || '';
-            const repo = context.repo.repo; // e.g. "vade-coo-memory"
+            const repo = context.repo.repo; // e.g. "coo-memory"
 
             // Per-repo allowlist for known-grandfathered Pattern-D items.
             // Originally populated for the quorum-6 thread (PRs #175 + #183,
@@ -309,9 +309,9 @@ jobs:
             // to an *issue* #N, not a discussion — discussions have no `#N`
             // autolink form at all, only literal URLs. Skip matches whose
             // captured span contains the word "discussion" (case-insensitive).
-            // Worked example: `coo-labs/vade-core discussion #149` should NOT
-            // be rewritten to `coo-labs/vade-core#149` (which would mis-resolve
-            // to issue #149). vade-coo-memory#476.
+            // Worked example: `coo-labs/vade-canvas discussion #149` should NOT
+            // be rewritten to `coo-labs/vade-canvas#149` (which would mis-resolve
+            // to issue #149). coo-memory#476.
             const cMatches = [...body.matchAll(crossRepoCues), ...title.matchAll(crossRepoCues)]
               .filter(m => !/discussion/i.test(m[0]));
             if (cMatches.length > 0) {
@@ -342,7 +342,7 @@ jobs:
             // ---- Pattern D: #num for non-issue IDs ----
             if (!grandfatheredItems.has(pr.number)) {
               // Plural-form noun (`s?`) and range suffix (`#N-#M`, `#N–#M`,
-              // `#N - #M`) added per vade-coo-memory#757 audit
+              // `#N - #M`) added per coo-memory#757 audit
               // (coo/audits/2026-05-13_hyperlinking-sweep/synthesis.md §6).
               // The 2026-05-01 audit named the en-dash miss; it remained
               // open in the regex until this extension.
@@ -369,7 +369,7 @@ jobs:
                   `(prevents the false-positive autolink; \`MEMO-...\` already has a click-through autolink configured.) ` +
                   `Examples found:\n\n` +
                   dMatches.slice(0, 5).map(m => `  - \`${m[0]}\``).join('\n') +
-                  `\n\nSee \`coo/operations/issue-pr-hygiene.md\` §"Notation rules" (in coo-labs/vade-coo-memory).`
+                  `\n\nSee \`coo/operations/issue-pr-hygiene.md\` §"Notation rules" (in coo-labs/coo-memory).`
                 );
               }
             }
@@ -440,7 +440,7 @@ jobs:
             //   mutation). Distinct from trackedIssues, which reflects markdown
             //   `- [ ] #N` task-list connections only and returns 0 for issues
             //   whose children were linked via the native API. See
-            //   coo/operations/issue-pr-hygiene.md §"GraphQL gotchas" (in coo-labs/vade-coo-memory).
+            //   coo/operations/issue-pr-hygiene.md §"GraphQL gotchas" (in coo-labs/coo-memory).
             let result;
             try {
               result = await github.graphql(`
@@ -507,7 +507,7 @@ jobs:
               `Add sub-issues via the GitHub UI's "Add sub-issue" button on this issue, ` +
               `or via the GraphQL \`addSubIssue\` mutation.\n\n` +
               `See \`coo/operations/issue-pr-hygiene.md\` §"Sub-issue linkage" + ` +
-              `\`coo/label_taxonomy.md\` §6 (in coo-labs/vade-coo-memory).\n\n` +
+              `\`coo/label_taxonomy.md\` §6 (in coo-labs/coo-memory).\n\n` +
               `*This is advisory; the check does not block merge. ` +
               `Apply label \`hygiene:exempt\` to suppress on this issue.*`;
 

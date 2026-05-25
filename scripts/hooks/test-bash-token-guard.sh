@@ -9,7 +9,7 @@
 # Run: bash scripts/hooks/test-bash-token-guard.sh
 # Exit: 0 if all assertions pass, 1 otherwise.
 #
-# Reference: vade-runtime#165.
+# Reference: coo-harness#165.
 
 set -eu
 

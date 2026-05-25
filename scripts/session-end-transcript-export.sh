@@ -3,7 +3,7 @@
 # Sources ~/.vade/coo-env so R2_TRANSCRIPTS_* and TRANSCRIPTS_AGE_IDENTITY
 # are populated, then runs the Python implementation.
 #
-# Detach discipline (vade-runtime#181/#182, 2026-04-30):
+# Detach discipline (coo-harness#181/#182, 2026-04-30):
 # Under CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 (PR #177 / commit 9f706d7,
 # 2026-04-29 03:23 UTC) the harness kills the SessionEnd hook process
 # group before the Python export can finish — caught a 48-hour outage
@@ -15,7 +15,7 @@
 # the wrapper can return 0 quickly and the export survives the harness
 # killing the SessionEnd hook process group.
 #
-# Wait-with-detach (vade-runtime#198, 2026-05-03):
+# Wait-with-detach (coo-harness#198, 2026-05-03):
 # `setsid -f` detach survives signal-based PG teardown but cannot
 # survive PID-namespace destruction when a hosted Claude Code container
 # terminates shortly after SessionEnd returns. 2026-05-02 saw 0/7
@@ -42,12 +42,12 @@
 # the Python script handles missing R2/age creds by writing
 # export-error.txt rather than raising.
 #
-# coo-labs/vade-agent-logs#64 Batch 2; detach fix vade-runtime#182;
-# wait-with-detach vade-runtime#198.
+# coo-labs/coo-logs#64 Batch 2; detach fix coo-harness#182;
+# wait-with-detach coo-harness#198.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Cold-start precondition (vade-runtime#208): on a fresh hosted
+# Cold-start precondition (coo-harness#208): on a fresh hosted
 # container the SessionEnd hook fires before Claude Code creates
 # ~/.claude/projects/. Without this gate the Python script bails with
 # "~/.claude/projects not found" and writes a cosmetic
@@ -101,7 +101,7 @@ setsid -f bash -c \
 # budget elapses; the detached child survives via setsid -f and
 # completes anyway (#182 behavior preserved).
 #
-# Budget sizing (vade-runtime#207, 2026-05-03): the marker is
+# Budget sizing (coo-harness#207, 2026-05-03): the marker is
 # touched after the entire Python pipeline exits, including
 # _open_meta_pr's git fetch/switch/commit/push + gh pr create.
 # Empirical worst case on cold cache: ~5-10s pre-R2 + ~5-15s for

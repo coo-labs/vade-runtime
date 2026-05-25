@@ -1,12 +1,12 @@
 name: Issue / PR hygiene
 
 # Thin trigger: fires on PR/issue events and delegates to the canonical
-# reusable workflow at coo-labs/vade-coo-memory/.github/workflows/issue-pr-hygiene-reusable.yml.
+# reusable workflow at coo-labs/coo-memory/.github/workflows/issue-pr-hygiene-reusable.yml.
 #
-# Centralization: vade-coo-memory#939 (F7). Per-repo behavior is one
+# Centralization: coo-memory#939 (F7). Per-repo behavior is one
 # input: `pattern-b-mode`.
 #
-# vade-runtime starts on `advisory`. Promotion to `blocking` is governed
+# coo-harness starts on `advisory`. Promotion to `blocking` is governed
 # by coo/adoption_tracker.md betterment cadence (≥14 days clean) — change
 # the `pattern-b-mode` value below when ready.
 
@@ -29,7 +29,7 @@ permissions:
 jobs:
   hygiene:
     # Same-repo call uses relative path (see coo-on-assign.yml note).
-    # External consumers use: coo-labs/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml@main
+    # External consumers use: coo-labs/coo-harness/.github/workflows/issue-pr-hygiene-reusable.yml@main
     uses: ./.github/workflows/issue-pr-hygiene-reusable.yml
     with:
       pattern-b-mode: advisory

@@ -24,12 +24,12 @@ trap '_rc=$?; boot_log_record coo-identity-digest end $([ $_rc -eq 0 ] && echo o
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 if [ -n "${COO_MEMORY_DIR:-}" ]; then
   MEM_REPO="$COO_MEMORY_DIR"
-elif [ -d "$WORKSPACE_ROOT/vade-coo-memory" ]; then
-  MEM_REPO="$WORKSPACE_ROOT/vade-coo-memory"
-elif [ -d "$HOME/GitHub/coo-labs/vade-coo-memory" ]; then
-  MEM_REPO="$HOME/GitHub/coo-labs/vade-coo-memory"
+elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
+  MEM_REPO="$WORKSPACE_ROOT/coo-memory"
+elif [ -d "$HOME/GitHub/coo-labs/coo-memory" ]; then
+  MEM_REPO="$HOME/GitHub/coo-labs/coo-memory"
 else
-  MEM_REPO="/home/user/vade-coo-memory"
+  MEM_REPO="/home/user/coo-memory"
 fi
 CLAUDE_MD="$MEM_REPO/CLAUDE.md"
 MEMO_INDEX="$MEM_REPO/coo/memo_index.json"
@@ -37,7 +37,7 @@ BOOTSTRAP_LOG="${HOME}/.vade/coo-bootstrap.log"
 SETTINGS_FILE="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 WORKSPACE_IDENTITY_LINK="$WORKSPACE_ROOT/CLAUDE.md"
 WORKSPACE_MCP_LINK="$WORKSPACE_ROOT/.mcp.json"
-WORKSPACE_MCP_SRC="$WORKSPACE_ROOT/vade-runtime/.mcp.json"
+WORKSPACE_MCP_SRC="$WORKSPACE_ROOT/coo-harness/.mcp.json"
 # common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default; on Mac
 # local-setup.sh writes the receipt under ~/.vade/local-state/ and hook
 # subprocesses don't inherit its env exports. Redirect when the cloud
@@ -51,7 +51,7 @@ SKIP_SENTINEL="${HOME}/.vade/.coo-bootstrap-skip-reason"
 
 # ── INTEGRITY-CHECK BANNER (TOP OF DIGEST) ───────────────────────────
 #
-# Phase A of vade-coo-memory#762: the integrity-check posture and any
+# Phase A of coo-memory#762: the integrity-check posture and any
 # loud-skip sentinel from coo-bootstrap surface BEFORE any identity
 # content. The 2026-05-13 boot-skip incident showed that integrity-check
 # at the BOTTOM of the digest (and at step 14 of CLAUDE.md reading
@@ -87,7 +87,7 @@ fi
 if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   # DEGRADED BOOT — print loudly at the very top. The 4-line recovery
   # sequence below is the proven fix from the 2026-05-13 audit
-  # (vade-coo-memory/coo/audits/2026-05-13_boot-skip-failure/recovery-transcript.txt).
+  # (coo-memory/coo/audits/2026-05-13_boot-skip-failure/recovery-transcript.txt).
   echo "═══════════════════════════════════════════════════════════════"
   echo "⚠️  BOOT DEGRADED — DO NOT START SUBSTANTIVE WORK"
   echo "═══════════════════════════════════════════════════════════════"
@@ -126,9 +126,9 @@ if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   fi
   echo "  Proven recovery (from 2026-05-13 audit recovery-transcript.txt):"
   echo "    1) git config --file \$HOME/.gitconfig --remove-section user  # clear non-COO gitconfig"
-  echo "    2) VADE_COO_MODE=1 bash /home/user/vade-runtime/scripts/coo-bootstrap.sh"
+  echo "    2) VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
   echo "    3) set -a; source \$HOME/.vade/coo-env; set +a"
-  echo "    4) bash /home/user/vade-runtime/scripts/integrity-check.sh"
+  echo "    4) bash /home/user/coo-harness/scripts/integrity-check.sh"
   echo ""
   echo "  CLAUDE.md step 1 (conditional gate): surface to BDFL, do no other work."
   echo "═══════════════════════════════════════════════════════════════"
@@ -150,7 +150,7 @@ if [ ! -f "$CLAUDE_MD" ]; then
 fi
 
 # Check whether Claude Code's built-in memory loader already picked up
-# the identity file via /home/user/CLAUDE.md → vade-coo-memory/CLAUDE.md.
+# the identity file via /home/user/CLAUDE.md → coo-memory/CLAUDE.md.
 # When the symlink is present, the file is in context from turn one
 # and re-echoing would just duplicate content. When it's missing,
 # echo as a fallback so identity still lands (same behavior as before
@@ -163,12 +163,12 @@ fi
 
 if [ "$identity_link_live" = "true" ]; then
   echo "───────────────────────────────────────────────────────────────"
-  echo "COO identity: /home/user/CLAUDE.md → vade-coo-memory/CLAUDE.md"
+  echo "COO identity: /home/user/CLAUDE.md → coo-memory/CLAUDE.md"
   echo "(loaded by harness memory; skipping echo to avoid duplicate context)"
   echo "───────────────────────────────────────────────────────────────"
 else
   echo "───────────────────────────────────────────────────────────────"
-  echo "COO identity boot (vade-coo-memory/CLAUDE.md)"
+  echo "COO identity boot (coo-memory/CLAUDE.md)"
   echo "───────────────────────────────────────────────────────────────"
   cat "$CLAUDE_MD"
 fi
@@ -178,7 +178,7 @@ fi
 # CLAUDE.md §Session-start reading pass. When the first user message is
 # task-shaped, default LLM task-focus wins over procedure-first and the
 # reading pass is silently skipped; without this block the session runs
-# on operational metadata only. Per vade-runtime#226.
+# on operational metadata only. Per coo-harness#226.
 IDENTITY_LAYER="$MEM_REPO/coo/identity_layer.md"
 if [ -f "$IDENTITY_LAYER" ]; then
   echo ""
@@ -227,7 +227,7 @@ if [ -f "$MEMO_INDEX" ] && check_cmd jq; then
   #
   # Prints only id + status + title. Full schema is documented in
   # coo/operations/memo-access.md. The index uses ~19K tokens at ~95
-  # memos post-vade-coo-memory#351 — agents needing other slices
+  # memos post-coo-memory#351 — agents needing other slices
   # should jq the file rather than Read it.
   if digest_out=$(jq -r '
     sort_by(.id) | reverse |
@@ -490,12 +490,12 @@ echo "────────────────────────�
 # the INTEGRITY-CHECK BANNER block above), so the integrity-check.json
 # file is already current by the time this section reads it. Original
 # placement here (after Mem0 banner) was removed by Phase A of
-# vade-coo-memory#762; the integrity-check fires after session-start-sync
+# coo-memory#762; the integrity-check fires after session-start-sync
 # anyway because this whole script runs after session-start-sync in the
 # SessionStart hook chain.
 
 # Mem0 read/write surface — same banner pattern as "GitHub write surface"
-# above. Per vade-runtime#109, the hosted Mem0 MCP at mcp.mem0.ai hits
+# above. Per coo-harness#109, the hosted Mem0 MCP at mcp.mem0.ai hits
 # the same Node `undici` DNS-cache-overflow class that kills github-coo,
 # so we run the official stdio server (`mem0-mcp-server`) as a local
 # subprocess instead. This block always prints — green when healthy,
@@ -563,7 +563,7 @@ esac
 echo "───────────────────────────────────────────────────────────────"
 
 # Note: detailed integrity-check summary was hoisted to the TOP of the
-# digest in Phase A of vade-coo-memory#762. See the INTEGRITY-CHECK
+# digest in Phase A of coo-memory#762. See the INTEGRITY-CHECK
 # BANNER block near the top of this script. Original block deleted here
 # to avoid duplication.
 
@@ -593,6 +593,6 @@ else
   echo "  (no receipt at $SETUP_RECEIPT)"
   echo "  cloud-setup.sh did not run at snapshot build, or ran but aborted before writing the receipt."
   echo "  Check the Anthropic cloud env 'Setup script' field —"
-  echo "    expected: bash /home/user/vade-runtime/scripts/cloud-setup.sh"
+  echo "    expected: bash /home/user/coo-harness/scripts/cloud-setup.sh"
 fi
 echo "───────────────────────────────────────────────────────────────"
