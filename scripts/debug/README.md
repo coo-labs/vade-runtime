@@ -1,7 +1,7 @@
 # bootstrap-trace — boot-architecture diagnostic harness
 
 Single-purpose instrumentation for the COO boot pipeline review (paused
-commission [vade-app/vade-coo-memory#762](https://github.com/vade-app/vade-coo-memory/issues/762)). Plan file:
+commission [coo-labs/vade-coo-memory#762](https://github.com/coo-labs/vade-coo-memory/issues/762)). Plan file:
 `/root/.claude/plans/let-s-start-with-the-dapper-torvalds.md` (per-session;
 not committed).
 

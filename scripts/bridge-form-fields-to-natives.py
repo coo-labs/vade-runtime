@@ -3,7 +3,7 @@
 
 Parse a GitHub issue body for `### <Label>\\n\\n<value>` sections produced
 by issue-form templates, look up the corresponding org-level Issue field
-in the `vade-app` organization, and call `setIssueFieldValue` to populate
+in the `coo-labs` organization, and call `setIssueFieldValue` to populate
 the native field.
 
 Invoked from `.github/workflows/bridge-form-fields-to-natives.yml`
@@ -13,7 +13,7 @@ caller repos. Stage 2 of the issue-fields-and-types migration
 
 Inputs (env):
     GH_TOKEN          PAT with org-level Issue field admin scope.
-    REPO_FULL_NAME    e.g. "vade-app/vade-coo-memory".
+    REPO_FULL_NAME    e.g. "coo-labs/vade-coo-memory".
     ISSUE_NUMBER      Numeric issue number.
     DRY_RUN           If "1", print intended mutations without applying.
 
@@ -37,7 +37,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any
 
-ORG = "vade-app"
+ORG = "coo-labs"
 GRAPHQL_URL = "https://api.github.com/graphql"
 REST_BASE = "https://api.github.com"
 

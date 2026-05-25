@@ -42,7 +42,7 @@
 # the Python script handles missing R2/age creds by writing
 # export-error.txt rather than raising.
 #
-# vade-app/vade-agent-logs#64 Batch 2; detach fix vade-runtime#182;
+# coo-labs/vade-agent-logs#64 Batch 2; detach fix vade-runtime#182;
 # wait-with-detach vade-runtime#198.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

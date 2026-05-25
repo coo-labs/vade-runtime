@@ -1,11 +1,11 @@
 ---
 name: tagging-taxonomy
-description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across vade-app repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer per MEMO-2026-05-21-xfqh; operational reference: `coo/operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
+description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across coo-labs repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer per MEMO-2026-05-21-xfqh; operational reference: `coo/operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
 ---
 
 # VADE issue tagging taxonomy
 
-The vade-app repos share metadata across two layers:
+The coo-labs repos share metadata across two layers:
 
 1. **Native issue types + Issue fields** (org-wide; primary as of
    2026-05-21 per MEMO-2026-05-21-xfqh) — handles the `Type`,
@@ -167,7 +167,7 @@ When asked to tag a new issue, run this in order:
 6. **Apply labels with `gh`:**
 
    ```bash
-   gh issue edit <N> --repo vade-app/<repo> \
+   gh issue edit <N> --repo coo-labs/<repo> \
      --add-label "area:agents,needs:bdfl-approval"
    ```
 
@@ -182,14 +182,14 @@ qualifiers (case-insensitive on org-level Issue-field entities).
 Find issues a coding agent can take:
 
 ```bash
-gh issue list --repo vade-app/vade-coo-memory \
+gh issue list --repo coo-labs/vade-coo-memory \
   --search "readiness:Ready" --state open
 ```
 
 Find the research queue:
 
 ```bash
-gh issue list --repo vade-app/vade-coo-memory \
+gh issue list --repo coo-labs/vade-coo-memory \
   --search "readiness:'Needs research'" --state open
 ```
 
@@ -197,14 +197,14 @@ Blocked on BDFL (anywhere):
 
 ```bash
 for r in vade-coo-memory vade-runtime vade-core vade-governance vade-agent-logs; do
-  gh issue list --repo vade-app/$r --label "needs:bdfl-approval" --state open
+  gh issue list --repo coo-labs/$r --label "needs:bdfl-approval" --state open
 done
 ```
 
 Issues that need breakdown before anyone picks them up:
 
 ```bash
-gh issue list --repo vade-app/<repo> \
+gh issue list --repo coo-labs/<repo> \
   --search "readiness:'Needs breakdown'" --state open
 ```
 
@@ -212,14 +212,14 @@ Active work in a specific area across repos:
 
 ```bash
 for r in vade-coo-memory vade-runtime vade-core vade-governance vade-agent-logs; do
-  gh issue list --repo vade-app/$r --label "area:memory" --state open
+  gh issue list --repo coo-labs/$r --label "area:memory" --state open
 done
 ```
 
 Ready feature work in vade-core:
 
 ```bash
-gh issue list --repo vade-app/vade-core \
+gh issue list --repo coo-labs/vade-core \
   --search "type:Feature readiness:Ready" --state open
 ```
 

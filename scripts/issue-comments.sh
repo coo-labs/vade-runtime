@@ -2,7 +2,7 @@
 # issue-comments: bounded fetch of an issue's comment thread.
 #
 # Substitute for `mcp__github__issue_read method=get_comments`, which
-# is unbounded — vade-app/vade-agent-logs#64 returns ~30 KB on a
+# is unbounded — coo-labs/vade-agent-logs#64 returns ~30 KB on a
 # single read across multiple analyst groups in the
 # 2026-04-28 transcript-bloat-audit. Substrate fix: vade-runtime#153
 # (Tier 1 close-out of vade-coo-memory#258).
@@ -53,9 +53,9 @@ Options:
   -h, --help          Print this message.
 
 Examples:
-  issue-comments.sh vade-app/vade-agent-logs 64
-  issue-comments.sh vade-app/vade-agent-logs 64 --full
-  issue-comments.sh vade-app/vade-agent-logs 64 --limit 3
+  issue-comments.sh coo-labs/vade-agent-logs 64
+  issue-comments.sh coo-labs/vade-agent-logs 64 --full
+  issue-comments.sh coo-labs/vade-agent-logs 64 --limit 3
 EOF
 }
 

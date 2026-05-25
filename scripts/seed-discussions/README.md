@@ -1,6 +1,6 @@
 # `seed-discussions/`
 
-One-shot seed scripts for the `vade-app/vade-core` GitHub Discussions
+One-shot seed scripts for the `coo-labs/vade-core` GitHub Discussions
 categories. Kept after first-run for re-seeding if categories are
 ever reset or new categories are added.
 

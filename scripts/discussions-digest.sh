@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Print a compact digest of recent vade-app org discussions.
+# Print a compact digest of recent coo-labs org discussions.
 #
 # Designed to run on every Claude Code session start (via the
 # SessionStart hook installed by install-agent-hooks.sh). Also safe
@@ -49,7 +49,7 @@ fi
 NOW="$(node -e "console.log(new Date().toISOString())")"
 
 QUERY=$(cat <<'EOF'
-{"query":"query { repository(owner: \"vade-app\", name: \"vade-core\") { discussions(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { title number url updatedAt category { name } comments { totalCount } author { login } } } } }"}
+{"query":"query { repository(owner: \"coo-labs\", name: \"vade-core\") { discussions(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { title number url updatedAt category { name } comments { totalCount } author { login } } } } }"}
 EOF
 )
 
@@ -86,9 +86,9 @@ function humanAgo(t) {
 }
 
 if (recent.length === 0) {
-  console.log("Boot: vade-app discussions — no new since " + cursor + ".");
+  console.log("Boot: coo-labs discussions — no new since " + cursor + ".");
 } else {
-  console.log("Boot: vade-app discussions, " + recent.length + " new/updated since " + cursor + ":");
+  console.log("Boot: coo-labs discussions, " + recent.length + " new/updated since " + cursor + ":");
   for (const n of recent) {
     const cat = (n.category || {}).name || "?";
     const author = (n.author || {}).login || "?";
@@ -96,7 +96,7 @@ if (recent.length === 0) {
                 " (" + humanAgo(Date.parse(n.updatedAt)) + ", @" + author +
                 ", " + n.comments.totalCount + "c)");
   }
-  console.log("URLs: github.com/orgs/vade-app/discussions/<num>; norms: coo/agent-boot-discussions-check.md");
+  console.log("URLs: github.com/orgs/coo-labs/discussions/<num>; norms: coo/agent-boot-discussions-check.md");
 }
 ' "$RESPONSE" "$CURSOR" && PARSE_OK=1
 

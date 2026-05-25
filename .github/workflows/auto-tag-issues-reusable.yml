@@ -4,20 +4,20 @@ name: Auto-tag new issues (reusable)
 # issue across area/qualifier/milestone dimensions, applies the labels
 # additively, and adds the issue to the VADE org project board.
 #
-# Canonical home: vade-app/vade-runtime/.github/workflows/auto-tag-issues-reusable.yml
+# Canonical home: coo-labs/vade-runtime/.github/workflows/auto-tag-issues-reusable.yml
 # Centralization design: vade-coo-memory#939 (F7); host=vade-runtime (public)
 # so private + public consumers can both invoke (Public→Private workflow_call
 # resolution fails despite access_level=organization; bridge-form-fields-to-natives.yml
 # is the live in-org precedent for "public canonical, mixed consumers").
-# Operations doc: vade-app/vade-coo-memory:coo/operations/workflow-centralization.md
-# Canonical taxonomy: https://github.com/vade-app/vade-coo-memory/blob/main/coo/label_taxonomy.md
-# Canonical fields:   https://github.com/vade-app/vade-coo-memory/blob/main/coo/operations/issue-fields-and-types.md
-# Canonical project:  https://github.com/orgs/vade-app/projects/1 (VADE)
+# Operations doc: coo-labs/vade-coo-memory/coo/operations/workflow-centralization.md
+# Canonical taxonomy: https://github.com/coo-labs/vade-coo-memory/blob/main/coo/label_taxonomy.md
+# Canonical fields:   https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/issue-fields-and-types.md
+# Canonical project:  https://github.com/orgs/coo-labs/projects/1 (VADE)
 #   Project node ID:  PVT_kwDOEGdN_84BUV2r
 #
 # Per-repo behavior is bridged via `${{ github.repository }}` — every
 # caller routes its own issues through this single classifier; the
-# canonical taxonomy is uniform across vade-app/* repos.
+# canonical taxonomy is uniform across coo-labs/* repos.
 #
 # Mirrors the pilot on vade-coo-memory (see MEMO 2026-04-23-04 and the
 # five-PR debug chain on vade-coo-memory: #70, #73, #74, #75, #76).
@@ -43,7 +43,7 @@ name: Auto-tag new issues (reusable)
 #     id-token: write
 #   jobs:
 #     tag:
-#       uses: vade-app/vade-runtime/.github/workflows/auto-tag-issues-reusable.yml@main
+#       uses: coo-labs/vade-runtime/.github/workflows/auto-tag-issues-reusable.yml@main
 #       with:
 #         issue-number:  ${{ github.event.issue.number || inputs.issue_number }}
 #         mode:          ${{ github.event_name == 'workflow_dispatch' && 'full' || 'gapfill' }}
@@ -56,7 +56,7 @@ name: Auto-tag new issues (reusable)
 #     (https://github.com/apps/claude)
 # Optional (graceful skip if absent):
 #   - secrets.VADE_PROJECT_PAT — PAT with `project` scope for the
-#     vade-app org. Enables auto-add to the VADE project. If
+#     coo-labs org. Enables auto-add to the VADE project. If
 #     missing, labeling still runs; the project step logs a
 #     warning and skips.
 
@@ -97,7 +97,7 @@ jobs:
       - name: Classify, label, and add to VADE project
         uses: anthropics/claude-code-action@v1
         env:
-          # Optional: PAT with `project` scope for the vade-app org.
+          # Optional: PAT with `project` scope for the coo-labs org.
           # Propagated to the subprocess so the prompt's project
           # GraphQL mutations can use it via `GH_TOKEN=…`. If unset,
           # the project step in the prompt gracefully skips.
@@ -167,8 +167,8 @@ jobs:
             is out of scope for this workflow.
 
             2. Classify across the dimensions below. Canonical refs:
-               https://github.com/vade-app/vade-coo-memory/blob/main/coo/label_taxonomy.md
-               + https://github.com/vade-app/vade-coo-memory/blob/main/coo/operations/issue-fields-and-types.md
+               https://github.com/coo-labs/vade-coo-memory/blob/main/coo/label_taxonomy.md
+               + https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/issue-fields-and-types.md
 
                **Retired dimensions** (do NOT apply these as labels):
                `type:*`, `readiness:*`, `prio:*` were retired 2026-05-21
@@ -202,7 +202,7 @@ jobs:
                  none). Use the GitHub UI title (e.g.,
                  "Substrate Hygiene and Tooling"), NOT the M-prefix.
                  Pick at most one per its scope-rule + test (canonical:
-                 https://github.com/vade-app/vade-coo-memory/blob/main/coo/audits/2026-05-20_milestone-taxonomy/README.md):
+                 https://github.com/coo-labs/vade-coo-memory/blob/main/coo/audits/2026-05-20_milestone-taxonomy/README.md):
                    "Decentering the Mind" — substantive edit / review /
                      support for the "Decentering the Mind" essay or
                      its peer-review atoms. Excludes the general

@@ -33,7 +33,7 @@ fi
 
 # Project 1 currently holds ~370 items; --limit must exceed total or the
 # fetch silently truncates. 1000 gives comfortable headroom.
-RESPONSE="$(GH_TOKEN="$TOKEN" gh project item-list 1 --owner vade-app \
+RESPONSE="$(GH_TOKEN="$TOKEN" gh project item-list 1 --owner coo-labs \
   --format json --limit 1000 2>/dev/null || echo '')"
 
 if [ -z "$RESPONSE" ]; then
@@ -59,8 +59,8 @@ printf '%s' "$RESPONSE" | jq -r '
         ($groups[] | (
           "  [\(.[0].milestone.title // "(no milestone)")]"
         ), (
-          .[] | "    \(.repository | sub("https://github.com/vade-app/"; ""))#\(.content.number) — \(.title)"
+          .[] | "    \(.repository | sub("https://github.com/coo-labs/"; ""))#\(.content.number) — \(.title)"
         )),
-        "URL: github.com/orgs/vade-app/projects/1 (filter status:\"In Progress\")"
+        "URL: github.com/orgs/coo-labs/projects/1 (filter status:\"In Progress\")"
     end
 '

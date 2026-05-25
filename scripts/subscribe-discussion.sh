@@ -38,7 +38,7 @@ Poll a GitHub discussion thread; emit one stdout line per new comment
 or reply, suitable for `Monitor` tail-streaming.
 
 Arguments:
-  <owner/repo>     Target repository (e.g. vade-app/vade-core)
+  <owner/repo>     Target repository (e.g. coo-labs/vade-core)
   <number>         Discussion number
   [poll_seconds]   Polling interval, default 60
 
@@ -48,8 +48,8 @@ Environment:
   VADE_CLOUD_STATE_DIR  State directory root (defaults to ~/.vade-cloud-state)
 
 Examples:
-  subscribe-discussion.sh vade-app/vade-core 126
-  subscribe-discussion.sh vade-app/vade-core 999 30
+  subscribe-discussion.sh coo-labs/vade-core 126
+  subscribe-discussion.sh coo-labs/vade-core 999 30
 EOF
 }
 

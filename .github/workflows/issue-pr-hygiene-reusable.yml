@@ -1,11 +1,11 @@
 name: Issue / PR hygiene (reusable)
 
 # Reusable workflow: enforces the four issue/PR hygiene patterns
-# documented in vade-app/vade-coo-memory:coo/operations/issue-pr-hygiene.md:
+# documented in coo-labs/vade-coo-memory:coo/operations/issue-pr-hygiene.md:
 #
 #   A — Epic-type issues use GitHub's native sub-issue API (advisory)
 #   B — PRs that resolve issues include a closing keyword     (blocking or advisory, per caller)
-#   C — cross-repo refs use vade-app/<repo>#N form            (advisory)
+#   C — cross-repo refs use coo-labs/<repo>#N form            (advisory)
 #   D — non-issue IDs use dash form (no #N)                   (advisory)
 #
 # Pure regex/GraphQL via actions/github-script@v7. No LLM call
@@ -13,12 +13,12 @@ name: Issue / PR hygiene (reusable)
 # extending Haiku per-PR would multiply cost without buying anything
 # for these regex-decidable patterns).
 #
-# Canonical home: vade-app/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml
+# Canonical home: coo-labs/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml
 # Centralization design: vade-coo-memory#939 (F7); absorbs vade-coo-memory#767.
 # Host=vade-runtime per #939 comment (Public→Private workflow_call fails).
-# Operations doc: vade-app/vade-coo-memory:coo/operations/workflow-centralization.md
-# Pattern-B promotion cadence: vade-app/vade-coo-memory:coo/adoption_tracker.md (≥14 days clean)
-# Authority + audit: vade-app/vade-coo-memory:coo/audits/2026-05-01_issue-pr-hygiene/synthesis.md
+# Operations doc: coo-labs/vade-coo-memory:coo/operations/workflow-centralization.md
+# Pattern-B promotion cadence: coo-labs/vade-coo-memory:coo/adoption_tracker.md (≥14 days clean)
+# Authority + audit: coo-labs/vade-coo-memory:coo/audits/2026-05-01_issue-pr-hygiene/synthesis.md
 #
 # Per-repo behavior:
 #   - Pattern-B mode (blocking vs advisory) is the only per-caller knob.
@@ -46,7 +46,7 @@ name: Issue / PR hygiene (reusable)
 #     checks: write
 #   jobs:
 #     hygiene:
-#       uses: vade-app/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml@main
+#       uses: coo-labs/vade-runtime/.github/workflows/issue-pr-hygiene-reusable.yml@main
 #       with:
 #         pattern-b-mode: blocking  # or "advisory"
 #       secrets: inherit
@@ -139,14 +139,14 @@ jobs:
             // ---- Closing-keyword regexes ----
             // Same-repo: Closes #N, Fixes #N, Resolves #N (case-insensitive)
             const sameRepoRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+#\d+\b/i;
-            // Cross-repo: Closes vade-app/<repo>#N
-            const crossRepoRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+vade-app\/[a-z0-9-]+#\d+\b/i;
-            // Broken form: Closes <reponame>#N (no vade-app/ prefix) — silently doesn't auto-close.
+            // Cross-repo: Closes coo-labs/<repo>#N
+            const crossRepoRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+coo-labs\/[a-z0-9-]+#\d+\b/i;
+            // Broken form: Closes <reponame>#N (no coo-labs/ prefix) — silently doesn't auto-close.
             // Detect to give a helpful error instead of just "missing keyword".
             const brokenFormRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+vade-(coo-memory|runtime|core|governance|agent-logs)#\d+\b/i;
             // Comma-list form: Closes #1, #2, #3 — only the first ref auto-closes.
             // GitHub's parser requires the keyword per issue. Detect to warn.
-            const commaListRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+(?:#\d+|vade-app\/[a-z0-9-]+#\d+)\s*,\s*(?:#\d+|vade-app\/[a-z0-9-]+#\d+)/i;
+            const commaListRe = /\b(clos(?:e|es|ed|ing)|fix(?:es|ed|ing)?|resolv(?:e|es|ed|ing))\s+(?:#\d+|coo-labs\/[a-z0-9-]+#\d+)\s*,\s*(?:#\d+|coo-labs\/[a-z0-9-]+#\d+)/i;
 
             const titleHasKeyword = sameRepoRe.test(title) || crossRepoRe.test(title);
             const bodyHasKeyword = sameRepoRe.test(body) || crossRepoRe.test(body);
@@ -190,9 +190,9 @@ jobs:
                 `Detected comma-list closing form \`Closes #N, #M, ...\`. ` +
                 `GitHub's parser only auto-closes the FIRST issue; subsequent refs ` +
                 `stay open silently. Use one \`Closes\` keyword per issue:\n\n` +
-                `    Closes vade-app/<repo>#N\n    Closes vade-app/<repo>#M\n\n` +
+                `    Closes coo-labs/<repo>#N\n    Closes coo-labs/<repo>#M\n\n` +
                 `See coo/operations/issue-pr-hygiene.md §"Closing-keyword discipline" ` +
-                `(in vade-app/vade-coo-memory).`;
+                `(in coo-labs/vade-coo-memory).`;
               if (isBlocking) {
                 core.setFailed(`Pattern B (closing keywords) — BLOCKING\n\n${msg}`);
                 return;
@@ -224,21 +224,21 @@ jobs:
             if (titleHasBrokenForm || bodyHasBrokenForm) {
               reasons.push(
                 `Detected broken closing form \`Closes <reponame>#N\` ` +
-                `(no \`vade-app/\` prefix). This **autolinks but does NOT auto-close** the issue. ` +
-                `Use \`Closes #N\` for same-repo or \`Closes vade-app/<repo>#N\` for cross-repo.`
+                `(no \`coo-labs/\` prefix). This **autolinks but does NOT auto-close** the issue. ` +
+                `Use \`Closes #N\` for same-repo or \`Closes coo-labs/<repo>#N\` for cross-repo.`
               );
             } else {
               reasons.push(
                 `No closing keyword found in PR title or body. ` +
                 `If this PR resolves an issue, add \`Closes #N\` (same-repo) ` +
-                `or \`Closes vade-app/<repo>#N\` (cross-repo). ` +
+                `or \`Closes coo-labs/<repo>#N\` (cross-repo). ` +
                 `If no issue is resolved, add a body line: \`Closes: n/a\`.`
               );
             }
 
             const summary = reasons.join('\n\n');
             const seeDocs = `See coo/operations/issue-pr-hygiene.md §"Closing-keyword discipline" ` +
-              `(in vade-app/vade-coo-memory).`;
+              `(in coo-labs/vade-coo-memory).`;
 
             if (isBlocking) {
               core.setFailed(`Pattern B (closing keywords) — BLOCKING\n\n${summary}\n\n${seeDocs}`);
@@ -290,12 +290,12 @@ jobs:
             // Detect bare #N adjacent to a vade-* repo cue suggesting
             // cross-repo intent. Heuristic — emits suggestion, never blocks.
             const crossRepoCues = /(vade-(?:runtime|core|governance|agent-logs)(?!#))[^\n]{0,80}#\d+/g;
-            // Carve-out: discussion references. `vade-app/<repo>#N` autolinks
+            // Carve-out: discussion references. `coo-labs/<repo>#N` autolinks
             // to an *issue* #N, not a discussion — discussions have no `#N`
             // autolink form at all, only literal URLs. Skip matches whose
             // captured span contains the word "discussion" (case-insensitive).
-            // Worked example: `vade-app/vade-core discussion #149` should NOT
-            // be rewritten to `vade-app/vade-core#149` (which would mis-resolve
+            // Worked example: `coo-labs/vade-core discussion #149` should NOT
+            // be rewritten to `coo-labs/vade-core#149` (which would mis-resolve
             // to issue #149). vade-coo-memory#476.
             const cMatches = [...body.matchAll(crossRepoCues), ...title.matchAll(crossRepoCues)]
               .filter(m => !/discussion/i.test(m[0]));
@@ -304,22 +304,22 @@ jobs:
                 `**Pattern C — cross-repo references**\n\n` +
                 `Detected ${cMatches.length} reference(s) where a vade-* repo is named ` +
                 `near a bare \`#N\`. Bare \`#N\` resolves to the host repo (${repo}); ` +
-                `use \`vade-app/<repo>#N\` for cross-repo. ` +
+                `use \`coo-labs/<repo>#N\` for cross-repo. ` +
                 `Examples found:\n\n` +
                 cMatches.slice(0, 5).map(m => `  - \`${m[0]}\``).join('\n')
               );
             }
 
-            // List-inheritance: `vade-app/<repo>#N, #M, ...` — only first gets prefix.
+            // List-inheritance: `coo-labs/<repo>#N, #M, ...` — only first gets prefix.
             // Detect prefix followed by comma-separated #N where subsequent #N lack the prefix.
-            const listInheritanceRe = /vade-app\/[a-z0-9-]+#\d+\s*,\s*#\d+/g;
+            const listInheritanceRe = /coo-labs\/[a-z0-9-]+#\d+\s*,\s*#\d+/g;
             const listMatches = [...body.matchAll(listInheritanceRe), ...title.matchAll(listInheritanceRe)];
             if (listMatches.length > 0) {
               advisories.push(
                 `**Pattern C — list-inheritance**\n\n` +
-                `Detected \`vade-app/<repo>#N, #M\` patterns. The prefix scopes only ` +
+                `Detected \`coo-labs/<repo>#N, #M\` patterns. The prefix scopes only ` +
                 `the first \`#N\`; subsequent \`#M\` autolink to ${repo}. ` +
-                `Repeat the prefix per item: \`vade-app/<repo>#N, vade-app/<repo>#M\`.\n\n` +
+                `Repeat the prefix per item: \`coo-labs/<repo>#N, coo-labs/<repo>#M\`.\n\n` +
                 listMatches.slice(0, 3).map(m => `  - \`${m[0]}\``).join('\n')
               );
             }
@@ -354,7 +354,7 @@ jobs:
                   `(prevents the false-positive autolink; \`MEMO-...\` already has a click-through autolink configured.) ` +
                   `Examples found:\n\n` +
                   dMatches.slice(0, 5).map(m => `  - \`${m[0]}\``).join('\n') +
-                  `\n\nSee \`coo/operations/issue-pr-hygiene.md\` §"Notation rules" (in vade-app/vade-coo-memory).`
+                  `\n\nSee \`coo/operations/issue-pr-hygiene.md\` §"Notation rules" (in coo-labs/vade-coo-memory).`
                 );
               }
             }
@@ -425,7 +425,7 @@ jobs:
             //   mutation). Distinct from trackedIssues, which reflects markdown
             //   `- [ ] #N` task-list connections only and returns 0 for issues
             //   whose children were linked via the native API. See
-            //   coo/operations/issue-pr-hygiene.md §"GraphQL gotchas" (in vade-app/vade-coo-memory).
+            //   coo/operations/issue-pr-hygiene.md §"GraphQL gotchas" (in coo-labs/vade-coo-memory).
             let result;
             try {
               result = await github.graphql(`
@@ -492,7 +492,7 @@ jobs:
               `Add sub-issues via the GitHub UI's "Add sub-issue" button on this issue, ` +
               `or via the GraphQL \`addSubIssue\` mutation.\n\n` +
               `See \`coo/operations/issue-pr-hygiene.md\` §"Sub-issue linkage" + ` +
-              `\`coo/label_taxonomy.md\` §6 (in vade-app/vade-coo-memory).\n\n` +
+              `\`coo/label_taxonomy.md\` §6 (in coo-labs/vade-coo-memory).\n\n` +
               `*This is advisory; the check does not block merge. ` +
               `Apply label \`hygiene:exempt\` to suppress on this issue.*`;
 

@@ -18,7 +18,7 @@ name: Sync issue templates
 #
 # Auth: secrets.VADE_FIELDS_ADMIN_PAT (org-secret mirror of GITHUB_MCP_PAT,
 # visibility=all, fine-grained, contents:write + pull-requests:write on all
-# vade-app/* repos per the secrets schema entry for `vade-coo-self-2026-04`).
+# coo-labs/* repos per the secrets schema entry for `vade-coo-self-2026-04`).
 # Same secret bridge-form-fields-to-natives.yml uses.
 #
 # Action pinning: BetaHuhn/repo-file-sync-action SHA-pinned to the v1.21.1
@@ -63,13 +63,13 @@ jobs:
           BRANCH_PREFIX: sync/issue-templates
           COMMIT_PREFIX: 'sync(templates):'
           PR_BODY: |
-            Auto-synced from `vade-app/vade-runtime` canonical issue templates (F8).
+            Auto-synced from `coo-labs/vade-runtime` canonical issue templates (F8).
 
-            **Edit the canonical**, not this PR: [`vade-runtime/.github/ISSUE_TEMPLATE/`](https://github.com/vade-app/vade-runtime/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
+            **Edit the canonical**, not this PR: [`vade-runtime/.github/ISSUE_TEMPLATE/`](https://github.com/coo-labs/vade-runtime/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
 
-            - Canonical issue: [vade-coo-memory#938](https://github.com/vade-app/vade-coo-memory/issues/938)
-            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/vade-app/vade-coo-memory/blob/main/coo/operations/template-centralization.md)
-            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/vade-app/vade-coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
+            - Canonical issue: [vade-coo-memory#938](https://github.com/coo-labs/vade-coo-memory/issues/938)
+            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/template-centralization.md)
+            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/coo-labs/vade-coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
 
             `deleteOrphaned: true` is in effect — files deleted from the canonical are deleted here too.
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}

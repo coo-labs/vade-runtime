@@ -16,7 +16,7 @@
 #   - Real git commits (no .git in the staged agent-logs dir).
 #   - The transcript-export hook (covered by test-transcript-export.py).
 #
-# vade-app/vade-agent-logs#67.
+# coo-labs/vade-agent-logs#67.
 
 set -euo pipefail
 
@@ -110,7 +110,7 @@ assert_contains 'Started:** 2026-04-28T01:00:00.000Z'
 assert_contains 'Ended:**   2026-04-28T01:30:42.123Z'
 assert_contains 'Event count:** 2'
 assert_contains "Transcript sidecar:** \`transcripts/2026/04/28/${SESSION_ID}.meta.json\`"
-assert_contains 'vade-app/vade-agent-logs#67'
+assert_contains 'coo-labs/vade-agent-logs#67'
 
 echo "ok: stub shape matches expected schema"
 

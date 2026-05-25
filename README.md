@@ -1,7 +1,7 @@
 # vade-runtime
 
 **Docker image and devcontainer for VADE.** Reproducible development
-environment for the [VADE project](https://github.com/vade-app).
+environment for the [VADE project](https://github.com/coo-labs).
 This repo produces the container that `vade-core` (and eventually
 task-agent workspaces) run inside during development.
 
@@ -48,7 +48,7 @@ Copy (or symlink) the `.devcontainer/` folder into the vade-core
 checkout, then:
 
 ```bash
-cd ~/GitHub/vade-app/vade-core
+cd ~/GitHub/coo-labs/vade-core
 code .
 # → "Reopen in Container" when prompted
 ```
@@ -161,7 +161,7 @@ The Claude Code cloud sandbox routes git through a local proxy
 (`http://local_proxy@127.0.0.1:<port>/git/<owner>/<repo>`) that
 intermittently 403s on push and, separately, substitutes a token
 without `workflow` scope on workflow-file pushes
-(`vade-app/vade-runtime#67`).
+(`coo-labs/vade-runtime#67`).
 
 `scripts/git-push-with-fallback.sh` wraps `git push` and, on a
 proxy-class failure, retries once via
@@ -197,7 +197,7 @@ when this list grows past two. Keep the fingerprint-validation step
 
 ## Governance
 
-See [vade-governance](https://github.com/vade-app/vade-governance).
+See [vade-governance](https://github.com/coo-labs/vade-governance).
 Changes to the runtime image affect every contributor's dev loop,
 so BDFL review is required for any non-trivial modification.
 

@@ -11,7 +11,7 @@
 # wrapper, failures here surface to the caller (the Stage-1
 # transcript-analyzer agent decides how to handle a fetch failure).
 #
-# vade-app/vade-agent-logs#64 Batch 3.
+# coo-labs/vade-agent-logs#64 Batch 3.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

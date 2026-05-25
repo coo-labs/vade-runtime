@@ -8,7 +8,7 @@
 # future-proofing posture: when a new MCP / integration adds a secret,
 # CI fails until a redaction pattern is registered alongside it.
 #
-# Origin: vade-app/vade-agent-logs#64 security review §3.
+# Origin: coo-labs/vade-agent-logs#64 security review §3.
 #
 # Exits 0 when the two sides agree, 1 with a diff on divergence.
 
@@ -75,7 +75,7 @@ if [ -n "$unregistered" ]; then
   echo
   echo "Action: add a pattern entry to scripts/lib/transcript-redaction.json"
   echo "with \"secret_var\": \"<NAME>\" matching each line above. The Secret"
-  echo "Registration Rule (vade-app/vade-agent-logs#64) requires this."
+  echo "Registration Rule (coo-labs/vade-agent-logs#64) requires this."
   fail=1
 fi
 if [ -n "$orphaned" ]; then

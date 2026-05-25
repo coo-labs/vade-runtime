@@ -11,7 +11,7 @@ loop, so treat them carefully.
 3. `Dockerfile` and `.devcontainer/devcontainer.json` (once they
    exist).
 4. The public authority and decision-rights document at
-   [vade-governance/authority.md](https://github.com/vade-app/vade-governance/blob/main/authority.md)
+   [vade-governance/authority.md](https://github.com/coo-labs/vade-governance/blob/main/authority.md)
    — for what may and may not be done autonomously.
 
 ## Scope

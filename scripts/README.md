@@ -24,7 +24,7 @@ count justifies the cost of breaking references in `CLAUDE.md`,
   (`--end` flag selects mode).
 - `coo-identity-digest.sh` — prints CLAUDE.md + recent memo headers
   into session context.
-- `discussions-digest.sh` — prints new vade-app org discussions.
+- `discussions-digest.sh` — prints new coo-labs org discussions.
 - `memo-index.sh` — thin wrapper that delegates to
   `vade-coo-memory/.claude/_lib/memo-index.sh`.
 - `hooks-dispatch.sh` — central dispatcher resolving hook names to
@@ -44,7 +44,7 @@ count justifies the cost of breaking references in `CLAUDE.md`,
 - `integrity-check.sh` — full invariant probe (Groups A–F).
 
 **Cross-repo (1)**
-- `sync-repos.sh` — bulk-pull / bulk-fetch across the vade-app repos.
+- `sync-repos.sh` — bulk-pull / bulk-fetch across the coo-labs repos.
 
 ## Sub-folders
 

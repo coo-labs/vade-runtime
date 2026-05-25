@@ -26,8 +26,8 @@ if [ -n "${COO_MEMORY_DIR:-}" ]; then
   MEM_REPO="$COO_MEMORY_DIR"
 elif [ -d "$WORKSPACE_ROOT/vade-coo-memory" ]; then
   MEM_REPO="$WORKSPACE_ROOT/vade-coo-memory"
-elif [ -d "$HOME/GitHub/vade-app/vade-coo-memory" ]; then
-  MEM_REPO="$HOME/GitHub/vade-app/vade-coo-memory"
+elif [ -d "$HOME/GitHub/coo-labs/vade-coo-memory" ]; then
+  MEM_REPO="$HOME/GitHub/coo-labs/vade-coo-memory"
 else
   MEM_REPO="/home/user/vade-coo-memory"
 fi

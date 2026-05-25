@@ -74,7 +74,7 @@ node -e '
   lines.push("");
   lines.push("Workflow: `.github/workflows/bootstrap-regression.yml`. " +
              "Re-run by pushing to this PR or using the workflow_dispatch trigger. " +
-             "Tracked at vade-app/vade-runtime#86.");
+             "Tracked at coo-labs/vade-runtime#86.");
 
   fs.writeFileSync(outPath, lines.join("\n") + "\n");
 ' "$INTEGRITY" "$RESULT" "$OUT" "$ALLOWLIST"

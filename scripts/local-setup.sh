@@ -17,7 +17,7 @@
 # state: VADE_CLOUD_STATE_DIR sends the build receipt and build.log to
 # ~/.vade/local-state/ instead of /home/user/.vade-cloud-state/, and
 # VADE_COO_GITCONFIG routes Claude's git config to ~/.vade/gitconfig-coo
-# (already the shell's GIT_CONFIG_GLOBAL under the vade-app dotfiles
+# (already the shell's GIT_CONFIG_GLOBAL under the coo-labs dotfiles
 # wrapper) so ~/.gitconfig is untouched.
 #
 # Expects OP_SERVICE_ACCOUNT_TOKEN in the process env. The dotfiles
