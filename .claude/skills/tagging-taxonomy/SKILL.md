@@ -154,7 +154,7 @@ When asked to tag a new issue, run this in order:
 
 ## Search recipes — "what should I work on?"
 
-**Layer rule** (canonical: [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface"): issue fields live on a dedicated REST endpoint (`/repos/<o>/<r>/issues/<n>/issue-field-values`), not on the search API. GitHub issue-search qualifiers (`gh issue list --search`) honor `type:<Type>` but **do not** honor `readiness:*` / `priority:*` / `effort:*` — those silently fall back to text matching and return wrong results. Filter on issue-field values via REST iteration or the project board, not via `--search`.
+**Layer rule** (canonical: [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface"): issue fields live on a dedicated API surface — REST `/repos/<o>/<r>/issues/<n>/issue-field-values` per-issue, or GraphQL `issueFieldValues` connection on the `Issue` type. GitHub issue-search qualifiers (`gh issue list --search`) honor `type:<Type>` but **do not** honor `readiness:*` / `priority:*` / `effort:*` — those silently fall back to text matching and return wrong results. The VADE project board does not expose issue fields on `gh project item-list` JSON either (Status / Owner / Milestone are project-item fields, a different layer). Filter on issue-field values via GraphQL or per-issue REST, not via `--search` or `gh project`.
 
 What works on `--search`:
 - `type:<Type>` — native issue type (works since 2026-03)
