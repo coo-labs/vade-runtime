@@ -1,0 +1,35 @@
+name: Auto-merge sync PR (reusable)
+
+# Reusable: enable squash auto-merge on the caller's PR when it carries a
+# sync:* label. Pairs with the F8 sync workflow (sync-issue-templates.yml in
+# this repo) which labels every PR it opens with `sync,sync:templates`. Once
+# CI on the consumer PR passes, GitHub's auto-merge feature lands it.
+#
+# Callers: 8 consumer thin-triggers per coo/operations/workflow-centralization.md
+# row "auto-merge-sync-pr-reusable.yml". The caller fires on `pull_request:
+# types: [labeled]` and forwards to here; the caller's `if:` gate decides
+# whether the label warrants auto-merge (currently: any label starting with
+# `sync:`).
+#
+# Auth: `secrets.GITHUB_TOKEN` from the caller's context (default-scoped to
+# the consumer repo's PRs). Requires the consumer repo to have auto-merge
+# enabled (gh repo edit --enable-auto-merge — done once per consumer in F8).
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  enable-auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable squash auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --squash --auto \
+            --repo ${{ github.repository }}
