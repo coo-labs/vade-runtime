@@ -110,20 +110,6 @@ age                 debian-bookworm   # X25519 file encryption.
                                       # scripts/lib/transcripts-recipient.age;
                                       # identity in 1Password at
                                       # op://COO/transcripts-age-key/credential.
-poppler-utils       debian-bookworm   # Provides pdftoppm / pdftotext /
-                                      # pdfinfo. pdftoppm used by the
-                                      # notebooklm-pipeline skill's
-                                      # Step 7 to extract per-page PNGs
-                                      # from generated slide-deck PDFs
-                                      # for embed-ready review. Base
-                                      # image ships libpoppler134
-                                      # transitively but not the CLI
-                                      # tools, so the SKILL.md's earlier
-                                      # "available by default" claim
-                                      # was wrong until the Dockerfile
-                                      # add at vade-runtime claude/
-                                      # test-notebooklm-infographic-zDPyU.
-
 # Python libraries resolved at run time via `uv run --script` inline
 # PEP 723 metadata (no system-wide install). Listed here so the pin is
 # discoverable and the bootstrap-regression CI can detect drift in
