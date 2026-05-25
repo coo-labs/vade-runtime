@@ -82,10 +82,6 @@ binary_vendor_bundle  bb9cf2c35a86f7d558f6f3dd3a8da3e0b5d7dd30880a33d80e4320c280
                                    # bake time; rev forward when a
                                    # new feature is needed or a
                                    # security advisory lands.
-tsx                 4.21.0    # TypeScript execution (esbuild-based)
-                              # for running the vade-canvas MCP
-                              # server. Matches vade-core devDep.
-
 # System packages (tracked loosely; the bookworm repo pin is the
 # ultimate source of truth for these). Listed for observability.
 git                 debian-bookworm   # Whatever bookworm ships.

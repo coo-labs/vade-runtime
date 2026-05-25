@@ -26,7 +26,6 @@ check() {
 check node  'node --version'  'v20.'
 check npm   'npm --version'   '10.'
 check git   'git --version'   'git version'
-check tsx   'tsx --version'   '4.'
 check claude 'claude --version' '1.'
 
 # Network / build-essential sanity

@@ -375,15 +375,6 @@ ensure_dirs() {
     log "Warning: could not create $HOME/.vade subdirs. Check permissions."
 }
 
-ensure_tsx() {
-  if check_cmd tsx; then
-    log "tsx already installed: $(tsx --version 2>&1 | head -1)"
-    return 0
-  fi
-  log "Installing tsx globally..."
-  npm install -g tsx@4.21.0 --no-audit --no-fund
-}
-
 install_deps() {
   local dir="${1:-.}"
   if [ -f "$dir/package.json" ]; then
@@ -636,14 +627,7 @@ ensure_workspace_identity_link() {
 }
 
 print_versions() {
-  local tsx_version claude_version
-
-  if check_cmd tsx; then
-    tsx_version="$(tsx --version 2>/dev/null | head -1)"
-  else
-    tsx_version="$(npx tsx --version 2>/dev/null | head -1 || true)"
-    [ -n "$tsx_version" ] || tsx_version="not found"
-  fi
+  local claude_version
 
   if check_cmd claude; then
     claude_version="$(claude --version 2>/dev/null || true)"
@@ -660,7 +644,6 @@ print_versions() {
   log "  node: $(node --version 2>/dev/null || echo 'not found')"
   log "  npm:  $(npm --version 2>/dev/null || echo 'not found')"
   log "  git:  $(git --version 2>/dev/null || echo 'not found')"
-  log "  tsx:  $tsx_version"
   log "  claude: $claude_version"
 }
 
