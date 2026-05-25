@@ -106,6 +106,21 @@ jobs:
               return;
             }
 
+            // Label-based exempts
+            // - `hygiene:exempt`: explicit opt-out (referenced in advisory messages).
+            // - `sync`: BetaHuhn/repo-file-sync-action PRs (F8 template propagation).
+            //   Auto-generated bodies don't include closing keywords; the PR is a
+            //   propagation event, not a feature/bugfix.
+            const labelNames = (pr.labels || []).map(l => l.name);
+            if (labelNames.includes('hygiene:exempt')) {
+              core.info(`Exempt: hygiene:exempt label`);
+              return;
+            }
+            if (labelNames.includes('sync')) {
+              core.info(`Exempt: sync label (sync-action PR)`);
+              return;
+            }
+
             // anthropic-code-agent stubs (essential for vade-runtime;
             // defensive elsewhere — the body prefix is the discriminator).
             if (author === 'app/anthropic-code-agent' &&
