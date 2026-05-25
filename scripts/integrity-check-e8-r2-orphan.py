@@ -14,7 +14,7 @@ E8 catches the **partial-export hazard**: an R2 ciphertext lands without
 its `vade-meta-json` object metadata, leaving an orphan that fetch +
 analyzer pipelines cannot decrypt without the meta sidecar.
 
-Pre-vade-runtime#216 this was the dominant failure mode of the
+Pre-coo-harness#216 this was the dominant failure mode of the
 transcript-export saga (three known orphans on R2: session_ids
 `8b2913a0-cd23-4f4d-bd67-35a91bce0009`,
 `2a6cb65a-6d6d-4884-943a-b764cff4740e`,
@@ -31,7 +31,7 @@ Pipeline:
   2. Filter to `.jsonl.gz.age` keys whose LastModified is within the last
      VADE_E8_WINDOW_H hours (default 24).
   3. Drop any key whose LastModified < VADE_E8_PRE_FIX_CUTOFF (cutoff
-     defaults to vade-runtime#216 merge time; pre-fix sessions cannot
+     defaults to coo-harness#216 merge time; pre-fix sessions cannot
      self-heal and aren't this detector's responsibility). The allowlist
      of 3 pre-#216 orphan session_ids is documentary — the cutoff does
      the actual filtering.
@@ -45,7 +45,7 @@ Plus a one-line human summary on stderr.
 Exits 0 always — the wrapper interprets `ok`. The wrapper also fences
 on R2 creds + uv + timeout availability.
 
-vade-runtime#217 — E8 boot-time integrity invariant.
+coo-harness#217 — E8 boot-time integrity invariant.
 """
 from __future__ import annotations
 
@@ -151,7 +151,7 @@ def main() -> int:
         ),
         help="ISO8601 timestamp; allowlisted session_ids whose LastModified "
         "is before this are excluded from the orphan count. Default "
-        "2026-05-04T07:30:00Z (= vade-runtime#216 merge time). Also "
+        "2026-05-04T07:30:00Z (= coo-harness#216 merge time). Also "
         "via VADE_E8_PRE_FIX_CUTOFF.",
     )
     ap.add_argument("--verbose", action="store_true", help="Per-row detail to stderr.")

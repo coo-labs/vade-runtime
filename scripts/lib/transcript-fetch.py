@@ -4,7 +4,7 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-transcript-fetch.py — coo-labs/vade-agent-logs#64 Batch 3.
+transcript-fetch.py — coo-labs/coo-logs#64 Batch 3.
 
 Pair to session-end-transcript-export.py. Given a session_id, fetches
 the encrypted ciphertext from R2, verifies its sha256 against the
@@ -21,8 +21,8 @@ Usage:
   bash scripts/lib/transcript-fetch.sh --cleanup <jsonl_path>
 
 Meta resolution order (when --meta is omitted):
-  1. vade-agent-logs/transcripts/**/<id>.meta.json walk (fast local path).
-  2. R2 GetObject at transcripts/meta/<id>.meta.json (vade-runtime#207
+  1. coo-logs/transcripts/**/<id>.meta.json walk (fast local path).
+  2. R2 GetObject at transcripts/meta/<id>.meta.json (coo-harness#207
      fix shape (b), 2026-05-03 — flat-key fast-resolve index;
      best-effort secondary post-this-PR).
   3. R2 list_objects_v2 + head_object on the ciphertext: parse the
@@ -50,7 +50,7 @@ export hook (which never blocks session end), this script is invoked
 synchronously by the analyzer and surfaces failure to the caller so
 the caller can decide whether to retry or skip.
 
-Mismatch policy (vade-runtime#210, 2026-05-03):
+Mismatch policy (coo-harness#210, 2026-05-03):
   --on-mismatch=fail (default) — raise + exit 1 (pre-#210 behavior).
   --on-mismatch=skip            — log + empty stdout + exit 0; sweep
                                   callers detect skip via empty stdout.
@@ -90,20 +90,20 @@ def _resolve_agent_logs_dir() -> Path:
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
 
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "vade-agent-logs",
-        Path("/home/user/vade-agent-logs"),
+        Path.home() / "GitHub" / "vade-app" / "coo-logs",
+        Path("/home/user/coo-logs"),
     ]
     for c in candidates:
         if c.is_dir():
             return c
     raise FileNotFoundError(
-        "vade-agent-logs working tree not found; tried "
+        "coo-logs working tree not found; tried "
         + ", ".join(str(c) for c in candidates)
     )
 
 
 def _find_meta(session_id: str) -> Path:
-    """Walk vade-agent-logs/transcripts/**/<id>.meta.json."""
+    """Walk coo-logs/transcripts/**/<id>.meta.json."""
     root = _resolve_agent_logs_dir() / "transcripts"
     if not root.is_dir():
         raise FileNotFoundError(f"transcripts dir missing: {root}")
@@ -233,7 +233,7 @@ def _fetch_meta_from_r2_object_metadata(
 def _fetch_meta_from_r2(session_id: str) -> dict:
     """Resolve meta.json for `session_id` directly from R2.
 
-    Two tiers (vade-agent-logs walk is upstream of this function):
+    Two tiers (coo-logs walk is upstream of this function):
       a. flat-key GET at `transcripts/meta/<id>.meta.json` — fast,
          single GetObject; populated by the export hook's secondary
          meta PUT (post-#215). Best-effort.
@@ -347,7 +347,7 @@ def _fetch(
     Returns the cache path on success, None when the SHA mismatched and
     `on_mismatch="skip"` (caller treats as quarantine).
 
-    `on_mismatch` policy (vade-runtime#210):
+    `on_mismatch` policy (coo-harness#210):
       - "fail" (default): raise RuntimeError, preserving the
         pre-#210 hard-bail contract for callers that need pre-decrypt
         integrity (the original Batch-3 spec).
@@ -361,7 +361,7 @@ def _fetch(
         record is stale relative to the canonical R2 bytes — useful
         for forensic / manual-recovery flows that need decrypted
         content even when the meta.json's SHA is known-drifted
-        (vade-runtime#204 historical population).
+        (coo-harness#204 historical population).
     """
     if on_mismatch not in ON_MISMATCH_CHOICES:
         raise ValueError(
@@ -374,9 +374,9 @@ def _fetch(
             raise FileNotFoundError(f"meta.json not found at {meta_path}")
         meta = json.loads(meta_path.read_text())
     else:
-        # Try vade-agent-logs first (fast local file walk); fall back to
+        # Try coo-logs first (fast local file walk); fall back to
         # R2 GetObject when the local walk misses. Post-#207 fix shape (b)
-        # made R2 the canonical durable record; the vade-agent-logs copy
+        # made R2 the canonical durable record; the coo-logs copy
         # is best-effort secondary, so the R2 fallback is required for
         # any session whose auto-PR chain failed.
         try:
@@ -384,7 +384,7 @@ def _fetch(
             meta = json.loads(meta_path.read_text())
         except FileNotFoundError as local_err:
             _stderr(
-                f"meta not in vade-agent-logs ({local_err}); "
+                f"meta not in coo-logs ({local_err}); "
                 "falling back to R2 (post-#207 canonical record)"
             )
             meta = _fetch_meta_from_r2(session_id)
@@ -481,7 +481,7 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--meta",
-        help="Path to the meta.json sidecar (default: walk vade-agent-logs/transcripts/**).",
+        help="Path to the meta.json sidecar (default: walk coo-logs/transcripts/**).",
     )
     parser.add_argument(
         "--cleanup",
@@ -497,7 +497,7 @@ def main(argv: list[str]) -> int:
             "raise + non-zero exit), 'skip' (log + empty stdout + exit 0; "
             "for sweep callers that quarantine and continue), 'warn-decrypt' "
             "(log + decrypt anyway; age's authenticated decryption is the "
-            "secondary integrity check). Refs vade-runtime#210."
+            "secondary integrity check). Refs coo-harness#210."
         ),
     )
     args = parser.parse_args(argv)

@@ -5,7 +5,7 @@
 # Pulls COO credentials from 1Password (vault "COO") via the op CLI,
 # writes SSH keys + gitconfig + env file, validates GitHub identity.
 #
-# Contract: vade-coo-memory/coo/cloud-env-bootstrap.md.
+# Contract: coo-memory/coo/cloud-env-bootstrap.md.
 # Architecture rationale: MEMO 2026-04-22-03 (supersedes -22-01 §2).
 #
 # Fail modes are loud (exit non-zero) so the caller can decide whether
@@ -52,10 +52,10 @@ if [ "${VADE_COO_MODE:-0}" != "1" ]; then
   # (helper no-ops outside cloud context). 2026-05-13 root cause:
   # this exact gate fired silently when the gitconfig-overwrite guard
   # blocked the persistence write, leaving every subsequent boot to
-  # hit this skip with no surface. Phase A of vade-coo-memory#762.
+  # hit this skip with no surface. Phase A of coo-memory#762.
   _write_skip_reason \
     "VADE_COO_MODE!=1 — coo-bootstrap exited before identity load" \
-    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 VADE_COO_MODE=1 bash /home/user/vade-runtime/scripts/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash /home/user/vade-runtime/scripts/integrity-check.sh"
+    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash /home/user/coo-harness/scripts/integrity-check.sh"
   trap - EXIT
   exit 0
 fi
@@ -65,7 +65,7 @@ fi
 # write_coo_gitconfig (which needs OP_SERVICE_ACCOUNT_TOKEN). This minimal
 # write only sets attribution name/email so commits survive no-op-token
 # boots without falling back to the container default ("Test <test@test.com>").
-# Closes vade-coo-memory#287.
+# Closes coo-memory#287.
 COO_BOOTSTRAP_STEP="ensure_coo_identity_minimal"
 GC="${VADE_COO_GITCONFIG:-${HOME}/.gitconfig}"
 mkdir -p "$(dirname "$GC")"
@@ -89,7 +89,7 @@ if [ -n "$existing_email" ] \
   # for a non-Anthropic baseline. Mac silent-skips remain silent.
   _write_skip_reason \
     "coo-bootstrap refused to overwrite $GC (existing user.email=$existing_email)" \
-    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/vade-runtime/scripts/coo-bootstrap.sh"
+    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi
@@ -106,7 +106,7 @@ if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
   # provision the env (Anthropic cloud "Setup script" env var).
   _write_skip_reason \
     "OP_SERVICE_ACCOUNT_TOKEN unset — coo-bootstrap cannot fetch secrets" \
-    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/vade-runtime/scripts/coo-bootstrap.sh"
+    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi
@@ -149,9 +149,9 @@ _settings_env_complete() {
     for (const k of required) { if (!env[k]) process.exit(1); }
     // PATH content sanity: Claude Code does not shell-expand env values,
     // so a literal "${PATH}" in this position is the broken-output of an
-    // earlier bootstrap (vade-runtime#83 first-cut bug). Force re-run so
+    // earlier bootstrap (coo-harness#83 first-cut bug). Force re-run so
     // _write_claude_settings_paths overwrites with the expanded form.
-    // No FHS-layout floor (vade-runtime#141): hard-coding /usr/bin
+    // No FHS-layout floor (coo-harness#141): hard-coding /usr/bin
     // overfit to the Debian base image and would re-trigger the
     // bootstrap on every boot if the image family ever changes
     // (Alpine/musl, Nix-style /nix/store, etc.). The literal-${PATH}
@@ -221,7 +221,7 @@ COO_BOOTSTRAP_STEP="write_coo_gitconfig"
 write_coo_gitconfig
 
 # Make `git push` route through git-push-with-fallback.sh by default
-# (vade-runtime#67 adoption-as-default). Non-fatal: if the install
+# (coo-harness#67 adoption-as-default). Non-fatal: if the install
 # refuses (e.g. user already has a custom $bindir/git), the bootstrap
 # continues. Pushes still work via system git; they just won't auto-
 # fallback when the cloud git-proxy 403s.
@@ -243,7 +243,7 @@ merge_coo_settings_env
 
 # Persist non-secret path state (VADE_CLOUD_STATE_DIR + PATH with the
 # snapshot user bindir prepended) into ~/.claude/settings.json env so
-# fresh shells inherit it on first try. vade-runtime#83.
+# fresh shells inherit it on first try. coo-harness#83.
 COO_BOOTSTRAP_STEP="merge_coo_settings_paths"
 merge_coo_settings_paths
 

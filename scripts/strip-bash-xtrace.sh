@@ -37,7 +37,7 @@
 # or nothing to leave it untouched. Always exits 0 — never blocks
 # the tool call.
 #
-# References: vade-runtime#273 (trace harness), vade-runtime#274
+# References: coo-harness#273 (trace harness), coo-harness#274
 # (two-mechanism env model + this cleanup as a flagged implication).
 
 set -uo pipefail

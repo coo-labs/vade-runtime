@@ -7,7 +7,7 @@
 # Run: bash scripts/hooks/test-bash-github-api-guard.sh
 # Exit: 0 on all pass, 1 otherwise.
 #
-# Reference: MEMO-2026-05-12-22m9, vade-runtime#TBD.
+# Reference: MEMO-2026-05-12-22m9, coo-harness#TBD.
 
 set -eu
 

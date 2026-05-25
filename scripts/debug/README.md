@@ -1,7 +1,7 @@
 # bootstrap-trace — boot-architecture diagnostic harness
 
 Single-purpose instrumentation for the COO boot pipeline review (paused
-commission [coo-labs/vade-coo-memory#762](https://github.com/coo-labs/vade-coo-memory/issues/762)). Plan file:
+commission [coo-labs/coo-memory#762](https://github.com/coo-labs/coo-memory/issues/762)). Plan file:
 `/root/.claude/plans/let-s-start-with-the-dapper-torvalds.md` (per-session;
 not committed).
 
@@ -18,7 +18,7 @@ When the review concludes the harness is removed (one PR).
 
 `BASH_ENV` is a bash mechanism: every non-interactive bash invocation
 sources the file pointed at by `BASH_ENV` before its first command. Set
-`BASH_ENV=/home/user/vade-runtime/scripts/debug/bootstrap-trace-init.sh`
+`BASH_ENV=/home/user/coo-harness/scripts/debug/bootstrap-trace-init.sh`
 in the container settings UI permanently; the init script is a hard
 no-op unless `VADE_BOOTSTRAP_TRACE_MODE=1` is also set. Flipping that
 flag for one container build is the toggle.
@@ -36,7 +36,7 @@ the existing `OP_SERVICE_ACCOUNT_TOKEN`:
 
 | Env var | Value | When |
 |---------|-------|------|
-| `BASH_ENV` | `/home/user/vade-runtime/scripts/debug/bootstrap-trace-init.sh` | Permanent (init no-ops without the flag below). |
+| `BASH_ENV` | `/home/user/coo-harness/scripts/debug/bootstrap-trace-init.sh` | Permanent (init no-ops without the flag below). |
 | `VADE_BOOTSTRAP_TRACE_MODE` | `1` | Only when capturing a trace. Unset (or remove) to disable. |
 | `VADE_BOOTSTRAP_TRACE_DIR` | `/home/user/.vade/traces` | Optional. Default is the same value. |
 
@@ -126,7 +126,7 @@ cat "$TRACE/snapshots/<ts>-<tag>-<pid>/metadata/env.txt"
 ### Interactive timeline (Chrome DevTools shape)
 
 ```bash
-python3 /home/user/vade-runtime/scripts/debug/render-trace-timeline.py
+python3 /home/user/coo-harness/scripts/debug/render-trace-timeline.py
 # → writes /tmp/trace-timeline.html (open in any browser)
 ```
 
@@ -166,7 +166,7 @@ Three options, descending order of operational simplicity:
   (a human typing in a terminal) do not source it. The boot pipeline
   is entirely non-interactive.
 - **Anthropic's pre-clone phase is invisible.** Whatever runs before
-  `/home/user/vade-runtime/` exists cannot resolve `BASH_ENV`. The
+  `/home/user/coo-harness/` exists cannot resolve `BASH_ENV`. The
   trace begins at the first bash invocation that occurs after the repo
   is on disk.
 - **Inotifywait can miss events under burst load.** Rare for boot-pipeline

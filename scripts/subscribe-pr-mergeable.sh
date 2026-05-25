@@ -49,7 +49,7 @@ Poll a GitHub PR's mergeable state; emit one stdout line per
 transition, suitable for `Monitor` tail-streaming.
 
 Arguments:
-  <owner/repo>     Target repository (e.g. coo-labs/vade-coo-memory)
+  <owner/repo>     Target repository (e.g. coo-labs/coo-memory)
   <pr-number>      Pull request number
   [poll_seconds]   Polling interval, default 120
 
@@ -59,8 +59,8 @@ Environment:
   VADE_CLOUD_STATE_DIR  State directory root (defaults to ~/.vade-cloud-state)
 
 Examples:
-  subscribe-pr-mergeable.sh coo-labs/vade-coo-memory 734
-  subscribe-pr-mergeable.sh coo-labs/vade-runtime 254 60
+  subscribe-pr-mergeable.sh coo-labs/coo-memory 734
+  subscribe-pr-mergeable.sh coo-labs/coo-harness 254 60
 EOF
 }
 

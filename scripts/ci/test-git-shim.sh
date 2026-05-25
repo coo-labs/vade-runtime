@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-git-shim: smoke-test the git shim that intercepts `git push`
-# and routes it through git-push-with-fallback.sh (vade-runtime#67).
+# and routes it through git-push-with-fallback.sh (coo-harness#67).
 #
 # Strategy: install a mock system git that records its argv, plus a
 # mock wrapper that records its argv. Run the shim with various arg

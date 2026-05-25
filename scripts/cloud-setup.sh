@@ -7,10 +7,10 @@
 # Entry point: paste this into the cloud env "Setup script" field:
 #   #!/bin/bash
 #   set -e
-#   bash /home/user/vade-runtime/scripts/cloud-setup.sh
+#   bash /home/user/coo-harness/scripts/cloud-setup.sh
 #
 # The harness clones vade-core, vade-runtime, and vade-coo-memory into
-# /home/user/ before this runs, so we just point at /home/user/vade-runtime.
+# /home/user/ before this runs, so we just point at /home/user/coo-harness.
 set -euo pipefail
 
 # The cloud snapshot IS the COO session by construction. Export
@@ -39,7 +39,7 @@ log "Baseline: node=$(node --version 2>/dev/null || echo 'missing') npm=$(npm --
 
 ensure_dirs
 sync_claude_config "$RUNTIME_DIR/.claude"
-# vade-runtime#157 switched settings.json hook commands from
+# coo-harness#157 switched settings.json hook commands from
 # $HOME/.claude/vade-hooks/dispatch.sh to
 # $CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh. On local those paths
 # coincide because $CLAUDE_PROJECT_DIR resolves to $WORKSPACE_ROOT and the
@@ -58,9 +58,9 @@ ensure_hooks_dispatch_shim "$RUNTIME_DIR/.claude" "$WORKSPACE_ROOT/.claude"
 # repo whose data they manipulate; the aggregator surfaces them at
 # user-scope so they're invokable from any session cwd.
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$HOME/.claude" \
-  vade-runtime vade-coo-memory
+  coo-harness coo-memory
 ensure_workspace_mcp_config "$RUNTIME_DIR/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
-ensure_workspace_identity_link "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
+ensure_workspace_identity_link "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
 # Validate the synced settings.json actually parses as JSON and has a
 # populated SessionStart:startup hook chain. File-exists alone would
@@ -92,7 +92,7 @@ WORKSPACE_MCP_SYMLINKED=false
 
 IDENTITY_LINK_OK=false
 [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && \
-  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
+  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
   IDENTITY_LINK_OK=true
 
 # Workspace deps (npm install vade-core, install tsx) are opt-in:
@@ -101,7 +101,7 @@ IDENTITY_LINK_OK=false
 # full local toolchain set VADE_BOOT_INSTALL=1.
 if [ "${VADE_BOOT_INSTALL:-0}" = "1" ]; then
   ensure_tsx
-  install_deps "$WORKSPACE_ROOT/vade-core"
+  install_deps "$WORKSPACE_ROOT/vade-canvas"
 fi
 
 print_versions
@@ -134,7 +134,7 @@ prewarm_uv_cache
 # build (or the runtime Dockerfile, per epic #112 Stream 2) already
 # installed it, ensure_op_cli's presence-check short-circuits.
 #
-# FATAL on failure (closes vade-runtime#111). A snapshot without op is
+# FATAL on failure (closes coo-harness#111). A snapshot without op is
 # degraded by definition: every session that resumes from it has to
 # re-fetch op from cache.agilebits.com mid-SessionStart, exposed to
 # the same egress flake the build-time install was supposed to absorb,
@@ -145,10 +145,10 @@ prewarm_uv_cache
 #
 # Trade-off: cloud build SLA — if cache.agilebits.com is flapping,
 # build-fail-rate goes up. Mitigations: the 5-attempt retry budget in
-# ensure_op_cli (vade-runtime#76); the Dockerfile-baked /usr/local/bin/op
+# ensure_op_cli (coo-harness#76); the Dockerfile-baked /usr/local/bin/op
 # layer (epic #112 Stream 2) which makes ensure_op_cli a no-op when the
 # runtime image is in use. If neither is enough, follow-up work is
-# vade-runtime#111 option (b) — alternate origin / local mirror.
+# coo-harness#111 option (b) — alternate origin / local mirror.
 OP_INSTALLED_AT_BUILD=false
 if ensure_op_cli; then
   OP_INSTALLED_AT_BUILD=true
@@ -185,7 +185,7 @@ fi
 # the SessionStart hook chain never has to fetch through the egress
 # proxy, and Claude Code can spawn the MCP at process start without a
 # uvx-on-demand round-trip. Required for mem0 MCP availability per
-# vade-runtime#109; without it the .mcp.json stdio entry points at a
+# coo-harness#109; without it the .mcp.json stdio entry points at a
 # missing binary and Mem0 surface stays dark.
 if ensure_mem0_mcp_server; then
   build_log_record OK "cloud-setup: mem0-mcp-server installed at build time"
@@ -201,7 +201,7 @@ fi
 # brings pandoc onto the bundle without a separate package step.
 # Best-effort: on failure the first session that needs Quarto fetches
 # on demand. Introduced for the 2026-shiffrin-conference deck under
-# vade-coo-memory/coo/_drafts/; kept standing for any future
+# coo-memory/coo/_drafts/; kept standing for any future
 # markdown-to-{revealjs,pptx,pdf} workflow the chain produces.
 if ensure_quarto_cli; then
   build_log_record OK "cloud-setup: quarto installed at build time"
@@ -215,7 +215,7 @@ fi
 # snapshot-persistence rationale as op + gh + mem0 — paying the npm
 # fetch cost at build time keeps the SessionStart MCP spawn off the
 # egress proxy. The MCP exists to close the rotated-PAT → restart
-# failure class (vade-runtime#164): when 1Password rotates a credential
+# failure class (coo-harness#164): when 1Password rotates a credential
 # mid-session, an in-process MCP path can re-read the secret without
 # the harness restart that the cached `op` CLI bootstrap requires.
 # Read-only is enforced by the COO service account's vault permissions
@@ -231,7 +231,7 @@ fi
 # COO identity bootstrap runs only when OP_SERVICE_ACCOUNT_TOKEN is set
 # in the cloud environment config. Non-fatal on failure — the base VADE
 # env should still come up even if 1Password is unreachable.
-# See vade-coo-memory/coo/cloud-env-bootstrap.md for the contract.
+# See coo-memory/coo/cloud-env-bootstrap.md for the contract.
 # Anthropic cloud envs may scope custom env vars to the session process
 # only; the SessionStart hook in .claude/settings.json picks up the
 # slack in that case.
@@ -263,7 +263,7 @@ fi
 # step on every cold boot). Runs after coo-bootstrap so $GITHUB_MCP_PAT
 # is exported; fail-open if either is missing or external-touch.py is
 # absent (CI fake-env stages a stub vade-coo-memory without it).
-# vade-coo-memory#429 cache-refresh follow-up.
+# coo-memory#429 cache-refresh follow-up.
 . "$HOME/.vade/coo-env" 2>/dev/null || true
 prewarm_external_touch_cache "$WORKSPACE_ROOT"
 

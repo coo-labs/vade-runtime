@@ -4,7 +4,7 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-session-end-transcript-export.py — coo-labs/vade-agent-logs#64 Batch 2.
+session-end-transcript-export.py — coo-labs/coo-logs#64 Batch 2.
 
 Active component of the Stop-hook chain. Runs after a Claude Code
 session ends; never blocks session end.
@@ -17,7 +17,7 @@ Pipeline per invocation:
      exit, drop <id>.export-error.txt and exit 0.
   4. gzip the redacted bytes (compression ~10× per spec).
   5. age-encrypt to scripts/lib/transcripts-recipient.age — at-rest
-     encryption per BDFL approval (vade-agent-logs#64 security review).
+     encryption per BDFL approval (coo-logs#64 security review).
   6. boto3 upload to Cloudflare R2 at
      transcripts/YYYY/MM/DD/<id>.jsonl.gz.age (date from first event
      timestamp, falling back to UTC-now). The meta.json dict is built
@@ -31,7 +31,7 @@ Pipeline per invocation:
      fast-resolve index for transcript-fetch (avoids list+head_object
      on the normal path). Failure here is recoverable via the embedded
      object-metadata from step 6.
-  8. Write a sidecar at <vade-agent-logs>/transcripts/YYYY/MM/DD/<id>.meta.json
+  8. Write a sidecar at <coo-logs>/transcripts/YYYY/MM/DD/<id>.meta.json
      with parser_version, exported_at, event count, byte sizes,
      redaction hits, ciphertext sha256, and the R2 object keys.
      Best-effort secondary copy for GitHub-browsable history; failure
@@ -60,7 +60,7 @@ Read at run time via `op read` (no env exposure):
   op://COO/r2-transcripts/bucket    — bucket name
 Optional:
   CLAUDE_SESSION_ID                  — override session-id resolution
-  VADE_AGENT_LOGS_DIR                — override vade-agent-logs working
+  VADE_AGENT_LOGS_DIR                — override coo-logs working
                                        tree resolution
   VADE_TRANSCRIPT_EXPORT_DRY_RUN=1   — skip R2 upload AND skip auto-PR
                                        (CI / smoke-test)
@@ -70,7 +70,7 @@ Optional:
                                        network or PAT)
   GITHUB_MCP_PAT                     — required for auto-PR-on-meta;
                                        absence is a soft skip, not an
-                                       error (per vade-runtime#148 A)
+                                       error (per coo-harness#148 A)
 """
 
 from __future__ import annotations
@@ -138,7 +138,7 @@ def _resolve_session_id_and_jsonl() -> tuple[str, Path]:
 
 
 def _resolve_agent_logs_dir() -> Path:
-    """Resolve vade-agent-logs working tree (for sidecar drop-off)."""
+    """Resolve coo-logs working tree (for sidecar drop-off)."""
     explicit = os.environ.get("VADE_AGENT_LOGS_DIR", "").strip()
     if explicit:
         p = Path(explicit)
@@ -147,15 +147,15 @@ def _resolve_agent_logs_dir() -> Path:
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
 
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "vade-agent-logs",
-        Path("/home/user/vade-agent-logs"),
-        RUNTIME_ROOT.parent / "vade-agent-logs",
+        Path.home() / "GitHub" / "vade-app" / "coo-logs",
+        Path("/home/user/coo-logs"),
+        RUNTIME_ROOT.parent / "coo-logs",
     ]
     for c in candidates:
         if c.is_dir():
             return c
     raise FileNotFoundError(
-        "vade-agent-logs working tree not found; tried "
+        "coo-logs working tree not found; tried "
         + ", ".join(str(c) for c in candidates)
     )
 
@@ -304,7 +304,7 @@ def _r2_upload(
     plus `ceded: bool` indicating whether another writer already held
     the key. Raises on non-precondition failures.
 
-    First-write-wins via `IfNoneMatch='*'` (vade-runtime#204, MEMO 2026-05-03-bgk3):
+    First-write-wins via `IfNoneMatch='*'` (coo-harness#204, MEMO 2026-05-03-bgk3):
     age encryption is non-deterministic (fresh X25519 ephemeral keypair
     per call), so two writers encrypting the same plaintext produce
     different ciphertext bytes. Without atomic-create, last-write-wins
@@ -446,13 +446,13 @@ def _emit_export_error(sidecar_dir: Path, session_id: str, exc: BaseException) -
 def _emit_meta_pr_error(sidecar_dir: Path, session_id: str, reason: str) -> None:
     """Write a durable breadcrumb when the auto-PR step fails or is
     skipped for non-design reasons. Sidecar lives next to where
-    meta.json would have landed in vade-agent-logs/transcripts/<date>/
+    meta.json would have landed in coo-logs/transcripts/<date>/
     so the failure is visible to operators (and to a next-session-on-
     same-container debugger) even after the container that wrote it
     tears down — closing the diagnostic gap left by stderr-only logging
     in container-ephemeral LOG_FILE. Companion to _emit_export_error.
 
-    Refs vade-runtime#207 (the meta-vs-R2 asymmetry being instrumented)."""
+    Refs coo-harness#207 (the meta-vs-R2 asymmetry being instrumented)."""
     try:
         sidecar_dir.mkdir(parents=True, exist_ok=True)
         err_path = sidecar_dir / f"{session_id}.meta-pr-error.txt"
@@ -476,7 +476,7 @@ def _open_meta_pr(
 
     Auto-merge happens via the Night's Watch §4 pure-add gate
     (MEMO-2026-04-26-04 §4 carve-out for own-author log PRs in
-    vade-agent-logs).
+    coo-logs).
 
     Best-effort: any failure is logged via export-error.txt and we
     return None. Never raises, never blocks session end. Non-design
@@ -605,7 +605,7 @@ def _open_meta_pr(
 
         commit_msg = (
             f"meta: auto-commit sidecar for {session_id}\n\n"
-            "Stop hook auto-commit per vade-runtime#148 Part A.\n"
+            "Stop hook auto-commit per coo-harness#148 Part A.\n"
             "Pure-add (single file) — eligible for the Night's Watch\n"
             "§4 pure-add merge gate (MEMO-2026-04-26-04 §4)."
         )
@@ -635,8 +635,8 @@ def _open_meta_pr(
         body = (
             "## Summary\n\n"
             f"Auto-commit of `{rel_sidecar}` for session `{session_id}`.\n"
-            "Written by `vade-runtime/scripts/session-end-transcript-export.py`\n"
-            "per vade-runtime#148 Part A. The encrypted ciphertext is\n"
+            "Written by `coo-harness/scripts/session-end-transcript-export.py`\n"
+            "per coo-harness#148 Part A. The encrypted ciphertext is\n"
             "already in R2; this PR makes the sidecar visible to the\n"
             "transcript-analyzer pipeline.\n\n"
             "## Test plan\n\n"
@@ -649,7 +649,7 @@ def _open_meta_pr(
                 "pr",
                 "create",
                 "-R",
-                "coo-labs/vade-agent-logs",
+                "coo-labs/coo-logs",
                 "--base",
                 "main",
                 "--head",
@@ -796,7 +796,7 @@ def main() -> int:
                     metadata=embed_metadata,
                     endpoint=r2_endpoint, bucket=r2_bucket,
                 )
-                # First-write-wins cede (vade-runtime#204): another writer
+                # First-write-wins cede (coo-harness#204): another writer
                 # already holds this R2 key. Our ciphertext_sha256 does NOT
                 # match what's in R2 — writing meta.json with our SHA would
                 # re-create the mismatch this fix prevents. Drop a
@@ -856,7 +856,7 @@ def main() -> int:
             _stderr(f"wrote sidecar: {sidecar_path}")
 
         # Best-effort: open a single-file pure-add PR carrying just the
-        # sidecar. Per vade-runtime#148 Part A — closes the structural
+        # sidecar. Per coo-harness#148 Part A — closes the structural
         # gap where 78% of sessions skipped committing meta.json.
         # Failures here are logged via export-error, never raised.
         try:

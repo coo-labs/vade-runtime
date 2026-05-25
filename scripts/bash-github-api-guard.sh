@@ -35,7 +35,7 @@
 #   - VADE_GITHUB_API_GUARD_BYPASS=1 → unconditionally allow. Set this
 #     for a deliberate diagnostic; flag in commit / PR if persisted.
 #
-# Reference: MEMO-2026-05-12-22m9, vade-runtime#TBD.
+# Reference: MEMO-2026-05-12-22m9, coo-harness#TBD.
 
 set -uo pipefail
 

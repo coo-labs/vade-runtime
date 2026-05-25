@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Migrate runtime-granted "always allow" permission decisions from
 # .claude/settings.local.json (gitignored, ephemeral on cloud) into
-# vade-runtime/.claude/settings.json (version-controlled), then
+# coo-harness/.claude/settings.json (version-controlled), then
 # auto-commit + push on the current branch.
 #
 # Wired as a Stop hook so every turn-end checks for new permission

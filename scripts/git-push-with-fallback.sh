@@ -6,7 +6,7 @@
 # HTTP 403 on push (often only the second push onward of a session) and,
 # separately, substitutes a token without `workflow` scope on workflow-file
 # pushes. Pushing directly to github.com with the COO PAT is reliable.
-# See coo-labs/vade-runtime#67 for the diagnostic write-up.
+# See coo-labs/coo-harness#67 for the diagnostic write-up.
 #
 # Usage:
 #   scripts/git-push-with-fallback.sh [<git push args>...]
@@ -24,7 +24,7 @@
 # unset, the wrapper passes the original failure through with a
 # pointer at coo-bootstrap.sh.
 #
-# Credential-leak hardening (coo-labs/vade-runtime#124):
+# Credential-leak hardening (coo-labs/coo-harness#124):
 #   The fallback push targets a credential-bearing URL. To prevent the
 #   PAT from leaking into stdout or .git/config when `-u` /
 #   `--set-upstream` is present, the wrapper:

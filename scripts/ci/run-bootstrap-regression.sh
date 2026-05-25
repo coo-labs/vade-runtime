@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI runner for the bootstrap regression suite (vade-runtime#86).
+# CI runner for the bootstrap regression suite (coo-harness#86).
 #
 # Drives the full snapshot-build → session-resume cycle in fake-env mode:
 #
@@ -48,9 +48,9 @@ SOURCE_DIR="${1:-$PWD}"
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 WORKSPACE_ROOT="${VADE_CI_WORKSPACE_ROOT:-/home/user}"
-RUNTIME_DST="$WORKSPACE_ROOT/vade-runtime"
+RUNTIME_DST="$WORKSPACE_ROOT/coo-harness"
 COO_MEM_DST="$WORKSPACE_ROOT/vade-coo-memory"
-CORE_DST="$WORKSPACE_ROOT/vade-core"
+CORE_DST="$WORKSPACE_ROOT/vade-canvas"
 
 TEST_HOME="${VADE_CI_TEST_HOME:-/tmp/vade-ci-home}"
 MOCK_DIR="${VADE_CI_MOCK_DIR:-/tmp/vade-ci-mocks}"
@@ -101,7 +101,7 @@ cat > "$COO_MEM_DST/CLAUDE.md" <<'EOF'
 
 Placeholder file so ensure_workspace_identity_link has a target and
 integrity-check C1 passes. The real CLAUDE.md lives at
-https://github.com/coo-labs/vade-coo-memory/blob/main/CLAUDE.md.
+https://github.com/coo-labs/coo-memory/blob/main/CLAUDE.md.
 EOF
 mkdir -p "$CORE_DST/.claude"
 

@@ -5,7 +5,7 @@
 # SessionStart hook; lands in the boot context as a system-reminder so
 # the agent can read "what's in flight" without running the query itself.
 # Replaces the "Boot recall" instruction that used to live in CLAUDE.md
-# (vade-coo-memory#813).
+# (coo-memory#813).
 #
 # Graceful no-op when GITHUB_TOKEN/GH_TOKEN is unset, when gh is missing,
 # or when the API call fails. Never breaks session start.

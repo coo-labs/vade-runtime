@@ -6,7 +6,7 @@
 """
 integrity-check-e7-r2-sha.py — R2 ciphertext SHA-mismatch sample probe.
 
-Samples the K most-recent post-fix vade-agent-logs meta.json files,
+Samples the K most-recent post-fix coo-logs meta.json files,
 GETs each R2 object, computes SHA256 over the bytes, compares to
 meta.ciphertext_sha256. Output one line on stdout:
 
@@ -18,14 +18,14 @@ Stderr carries per-row detail when --verbose. Always exits 0 on
 probe-completion (a mismatch finding does not exit nonzero); exits
 nonzero only on internal/configuration errors.
 
-Additive observability over the now-fixed pipeline: vade-runtime#212
+Additive observability over the now-fixed pipeline: coo-harness#212
 landed atomic IfNoneMatch first-write-wins in
 session-end-transcript-export.py at 2026-05-03T09:01:47Z (closing #204
 + MEMO 2026-05-03-bgk3). Mismatches in post-fix sessions would
 indicate a regression in the encrypt-then-PUT flow; pre-fix sessions
 are filtered out via the post-cutoff parameter.
 
-vade-runtime#209 — proposed E7 boot-time integrity invariant.
+coo-harness#209 — proposed E7 boot-time integrity invariant.
 """
 from __future__ import annotations
 
@@ -51,8 +51,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--logs-dir",
-        default="/home/user/vade-agent-logs/transcripts",
-        help="Path to vade-agent-logs/transcripts root.",
+        default="/home/user/coo-logs/transcripts",
+        help="Path to coo-logs/transcripts root.",
     )
     ap.add_argument(
         "--sample-k",
@@ -64,7 +64,7 @@ def main() -> int:
         "--post-cutoff",
         default="2026-05-03T09:01:47+00:00",
         help="Only sample meta.json with exported_at >= this (ISO8601). "
-        "Default = vade-runtime#212 merge time.",
+        "Default = coo-harness#212 merge time.",
     )
     ap.add_argument("--verbose", action="store_true", help="Per-row detail to stderr.")
     args = ap.parse_args()

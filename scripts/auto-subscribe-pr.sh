@@ -44,7 +44,7 @@ jq -n --arg owner "$owner" --arg repo "$repo" --argjson pn "$pn" '{
     additionalContext: (
       "[auto-subscribe-pr] A pull request was just created at " + $owner + "/" + $repo + "#" + ($pn|tostring) + ". In your next tool batch, set up two parallel subscriptions:\n" +
       "  1. Call mcp__github__subscribe_pr_activity with owner=\"" + $owner + "\", repo=\"" + $repo + "\", pullNumber=" + ($pn|tostring) + " — streams CI failures, comments, and reviews into this session as github-webhook-activity events.\n" +
-      "  2. Start a Monitor on /home/user/vade-runtime/scripts/subscribe-pr-mergeable.sh " + $owner + "/" + $repo + " " + ($pn|tostring) + " — emits one stdout line per mergeable-state transition (clean to conflict and back) and a terminal line on merge/close. Closes the conflict-notification gap that subscribe_pr_activity does not cover (vade-runtime#254)."
+      "  2. Start a Monitor on /home/user/coo-harness/scripts/subscribe-pr-mergeable.sh " + $owner + "/" + $repo + " " + ($pn|tostring) + " — emits one stdout line per mergeable-state transition (clean to conflict and back) and a terminal line on merge/close. Closes the conflict-notification gap that subscribe_pr_activity does not cover (coo-harness#254)."
     )
   }
 }'

@@ -12,7 +12,7 @@
 #
 # Invocation modes:
 #   1. Automatic at boot — session-start-sync.sh calls it at end.
-#   2. On-demand — `bash /home/user/vade-runtime/scripts/integrity-check.sh`
+#   2. On-demand — `bash /home/user/coo-harness/scripts/integrity-check.sh`
 #   3. CI — tests run it after faking a SessionStart chain; Groups
 #      A/B/C gate PR merges, D/E are secret-dependent and skip in CI.
 #
@@ -27,7 +27,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 # Belt-and-suspenders: common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default;
 # session-start-sync.sh now merges it into settings.json so hooks inherit the correct path,
 # but if that merge hasn't run yet (e.g., manual invocation before bootstrap), redirect
-# when the cloud path is absent and the local path exists. vade-runtime#171.
+# when the cloud path is absent and the local path exists. coo-harness#171.
 if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
   VADE_CLOUD_STATE_DIR="$HOME/.vade/local-state"
 fi
@@ -75,8 +75,8 @@ A3_ok=true
 if [ -f "$A1_receipt" ] && check_cmd node; then
   claim_mcp="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.workspace_mcp_symlinked))' "$A1_receipt" 2>/dev/null || echo unknown)"
   claim_id="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.identity_link_ok))' "$A1_receipt" 2>/dev/null || echo unknown)"
-  expected_mcp_target="$(readlink -f "$WORKSPACE_ROOT/vade-runtime/.mcp.json" 2>/dev/null || true)"
-  expected_id_target="$(readlink -f "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" 2>/dev/null || true)"
+  expected_mcp_target="$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null || true)"
+  expected_id_target="$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null || true)"
   observed_mcp=false; observed_id=false
   if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ -n "$expected_mcp_target" ] \
      && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json" 2>/dev/null)" = "$expected_mcp_target" ]; then
@@ -124,7 +124,7 @@ _add B1 "$B1_ok" "$B1_detail"
 # matched 'No such file or directory' from unrelated subsystems (e.g.
 # ripgrep probing a missing plugin cache). boot.log is per-hook-run
 # structured JSON; scoping to the most recent cse_* session gives a
-# current-state signal. Issue vade-runtime#41.
+# current-state signal. Issue coo-harness#41.
 B3_ok=skip
 B3_detail="boot.log not readable"
 if [ -r "$HOME/.vade/boot.log" ]; then
@@ -174,14 +174,14 @@ _add B5 info "CLAUDE_PROJECT_DIR=${CLAUDE_PROJECT_DIR:-<unset>} cwd=$(pwd) HOME=
 # ── Group C: Symlinks & MCP config ────────────────────────────
 # Workspace-root convenience symlinks (CLAUDE.md, .mcp.json) live at
 # $WORKSPACE_ROOT — /home/user on cloud, ~/GitHub/vade-app on local.
-if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" 2>/dev/null)" ]; then
-  _add C1 true "$WORKSPACE_ROOT/CLAUDE.md → vade-coo-memory/CLAUDE.md"
+if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ]; then
+  _add C1 true "$WORKSPACE_ROOT/CLAUDE.md → coo-memory/CLAUDE.md"
 else
   _add C1 false "$WORKSPACE_ROOT/CLAUDE.md symlink missing or wrong target"
 fi
 
-if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$WORKSPACE_ROOT/vade-runtime/.mcp.json" 2>/dev/null)" ]; then
-  _add C2 true "$WORKSPACE_ROOT/.mcp.json → vade-runtime/.mcp.json"
+if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null)" ]; then
+  _add C2 true "$WORKSPACE_ROOT/.mcp.json → coo-harness/.mcp.json"
 else
   _add C2 false "$WORKSPACE_ROOT/.mcp.json symlink missing or wrong target"
 fi
@@ -209,7 +209,7 @@ if [ -f "$HOME/.vade/coo-bootstrap.log" ]; then
   tail_line="$(tail -n 1 "$HOME/.vade/coo-bootstrap.log" 2>/dev/null || true)"
   # 'SKIP marker present' is the idempotent-skip terminal written by
   # coo-bootstrap.sh when the marker file exists; it is a healthy
-  # resumed-container outcome. Issue vade-runtime#41.
+  # resumed-container outcome. Issue coo-harness#41.
   if printf '%s' "$tail_line" | grep -qE 'OK step=complete|OK step=skip-|SKIP marker present'; then
     _add D3 true "coo-bootstrap.log tail: $tail_line"
   else
@@ -245,11 +245,11 @@ else
 fi
 
 # D5b — local-scope .git/config divergence surface
-# D5 covers the global ~/.gitconfig (vade-coo-memory#287, fixed by
-# vade-runtime#184). Per-repo .git/config can override it silently:
+# D5 covers the global ~/.gitconfig (coo-memory#287, fixed by
+# coo-harness#184). Per-repo .git/config can override it silently:
 # a clone performed during a poisoned-bootstrap session may stamp
 # local user.email at clone time, surviving subsequent global-scope
-# corrections (vade-coo-memory#338). This probe scans repos under
+# corrections (coo-memory#338). This probe scans repos under
 # WORKSPACE_ROOT and surfaces local-scope user.email values that
 # diverge from coo@vade-app.dev.
 #
@@ -314,12 +314,12 @@ _add E4 skip "requires-agent: observe tool namespaces"
 # completes a real tool round-trip against api.mem0.ai. The hosted
 # https://mcp.mem0.ai endpoint hits a Node `undici` DNS-cache overflow
 # inside Claude Code's MCP HTTP transport on cloud-harness boots
-# (vade-runtime#36/#109), leaving the agent with no Mem0 surface for
+# (coo-harness#36/#109), leaving the agent with no Mem0 surface for
 # the rest of the session. We bypass that by running the official
 # stdio MCP server (`mem0-mcp-server`, pinned via common.sh) as a
 # subprocess.
 #
-# This probe layers two checks (per vade-runtime#114):
+# This probe layers two checks (per coo-harness#114):
 #   1. Transport — the binary spawns and answers initialize +
 #      tools/list with the read/write tool surface we depend on.
 #      Fast failure mode: missing binary, no MEM0_API_KEY, JSON-RPC
@@ -451,7 +451,7 @@ else
     else
       # Handshake passed but round-trip failed: api.mem0.ai is degraded
       # while the local MCP transport is up. This is the misleading-green
-      # case from vade-runtime#114; surface it explicitly.
+      # case from coo-harness#114; surface it explicitly.
       _e5_rt_err="$(printf '%s' "$E5_verdict" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{const o=JSON.parse(d);process.stdout.write(o.roundTripError||"(no error string)")}catch{process.stdout.write("(verdict parse failed)")}})' 2>/dev/null || echo "(node parse failed)")"
       E5_detail="api.mem0.ai unreachable: handshake ok but get_memories round-trip failed — $_e5_rt_err. Probe: curl https://api.mem0.ai/v1/ping/ ; if 503/DNS-cache-overflow, defer Mem0 writes (memo-sync, identity loads) until upstream recovers."
     fi
@@ -527,11 +527,11 @@ else
 fi
 _add E5 "$E5_ok" "$E5_detail"
 
-# E6: R2 transcript-absence alarm (vade-runtime#201, MEMO-2026-05-04-mzeq).
+# E6: R2 transcript-absence alarm (coo-harness#201, MEMO-2026-05-04-mzeq).
 # Counts *.jsonl under ~/.claude/projects in the last VADE_E6_WINDOW_H
 # hours (default 24); if > 0 and R2 has zero objects in the matching
 # date prefixes, alarms. Catches total-loss-of-export — the failure
-# mode of vade-runtime#181 (agent-teams SIGKILL, 48h outage 04-29→04-30)
+# mode of coo-harness#181 (agent-teams SIGKILL, 48h outage 04-29→04-30)
 # and #198 (recurrence). Sibling to E7 (#209, SHA mismatch) and E8
 # (#217, orphan meta); jointly cover loss / corruption / partial.
 #
@@ -598,12 +598,12 @@ else
 fi
 _add E6 "$E6_ok" "$E6_detail"
 
-# E7: R2 ciphertext SHA-mismatch sample (vade-runtime#209, MEMO 2026-05-03-bgk3).
-# Samples the K most-recent post-fix vade-agent-logs meta.json files,
+# E7: R2 ciphertext SHA-mismatch sample (coo-harness#209, MEMO 2026-05-03-bgk3).
+# Samples the K most-recent post-fix coo-logs meta.json files,
 # GETs each R2 object, compares SHA256 to meta.ciphertext_sha256.
 # Fires (degraded) when any mismatch is found in the sample.
 #
-# Additive observability over the now-fixed pipeline: vade-runtime#212
+# Additive observability over the now-fixed pipeline: coo-harness#212
 # landed atomic IfNoneMatch first-write-wins in
 # session-end-transcript-export.py at 2026-05-03T09:01:47Z (closing #204
 # + MEMO 2026-05-03-bgk3). Mismatches in post-fix sessions would
@@ -611,7 +611,7 @@ _add E6 "$E6_ok" "$E6_detail"
 # probe's --post-cutoff parameter.
 #
 # Cost: K=3 GETs of ~400KB ciphertext each ≈ 1-2MB / 2-3s per boot.
-# Skips when R2 creds missing, vade-agent-logs absent, uv missing, or
+# Skips when R2 creds missing, coo-logs absent, uv missing, or
 # CI fake-env active. Live-only invariant (CI staging has no R2).
 #
 # Tunable via env: VADE_E7_SAMPLE_K (default 3),
@@ -620,7 +620,7 @@ E7_ok=skip
 E7_detail="prerequisites missing"
 E7_K="${VADE_E7_SAMPLE_K:-3}"
 E7_CUTOFF="${VADE_E7_POST_CUTOFF:-2026-05-03T09:01:47+00:00}"
-E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-/home/user/vade-agent-logs/transcripts}"
+E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-/home/user/coo-logs/transcripts}"
 if [ -n "${VADE_CI_WORKSPACE_ROOT:-}" ] || [ -n "${VADE_BINDIR_OVERRIDE:-}" ]; then
   E7_ok=skip
   E7_detail="skipped in CI fake-env (VADE_CI_WORKSPACE_ROOT or VADE_BINDIR_OVERRIDE set); live-only probe"
@@ -655,7 +655,7 @@ else
           E7_detail="$E7_a/$E7_a post-fix R2 ciphertext SHAs match meta sidecars (K=$E7_K, cutoff $E7_CUTOFF)"
         else
           E7_ok=false
-          E7_detail="$E7_b/$E7_a post-fix R2 ciphertext SHA mismatches + $E7_c errors — regression in #212 atomic IfNoneMatch fix or upload contract; see vade-runtime#209, MEMO 2026-05-03-bgk3"
+          E7_detail="$E7_b/$E7_a post-fix R2 ciphertext SHA mismatches + $E7_c errors — regression in #212 atomic IfNoneMatch fix or upload contract; see coo-harness#209, MEMO 2026-05-03-bgk3"
         fi
         ;;
       SKIP)
@@ -675,7 +675,7 @@ else
 fi
 _add E7 "$E7_ok" "$E7_detail"
 
-# E8: R2 ciphertext orphan detector (vade-runtime#217, MEMO 2026-05-04-mzeq).
+# E8: R2 ciphertext orphan detector (coo-harness#217, MEMO 2026-05-04-mzeq).
 # Lists transcripts/<today>/ + transcripts/<yesterday>/ for ciphertexts
 # whose LastModified is within the last VADE_E8_WINDOW_H hours (default 24),
 # HEADs each one, and asserts the `vade-meta-json` user-metadata key is
@@ -684,7 +684,7 @@ _add E7 "$E7_ok" "$E7_detail"
 # Sibling to E6 (#201, absence detector) and E7 (#209, SHA-mismatch).
 # E8 catches the partial-export hazard: a ciphertext that lands without
 # its vade-meta-json sidecar metadata, leaving fetch + analyzer
-# pipelines unable to decrypt without the meta. vade-runtime#216
+# pipelines unable to decrypt without the meta. coo-harness#216
 # collapsed body+meta into one atomic PUT (object metadata via
 # `x-amz-meta-vade-meta-json`), making post-#216 orphans
 # structurally impossible — but per MEMO 2026-05-04-mzeq principle 2,
@@ -848,7 +848,7 @@ _add E9 "$E9_ok" "$E9_detail"
 # human-action quick-fixes, 1 post-convention quick-fix where the
 # auto-marker workflow did not yet exist, 1 coo-scope refactor where
 # the bootstrap was degraded at PR-open time). The auto-marker workflow
-# in vade-coo-memory/.github/workflows/f4-marker.yml takes effect on
+# in coo-memory/.github/workflows/f4-marker.yml takes effect on
 # PRs opened from this point forward; F4 reflects the post-workflow
 # reality rather than the historical accumulation. F_CUTOFF (date form)
 # stays at 2026-04-24 — F2/F3 are green and the broader memo/essay
@@ -862,12 +862,12 @@ F_CUTOFF_GIT="2026-04-26 00:30:00 +0000"  # timestamp form — used for F1/F4 gi
 # macOS legacy fallback, cloud legacy fallback.
 if [ -n "${COO_MEMORY_DIR:-}" ]; then
   F_REPO="$COO_MEMORY_DIR"
-elif [ -d "$WORKSPACE_ROOT/vade-coo-memory" ]; then
-  F_REPO="$WORKSPACE_ROOT/vade-coo-memory"
-elif [ -d "$HOME/GitHub/coo-labs/vade-coo-memory" ]; then
-  F_REPO="$HOME/GitHub/coo-labs/vade-coo-memory"
+elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
+  F_REPO="$WORKSPACE_ROOT/coo-memory"
+elif [ -d "$HOME/GitHub/coo-labs/coo-memory" ]; then
+  F_REPO="$HOME/GitHub/coo-labs/coo-memory"
 else
-  F_REPO="/home/user/vade-coo-memory"
+  F_REPO="/home/user/coo-memory"
 fi
 
 # ── F1 — PR citation invariant ───────────────────────────────
@@ -995,11 +995,11 @@ fi
 # commits with no PR (the PR-body fallback below can't help when there
 # is no PR). PR-merge commits where the f4-marker workflow raced past
 # the merge are handled by the fallback at audit time, not this list.
-# Tracked structurally at vade-coo-memory#271.
+# Tracked structurally at coo-memory#271.
 F4_ALLOWLIST_SHA=(
   # 7cb8a86da4 — vade-coo-memory direct commit "update gitignore" by
   # Ven on 2026-05-01 outside the PR flow (no PR body, so the f4-marker
-  # workflow at vade-coo-memory/.github/workflows/f4-marker.yml had no
+  # workflow at coo-memory/.github/workflows/f4-marker.yml had no
   # surface to inject ven-human-action: into). Direct-to-main quick-fix
   # by the BDFL is allowlisted by the same precedent that retired the
   # 2 historical Ven-human-action quick-fixes pre-2026-04-26 (cf. the
@@ -1027,7 +1027,7 @@ if [ -d "$F_REPO/.git" ] && check_cmd git; then
       case "$sha" in "$allow_sha"*) allowed=1; break ;; esac
     done
     [ "$allowed" -eq 1 ] && continue
-    # PR-body fallback for f4-marker race (vade-coo-memory#271): the
+    # PR-body fallback for f4-marker race (coo-memory#271): the
     # f4-marker workflow may inject the marker into the PR body after
     # the merge, leaving the commit body without it. When the commit
     # subject ends in "(#NNN)", look up the PR body via gh api and
@@ -1041,7 +1041,7 @@ if [ -d "$F_REPO/.git" ] && check_cmd git; then
     fi
     if [ -n "$pr_num" ] && check_cmd gh; then
       pr_body=$(GH_TOKEN="${GITHUB_MCP_PAT:-${GH_TOKEN:-}}" \
-        gh api "repos/coo-labs/vade-coo-memory/pulls/$pr_num" \
+        gh api "repos/coo-labs/coo-memory/pulls/$pr_num" \
         --jq '.body' 2>/dev/null || true)
       if printf '%s' "$pr_body" | grep -q 'ven-human-action:'; then
         continue
@@ -1073,7 +1073,7 @@ fi
 # essay-companion, attribution-coverage. F5 extends the script's F-series
 # numerically; the disposition-proposal F1-F7 audit poles are a SEPARATE
 # numbering axis. F5 here implements pole F4's sub-condition 1. Stages 2-4
-# of vade-coo-memory#429 will add further slots covering the remaining
+# of coo-memory#429 will add further slots covering the remaining
 # sub-conditions (section-positioning, fresh-boot reading-test, F5 dark-
 # accumulation metrics).
 #
@@ -1127,7 +1127,7 @@ fi
 # F6 fires on:
 #   - recurring categories (foundations, retrospectives): above-floor
 #     violations only — no-mirror exempt due to matcher false-negatives.
-#   - one-shot categories (lineage, per vade-coo-memory#508):
+#   - one-shot categories (lineage, per coo-memory#508):
 #     no-mirror-past-window violations (age from first commit > floor).
 #     Mirrored-once = satisfied permanently.
 # See coo/instruments/external-touch.md §2.

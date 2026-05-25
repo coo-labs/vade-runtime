@@ -26,7 +26,7 @@ count justifies the cost of breaking references in `CLAUDE.md`,
   into session context.
 - `discussions-digest.sh` — prints new coo-labs org discussions.
 - `memo-index.sh` — thin wrapper that delegates to
-  `vade-coo-memory/.claude/_lib/memo-index.sh`.
+  `coo-memory/.claude/_lib/memo-index.sh`.
 - `hooks-dispatch.sh` — central dispatcher resolving hook names to
   the canonical script via the five resolver rules (MEMO-2026-04-22-12).
 
@@ -37,7 +37,7 @@ count justifies the cost of breaking references in `CLAUDE.md`,
 - `issue-comments.sh` — bounded fetch of an issue comment thread
   (compact projection, default 10 KB ceiling, `--full` escape hatch).
   Substitute for unbounded `mcp__github__issue_read get_comments`
-  (vade-runtime#153, transcript-bloat-audit Tier 1).
+  (coo-harness#153, transcript-bloat-audit Tier 1).
 
 **Probes (2)**
 - `healthcheck.sh` — fast smoke-test of the bootstrap pipeline.

@@ -4,7 +4,7 @@
 # Three asserts:
 #
 #   1. cmd_close drops a coo-idle-close-<id>.md stub at the expected
-#      vade-agent-logs sessions path with the documented header shape
+#      coo-logs sessions path with the documented header shape
 #      (Status / Started / Ended / Idle minutes / Event count).
 #   2. The stub references the meta.json sidecar when one is present.
 #   3. The bootstrap-mode --start path is a clean no-op when
@@ -16,7 +16,7 @@
 #   - Real git commits (no .git in the staged agent-logs dir).
 #   - The transcript-export hook (covered by test-transcript-export.py).
 #
-# coo-labs/vade-agent-logs#67.
+# coo-labs/coo-logs#67.
 
 set -euo pipefail
 
@@ -32,7 +32,7 @@ WORKDIR="$(mktemp -d -t idle-watchdog-test-XXXXXX)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 FAKE_HOME="$WORKDIR/home"
-FAKE_AGENT_LOGS="$WORKDIR/vade-agent-logs"
+FAKE_AGENT_LOGS="$WORKDIR/coo-logs"
 FAKE_PROJECTS="$FAKE_HOME/.claude/projects/-home-user"
 mkdir -p "$FAKE_HOME/.vade/agent-state" "$FAKE_HOME/.vade/idle-watchdog-logs" \
   "$FAKE_AGENT_LOGS/sessions" "$FAKE_AGENT_LOGS/transcripts/2026/04/28" \
@@ -110,7 +110,7 @@ assert_contains 'Started:** 2026-04-28T01:00:00.000Z'
 assert_contains 'Ended:**   2026-04-28T01:30:42.123Z'
 assert_contains 'Event count:** 2'
 assert_contains "Transcript sidecar:** \`transcripts/2026/04/28/${SESSION_ID}.meta.json\`"
-assert_contains 'coo-labs/vade-agent-logs#67'
+assert_contains 'coo-labs/coo-logs#67'
 
 echo "ok: stub shape matches expected schema"
 

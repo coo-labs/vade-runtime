@@ -4,14 +4,14 @@
 # dependencies = ["boto3>=1.34,<2"]
 # ///
 """
-transcript-meta-backfill.py — vade-coo-memory#243.
+transcript-meta-backfill.py — coo-memory#243.
 
 Real-meta-or-stub generator. The Stop hook (session-end-transcript-export.py)
-writes <id>.meta.json locally but doesn't commit it; until vade-runtime#148
+writes <id>.meta.json locally but doesn't commit it; until coo-harness#148
 Part A lands and is reliable, sessions can leave R2 ciphertext orphaned
 from any sidecar in the agent-logs working tree. This script enumerates
 R2 directly, finds session_ids without a sibling meta.json in
-vade-agent-logs/transcripts/<date>/, and writes a meta.json — using the
+coo-logs/transcripts/<date>/, and writes a meta.json — using the
 real meta embedded as R2 object-metadata when present (this PR), falling
 back to a stub when not.
 
@@ -47,8 +47,8 @@ CLI:
 --date and --session-id are NOT mutually exclusive. At-least-one is required;
 supplying both narrows the R2 prefix (--date) AND filters during iteration
 (--session-id), which is cheaper than walking the whole bucket for a known
-date+id pair. The vade-runtime#150 PR body mis-stated this as mutually-
-exclusive (refs vade-runtime#151).
+date+id pair. The coo-harness#150 PR body mis-stated this as mutually-
+exclusive (refs coo-harness#151).
 
 Env (sourced from ~/.vade/coo-env, mirroring the export hook):
   R2_TRANSCRIPTS_ACCESS_KEY_ID / R2_TRANSCRIPTS_SECRET_ACCESS_KEY
@@ -99,15 +99,15 @@ def _resolve_agent_logs_dir(explicit: str | None) -> Path:
             return p
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "vade-agent-logs",
-        Path("/home/user/vade-agent-logs"),
-        RUNTIME_ROOT.parent / "vade-agent-logs",
+        Path.home() / "GitHub" / "vade-app" / "coo-logs",
+        Path("/home/user/coo-logs"),
+        RUNTIME_ROOT.parent / "coo-logs",
     ]
     for c in candidates:
         if c.is_dir():
             return c
     raise FileNotFoundError(
-        "vade-agent-logs working tree not found; tried "
+        "coo-logs working tree not found; tried "
         + ", ".join(str(c) for c in candidates)
     )
 
@@ -276,7 +276,7 @@ def _write_stub(
         if RECIPIENT_FILE.exists()
         else None,
         "age_recipient_pubkey": _read_recipient_pubkey(),
-        "stub_generator": "vade-runtime/scripts/lib/transcript-meta-backfill.py",
+        "stub_generator": "coo-harness/scripts/lib/transcript-meta-backfill.py",
         "stub_generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     with open(sidecar_path, "w") as f:
@@ -337,7 +337,7 @@ def _write_recovered(
             truncated, {} if truncated == "redaction_hits" else None
         )
     enriched["recovered_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    enriched["recovery_source"] = "vade-runtime/scripts/lib/transcript-meta-backfill.py"
+    enriched["recovery_source"] = "coo-harness/scripts/lib/transcript-meta-backfill.py"
     with open(sidecar_path, "w") as f:
         json.dump(enriched, f, indent=2)
         f.write("\n")
@@ -414,7 +414,7 @@ def _backfill_one(
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        description="R2-first stub meta.json generator (vade-coo-memory#243).",
+        description="R2-first stub meta.json generator (coo-memory#243).",
     )
     parser.add_argument(
         "--date",
@@ -432,7 +432,7 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument(
         "--agent-logs-dir",
-        help="Override vade-agent-logs working tree resolution.",
+        help="Override coo-logs working tree resolution.",
     )
     args = parser.parse_args(argv)
 

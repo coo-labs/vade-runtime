@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# session-idle-watchdog.sh — coo-labs/vade-agent-logs#67.
+# session-idle-watchdog.sh — coo-labs/coo-logs#67.
 #
 # Background daemon that fires the mechanical session-end protocol when
 # a Claude Code session goes idle without an explicit Stop. Solves the
@@ -20,9 +20,9 @@
 #   3. If grace passes without activity, the worker fires the close
 #      sequence (--close), then exits 0.
 #
-# Close sequence (mark-only since vade-runtime#204):
+# Close sequence (mark-only since coo-harness#204):
 #   a. Write a stub session log at
-#      <vade-agent-logs>/sessions/YYYY/MM/DD/coo-idle-close-<id>.md
+#      <coo-logs>/sessions/YYYY/MM/DD/coo-idle-close-<id>.md
 #      with status=incomplete, started_at/ended_at from jsonl event
 #      timestamps, and a pointer to the meta.json sidecar IF one
 #      already exists (from a prior SessionEnd that ran inside this
@@ -32,12 +32,12 @@
 #      sidecar]) via the Mem0 REST API with $MEM0_API_KEY from coo-env.
 #      Tier-1 safe text only — no transcript content (MEMO-2026-04-11-10).
 #   c. git add + commit + push the stub-log and any new sidecar files
-#      under `<vade-agent-logs>/transcripts/**/<id>.{meta,export-error}.{json,txt}`.
+#      under `<coo-logs>/transcripts/**/<id>.{meta,export-error}.{json,txt}`.
 #      Identity is the cloud container's vade-coo gitconfig + PAT, so
 #      attribution stays correct.
 #   d. PID-file cleanup, exit 0.
 #
-# Mark-only rationale (vade-runtime#204, MEMO 2026-05-03-bgk3):
+# Mark-only rationale (coo-harness#204, MEMO 2026-05-03-bgk3):
 # Pre-#204 the watchdog also invoked session-end-transcript-export.sh
 # from cmd_close — a second writer racing the SessionEnd-final hook
 # against the same R2 key. Under age's non-deterministic encryption,
@@ -279,25 +279,25 @@ cmd_close() {
     log "coo-env not found at $COO_ENV — Mem0/git steps will degrade"
   fi
 
-  # ---- a. Mark-only — no R2 export from cmd_close (vade-runtime#204) ------
+  # ---- a. Mark-only — no R2 export from cmd_close (coo-harness#204) ------
   # The watchdog records intent and writes the stub session log; the
   # canonical R2 write belongs to SessionEnd-final (or to the SIGTERM
   # trap in cmd_run if the container is tearing down with us alive).
   # Pre-#204 this step invoked session-end-transcript-export.sh and
   # raced the SessionEnd-final hook for the same session_id, producing
   # the W18d 65%-mismatch population. Removed deliberately.
-  log "mark-only close (vade-runtime#204): not invoking export hook from cmd_close"
+  log "mark-only close (coo-harness#204): not invoking export hook from cmd_close"
 
   # Resolve agent-logs working tree once — both the closer-spawn path
   # and the stub-fallback path need it.
   local agent_logs_dir
   agent_logs_dir="$(_resolve_agent_logs_dir)"
   if [ -z "$agent_logs_dir" ]; then
-    log "vade-agent-logs working tree not found; cannot drop stub log"
+    log "coo-logs working tree not found; cannot drop stub log"
     return 0
   fi
 
-  # ---- a.5 Try the session-closer agent (vade-runtime#148 Part B) ---------
+  # ---- a.5 Try the session-closer agent (coo-harness#148 Part B) ---------
   # If the closer succeeds, it writes a real session-log .md, the Mem0
   # episodic entry, and opens a PR — return early. If it fails or is
   # unavailable, fall through to the stub-write path (steps b/c/d).
@@ -358,8 +358,8 @@ cmd_close() {
     echo "with the real session summary — what was worked on, decisions made,"
     echo "open threads — so adoption-tracker grep paths still resolve."
     echo
-    echo "Authoring this stub: \`vade-runtime/scripts/session-idle-watchdog.sh\`"
-    echo "(coo-labs/vade-agent-logs#67)."
+    echo "Authoring this stub: \`coo-harness/scripts/session-idle-watchdog.sh\`"
+    echo "(coo-labs/coo-logs#67)."
   } > "$stub_path"
   log "wrote stub session log: $stub_path"
 
@@ -379,7 +379,7 @@ cmd_close() {
 #          introspection, Mem0 POST, git push
 # ---------------------------------------------------------------------------
 
-# vade-runtime#148 Part B: try to elevate from stub to real synthesized
+# coo-harness#148 Part B: try to elevate from stub to real synthesized
 # log by spawning the session-closer sub-agent. Returns 0 on success
 # (closer wrote log + Mem0 + PR; caller should skip the stub path);
 # returns 1 on any failure or unavailability (caller falls back to
@@ -451,9 +451,9 @@ _resolve_agent_logs_dir() {
     printf '%s\n' "$VADE_AGENT_LOGS_DIR"; return 0
   fi
   for cand in \
-    "$HOME/GitHub/coo-labs/vade-agent-logs" \
-    "/home/user/vade-agent-logs" \
-    "$RUNTIME_ROOT/../vade-agent-logs"; do
+    "$HOME/GitHub/coo-labs/coo-logs" \
+    "/home/user/coo-logs" \
+    "$RUNTIME_ROOT/../coo-logs"; do
     if [ -d "$cand" ]; then printf '%s\n' "$cand"; return 0; fi
   done
   return 1
@@ -520,9 +520,9 @@ _mem0_post_idle_close() {
   fi
 
   local stub_ref meta_ref refs
-  stub_ref="vade-agent-logs/${stub_path#"$agent_logs_dir/"}"
+  stub_ref="coo-logs/${stub_path#"$agent_logs_dir/"}"
   if [ -n "$meta_path" ]; then
-    meta_ref="vade-agent-logs/${meta_path#"$agent_logs_dir/"}"
+    meta_ref="coo-logs/${meta_path#"$agent_logs_dir/"}"
     refs="$(jq -nc --arg a "$stub_ref" --arg b "$meta_ref" '[$a,$b]')"
   else
     refs="$(jq -nc --arg a "$stub_ref" '[$a]')"
@@ -613,7 +613,7 @@ _git_commit_and_push() {
 
   local msg_subject msg_body commit_rc
   msg_subject="watchdog: idle close for ${session_id}"
-  msg_body=$'Mechanical session-end protocol fired by\nvade-runtime/scripts/session-idle-watchdog.sh — the interactive COO\ndid not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\ncoo-labs/vade-agent-logs#67'
+  msg_body=$'Mechanical session-end protocol fired by\ncoo-harness/scripts/session-idle-watchdog.sh — the interactive COO\ndid not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\ncoo-labs/coo-logs#67'
 
   if git -C "$repo" -c commit.gpgsign=false commit \
        -m "$msg_subject" -m "$msg_body" >>"$WATCHDOG_LOG" 2>&1; then
@@ -682,7 +682,7 @@ main() {
       ;;
     -h|--help|help)
       cat <<'EOF'
-session-idle-watchdog.sh — coo-labs/vade-agent-logs#67.
+session-idle-watchdog.sh — coo-labs/coo-logs#67.
 
 Usage:
   session-idle-watchdog.sh --start

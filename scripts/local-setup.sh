@@ -50,7 +50,7 @@ ensure_dirs
 # the user's personal $HOME/.claude/settings.json (Warp plugin, personal
 # permissions, autoMemoryEnabled, etc.) stays untouched. Claude Code
 # still reads this config when launched with cwd under $WORKSPACE_ROOT.
-sync_claude_config "$WORKSPACE_ROOT/vade-runtime/.claude" "$WORKSPACE_ROOT/.claude"
+sync_claude_config "$WORKSPACE_ROOT/coo-harness/.claude" "$WORKSPACE_ROOT/.claude"
 # Aggregate per-repo primitives (slash commands, agents, skills, hooks)
 # from data-owning repos into the workspace .claude/ via per-file
 # symlinks. Source order = priority; first-wins on name conflicts.
@@ -58,14 +58,14 @@ sync_claude_config "$WORKSPACE_ROOT/vade-runtime/.claude" "$WORKSPACE_ROOT/.clau
 # tagging-taxonomy, agentmail) shouldn't lose to a same-named primitive
 # in a data repo.
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$WORKSPACE_ROOT/.claude" \
-  vade-runtime vade-coo-memory
+  coo-harness coo-memory
 # The synced settings.json's hook commands reference
 # $CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh — sync_claude_config
 # above already installs that shim at $WORKSPACE_ROOT/.claude/vade-hooks/
 # (which is what $CLAUDE_PROJECT_DIR resolves to on local), so no extra
 # install at $HOME is needed.
-ensure_workspace_mcp_config "$WORKSPACE_ROOT/vade-runtime/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
-ensure_workspace_identity_link "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
+ensure_workspace_mcp_config "$WORKSPACE_ROOT/coo-harness/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
+ensure_workspace_identity_link "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
 # Validate the synced settings.json actually parses as JSON and has a
 # populated SessionStart:startup hook chain. Same probe cloud-setup.sh
@@ -91,12 +91,12 @@ fi
 
 WORKSPACE_MCP_SYMLINKED=false
 [ -L "$WORKSPACE_ROOT/.mcp.json" ] && \
-  [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/vade-runtime/.mcp.json" 2>/dev/null)" ] && \
+  [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null)" ] && \
   WORKSPACE_MCP_SYMLINKED=true
 
 IDENTITY_LINK_OK=false
 [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && \
-  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/vade-coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
+  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
   IDENTITY_LINK_OK=true
 
 # Workspace deps opt-in (same gate as cloud). Nothing in the SessionStart
@@ -104,7 +104,7 @@ IDENTITY_LINK_OK=false
 # who want the full toolchain set VADE_BOOT_INSTALL=1.
 if [ "${VADE_BOOT_INSTALL:-0}" = "1" ]; then
   ensure_tsx
-  install_deps "$WORKSPACE_ROOT/vade-core"
+  install_deps "$WORKSPACE_ROOT/vade-canvas"
 fi
 
 print_versions
@@ -146,7 +146,7 @@ else
   log "OP_SERVICE_ACCOUNT_TOKEN unset; skipping COO bootstrap. (Claude launched outside the claude() wrapper?)"
 fi
 
-GIT_SHA="$(git -C "$WORKSPACE_ROOT/vade-runtime" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+GIT_SHA="$(git -C "$WORKSPACE_ROOT/coo-harness" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 build_receipt_write \
   built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   mode=local \
