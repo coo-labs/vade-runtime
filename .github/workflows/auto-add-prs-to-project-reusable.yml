@@ -4,10 +4,10 @@ name: Auto-add new PRs to the VADE project (reusable)
 # Status=In Progress. Pairs with `auto-tag-issues-reusable.yml`'s
 # project-add step (which only handles issues, not PRs).
 #
-# Canonical home: coo-labs/vade-runtime/.github/workflows/auto-add-prs-to-project-reusable.yml
-# Centralization design: vade-coo-memory#939 (F7); host=vade-runtime per #939 comment.
-# Operations doc: coo-labs/vade-coo-memory:coo/operations/workflow-centralization.md
-# Project-board doc: coo-labs/vade-coo-memory:coo/operations/project-board.md
+# Canonical home: coo-labs/coo-harness/.github/workflows/auto-add-prs-to-project-reusable.yml
+# Centralization design: coo-memory#939 (F7); host=coo-harness per #939 comment.
+# Operations doc: coo-labs/coo-memory:coo/operations/workflow-centralization.md
+# Project-board doc: coo-labs/coo-memory:coo/operations/project-board.md
 # Status canonical: MEMO-2026-05-20-pbrd
 #
 # Trigger contract for callers:
@@ -15,7 +15,7 @@ name: Auto-add new PRs to the VADE project (reusable)
 #     types: [opened, reopened]
 #   jobs:
 #     <name>:
-#       uses: coo-labs/vade-runtime/.github/workflows/auto-add-prs-to-project-reusable.yml@main
+#       uses: coo-labs/coo-harness/.github/workflows/auto-add-prs-to-project-reusable.yml@main
 #       secrets: inherit
 #
 # Prerequisites in each caller repo:

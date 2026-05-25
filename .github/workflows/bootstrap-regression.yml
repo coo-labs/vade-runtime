@@ -1,7 +1,7 @@
 name: Bootstrap regression
 
 # Layer-1 script-level CI for the cloud bootstrap chain.
-# Tracks coo-labs/vade-runtime#86. Layer-2 (SDK-driven harness test)
+# Tracks coo-labs/coo-harness#86. Layer-2 (SDK-driven harness test)
 # lives at #85 and is out of scope here.
 #
 # What this catches that production currently catches via "open a fresh
@@ -57,7 +57,7 @@ jobs:
           #   - E1–E4: live MCP probes; integrity-check.sh marks them
           #     "skip" in CI by design — never appear in degraded.
           #   - F1–F4: culture-substrate invariants; skip cleanly when
-          #     vade-coo-memory is a stub without .git.
+          #     coo-memory is a stub without .git.
           # Bump this if a new structural-but-known-yellow invariant
           # lands; cite the reason in the commit message so the next
           # operator can audit.
@@ -90,7 +90,7 @@ jobs:
     # Fast standalone job for the redaction engine + Secret Registration
     # Rule. Independent of the heavy bootstrap-regression job above
     # because it doesn't need a staged workspace — just python3 + jq.
-    # Origin: coo-labs/vade-agent-logs#64.
+    # Origin: coo-labs/coo-logs#64.
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -118,8 +118,8 @@ jobs:
       - name: Transcript export hook — smoke (dry-run, isolated $HOME)
         run: python3 "$GITHUB_WORKSPACE/scripts/ci/test-transcript-export.py"
 
-      - name: Transcript export wrapper — budget contract (vade-runtime#200)
+      - name: Transcript export wrapper — budget contract (coo-harness#200)
         run: bash "$GITHUB_WORKSPACE/scripts/ci/test-transcript-export-wrapper.sh"
 
-      - name: Idle watchdog — close sequence smoke (vade-agent-logs#67)
+      - name: Idle watchdog — close sequence smoke (coo-logs#67)
         run: bash "$GITHUB_WORKSPACE/scripts/ci/test-session-idle-watchdog.sh"

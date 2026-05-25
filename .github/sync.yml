@@ -1,9 +1,9 @@
 # F8 template centralization — auto-sync manifest for BetaHuhn/repo-file-sync-action.
 #
-# Canonical: vade-coo-memory#938 (F8). Operations doc lives in vcm:
-# vade-coo-memory/coo/operations/template-centralization.md.
+# Canonical: coo-memory#938 (F8). Operations doc lives in vcm:
+# coo-memory/coo/operations/template-centralization.md.
 #
-# Source repo: coo-labs/vade-runtime. Sources listed below are repo-relative
+# Source repo: coo-labs/coo-harness. Sources listed below are repo-relative
 # paths in this repo; dest paths are the same-shape paths in each consumer.
 # `deleteOrphaned: true` enforces full parity — a template removed here is
 # removed in consumers. No consumer has a `config.yml` chooser today, so the
@@ -13,14 +13,14 @@
 
 group:
   repos: |
-    coo-labs/vade-coo-memory
-    coo-labs/vade-core
-    coo-labs/vade-agent-logs
+    coo-labs/coo-memory
+    coo-labs/vade-canvas
+    coo-labs/coo-logs
     coo-labs/tjsonl
     coo-labs/coo-console
     coo-labs/skills
     coo-labs/coo4one
-    coo-labs/vade-site
+    coo-labs/site
   files:
     - source: .github/ISSUE_TEMPLATE/
       dest: .github/ISSUE_TEMPLATE/

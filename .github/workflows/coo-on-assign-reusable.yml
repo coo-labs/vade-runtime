@@ -4,12 +4,12 @@ name: COO on issue assign (reusable)
 # assigned issue when the new assignee is vade-coo. Called from per-repo
 # thin trigger workflows at `.github/workflows/coo-on-assign.yml`.
 #
-# Canonical home: coo-labs/vade-runtime/.github/workflows/coo-on-assign-reusable.yml
-# Centralization design: vade-coo-memory#939 (F7); moved to vade-runtime
+# Canonical home: coo-labs/coo-harness/.github/workflows/coo-on-assign-reusable.yml
+# Centralization design: coo-memory#939 (F7); moved to coo-harness
 # (public) per #939 comment because Public→Private workflow_call resolution
 # fails despite access_level=organization on the target.
-# Operations doc: coo-labs/vade-coo-memory:coo/operations/workflow-centralization.md
-# Workflow rationale: coo-labs/vade-coo-memory:coo/operations/coo-on-assign.md
+# Operations doc: coo-labs/coo-memory:coo/operations/workflow-centralization.md
+# Workflow rationale: coo-labs/coo-memory:coo/operations/coo-on-assign.md
 #
 # COO_SCOPE_REPOS maintenance: edit the list in this file once; all
 # consumer thin triggers pick up the change at next assignment event.
@@ -24,7 +24,7 @@ name: COO on issue assign (reusable)
 #     contents: read
 #   jobs:
 #     <name>:
-#       uses: coo-labs/vade-runtime/.github/workflows/coo-on-assign-reusable.yml@main
+#       uses: coo-labs/coo-harness/.github/workflows/coo-on-assign-reusable.yml@main
 #       secrets: inherit
 
 on:
@@ -60,7 +60,7 @@ jobs:
             const repoSlug = `${owner}/${repo}`;
 
             // --- Boot prompt template -------------------------------
-            // Refinement of the draft proposal in coo-labs/vade-coo-memory#801.
+            // Refinement of the draft proposal in coo-labs/coo-memory#801.
             // Notes:
             //  - flat numbered/lettered list, no nested indentation —
             //    template-literal preserves leading whitespace and YAML
@@ -111,13 +111,13 @@ jobs:
             // update THIS LIST in the canonical reusable. Consumer thin
             // triggers pick up the change automatically.
             const COO_SCOPE_REPOS = [
-              'coo-labs/vade-coo-memory',
-              'coo-labs/vade-core',
-              'coo-labs/vade-runtime',
-              'coo-labs/vade-agent-logs',
+              'coo-labs/coo-memory',
+              'coo-labs/vade-canvas',
+              'coo-labs/coo-harness',
+              'coo-labs/coo-logs',
               'coo-labs/skills',
               'coo-labs/coo4one',
-              'coo-labs/vade-site',
+              'coo-labs/site',
               'coo-labs/tjsonl',
               'coo-labs/coo-console',
             ];
@@ -141,7 +141,7 @@ jobs:
               `The session opens when you click — claude.ai/code needs a signed-in human (you) to spawn the container. Re-assign me to post a fresh link (e.g. after a session ends or gets stuck).`,
               ``,
               `---`,
-              `<sub>posted by \`coo-on-assign\` workflow · design: coo-labs/vade-coo-memory#801 · [operations doc](https://github.com/coo-labs/vade-coo-memory/blob/main/coo/operations/coo-on-assign.md)</sub>`,
+              `<sub>posted by \`coo-on-assign\` workflow · design: coo-labs/coo-memory#801 · [operations doc](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/coo-on-assign.md)</sub>`,
             ].join('\n');
 
             await github.rest.issues.createComment({
