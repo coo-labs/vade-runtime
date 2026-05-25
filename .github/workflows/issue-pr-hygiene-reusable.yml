@@ -108,7 +108,7 @@ jobs:
 
             // Label-based exempts
             // - `hygiene:exempt`: explicit opt-out (referenced in advisory messages).
-            // - `sync`: BetaHuhn/repo-file-sync-action PRs (F8 template propagation).
+            // - `sync`: F8 template-propagation PRs (sync-templates-to-consumers.sh).
             //   Auto-generated bodies don't include closing keywords; the PR is a
             //   propagation event, not a feature/bugfix.
             const labelNames = (pr.labels || []).map(l => l.name);

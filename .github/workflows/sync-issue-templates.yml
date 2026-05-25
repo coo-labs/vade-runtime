@@ -1,8 +1,9 @@
 name: Sync issue templates
 
 # Canonical for the org's per-type ISSUE_TEMPLATE inventory. Fires on push to
-# main when .github/ISSUE_TEMPLATE/** or the sync config changes; opens a sync
-# PR in each of the 8 consumer repos listed in .github/sync.yml.
+# main when .github/ISSUE_TEMPLATE/** or the workflow / script changes; opens
+# a sync PR in each active non-meta consumer repo listed in
+# coo-labs/.github/repos.yaml (minus coo-harness, the canonical).
 #
 # Centralization: coo-memory#938 (F8). Mechanism rationale (sync-action
 # vs symlink vs build-time): coo-memory/coo/audits/2026-05-24_org-infrastructure-audit/
@@ -10,29 +11,28 @@ name: Sync issue templates
 # coo-memory/coo/operations/template-centralization.md.
 #
 # Canonical-host pivot (vcm → vrt): vrt aligns with the F7 pattern — harness
-# owns operational infrastructure; ops doc + case-law live in vcm. The
-# sync-action mechanism does not have F7's public→private constraint (it runs
-# entirely in the source repo + writes via PAT), so the choice is principled
-# rather than mechanically forced. Templates are bridge surface; their natural
-# home is alongside the bridge workflow already in vrt.
+# owns operational infrastructure; ops doc + case-law live in vcm. Templates
+# are bridge surface; their natural home is alongside the bridge workflow
+# already in vrt.
 #
 # Auth: secrets.VADE_FIELDS_ADMIN_PAT (org-secret mirror of GITHUB_MCP_PAT,
 # visibility=all, fine-grained, contents:write + pull-requests:write on all
 # coo-labs/* repos per the secrets schema entry for `vade-coo-self-2026-04`).
 # Same secret bridge-form-fields-to-natives.yml uses.
 #
-# Action pinning: BetaHuhn/repo-file-sync-action SHA-pinned to the v1.21.1
-# release commit (the action's last release, 2024-05-05). Staleness is a known
-# risk; fallback is a custom gh-CLI workflow. See template-centralization.md
-# §"Action staleness".
+# Sync implementation: scripts/sync-templates-to-consumers.sh. Replaces
+# BetaHuhn/repo-file-sync-action after its Node 20 deprecation
+# (coo-harness#321). Consumer list is read at job-time from
+# coo-labs/.github/repos.yaml (the F17 canonical registry); the previous
+# .github/sync.yml + drift-check were vestigial after the action removal.
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/ISSUE_TEMPLATE/**'
-      - '.github/sync.yml'
       - '.github/workflows/sync-issue-templates.yml'
+      - 'scripts/sync-templates-to-consumers.sh'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -53,51 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # F17b drift-check (coo-memory#999): the BetaHuhn sync action reads
-      # .github/sync.yml as a static config file (no env substitution), so
-      # we keep the consumer list committed but assert it matches the
-      # canonical registry at coo-labs/.github/repos.yaml. Fails CI if a
-      # repo was added/archived in the registry but not reflected here.
-      - name: Verify sync.yml repos list matches registry
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          expected="$(gh api repos/coo-labs/.github/contents/repos.yaml --jq '.content | @base64d' \
-            | yq -r '.repos[] | select(.status == "active" and .tier != "meta" and .name != "coo-harness") | "coo-labs/" + .name' \
-            | sort)"
-          actual="$(yq -r '.group.repos' .github/sync.yml | grep -v '^[[:space:]]*$' | sort)"
-          if [ "$expected" != "$actual" ]; then
-            echo "::error::.github/sync.yml repos list drifted from coo-labs/.github/repos.yaml — update sync.yml to match active non-meta repos minus coo-harness"
-            echo "--- expected (from registry) ---"
-            echo "$expected"
-            echo "--- actual (sync.yml) ---"
-            echo "$actual"
-            echo "--- diff ---"
-            diff <(echo "$expected") <(echo "$actual") || true
-            exit 1
-          fi
-          echo "sync.yml repos list matches registry ($(echo "$expected" | wc -l | tr -d ' ') consumers)."
-
       - name: Sync ISSUE_TEMPLATE/ to consumers
-        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619  # v1.21.1
-        with:
-          GH_PAT: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
-          IS_FINE_GRAINED: true
-          CONFIG_PATH: .github/sync.yml
-          PR_LABELS: 'sync,sync:templates'
-          BRANCH_PREFIX: sync/issue-templates
-          COMMIT_PREFIX: 'sync(templates):'
-          PR_BODY: |
-            Auto-synced from `coo-labs/coo-harness` canonical issue templates (F8).
-
-            **Edit the canonical**, not this PR: [`coo-harness/.github/ISSUE_TEMPLATE/`](https://github.com/coo-labs/coo-harness/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
-
-            - Canonical issue: [coo-memory#938](https://github.com/coo-labs/coo-memory/issues/938)
-            - Operations doc: [`coo/operations/template-centralization.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/template-centralization.md)
-            - Mechanism survey: [`f7-f8-centralization-design.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/audits/2026-05-24_org-infrastructure-audit/f7-f8-centralization-design.md)
-
-            `deleteOrphaned: true` is in effect — files deleted from the canonical are deleted here too.
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
+        run: |
+          bash scripts/sync-templates-to-consumers.sh \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
 
       # Enable squash auto-merge on each sync PR from the source side. The
       # auto-merge-sync-pr-reusable.yml thin-trigger pattern in consumers
@@ -110,7 +71,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.VADE_FIELDS_ADMIN_PAT }}
         run: |
-          consumers="$(yq '.group.repos' .github/sync.yml)"
+          consumers="$(gh api repos/coo-labs/.github/contents/repos.yaml --jq '.content | @base64d' \
+            | yq -r '.repos[] | select(.status == "active" and .tier != "meta" and .name != "coo-harness") | "coo-labs/" + .name')"
           for repo in $consumers; do
             [ -z "$repo" ] && continue
             pr="$(gh pr list -R "$repo" --label sync:templates --state open --json number --jq '.[0].number // empty')"
