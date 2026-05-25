@@ -1,84 +1,47 @@
-# vade-runtime
+# coo-harness
 
-**Docker image and devcontainer for VADE.** Reproducible development
-environment for the [VADE project](https://github.com/coo-labs).
-This repo produces the container that `vade-core` (and eventually
-task-agent workspaces) run inside during development.
+**The COO's kernel.** Boot orchestration for Claude Code sessions:
+SessionStart hooks, integrity checks, MCP projection, PAT routing,
+session lifecycle, transcript export. Divorced from canvas; no
+Docker / devcontainer.
 
-## Status
+## What's in the kernel
 
-**Alpha.** Minimal Dockerfile and devcontainer are in place. Node 20
-LTS + Claude Code CLI + tsx pre-installed. Targets the vade-core
-Vite/tldraw/MCP stack.
-
-## What's in the image
-
-| Tool | Version | Why |
-|------|---------|-----|
-| Node.js | 20.19.1 LTS | Runtime for vade-core app and MCP server |
-| @anthropic-ai/claude-code | 1.0.120 | Agent CLI inside the container |
-| tsx | 4.21.0 | Run the vade-canvas MCP server |
-| git, build-essential, ca-certificates, curl | bookworm | Dev essentials |
-
-See [`versions.lock`](./versions.lock) for the full pinned list and
-rationale.
+| Component | Purpose |
+|-----------|---------|
+| `scripts/cloud-setup.sh` | Cloud-env one-shot snapshot bake: pre-fetches binaries (`op`, `gh`, `uv`, `mem0-mcp-server`, `@takescake/1password-mcp`) |
+| `scripts/coo-bootstrap.sh` | COO identity setup (opt-in via `OP_SERVICE_ACCOUNT_TOKEN`): SSH keys, PAT, AgentMail, Mem0, R2, Cloudflare, GitHub App creds |
+| `scripts/session-start-sync.sh` | Per-session boot: mirror `.claude/` from repo into workspace; aggregate skills/agents/commands/hooks from data-owning repos |
+| `scripts/integrity-check.sh` | 29 invariants across 5 groups (A=env, B=workspace, C=identity, D=session, E=MCP); JSON report at `~/.vade-cloud-state/integrity-check.json` |
+| `scripts/gh-coo-wrap.sh` | PAT routing shim: `vade-coo-app` installation token or repo-owner-class PAT |
+| `scripts/git-push-with-fallback.sh` | Push retry through direct github.com URL on cloud-proxy 403 |
+| `.claude/settings.json` | SessionStart hook chain + permissions + env mappings |
+| `.mcp.json` | mem0 + agentmail + 1password MCP servers (canvas-MCP divorced per F11) |
+| `versions.lock` | Pinned binary versions with rationale |
 
 ## Layout
 
 ```
-vade-runtime/
-├── Dockerfile                ← base image
-├── .devcontainer/
-│   └── devcontainer.json     ← VS Code / Codespaces entry point
-├── .claude/                  ← shared Claude Code config (cloud sessions)
+coo-harness/
+├── .claude/                  ← shared Claude Code config
 │   └── settings.json         ← hooks declared here; mirrored to ~/.claude/ at boot
+├── .mcp.json                 ← MCP server config (mem0, agentmail, 1password)
 ├── scripts/
-│   ├── bootstrap.sh          ← first-run setup (npm install, dirs)
 │   ├── cloud-setup.sh        ← Claude Code web "Setup script" entry point
-│   ├── coo-bootstrap.sh      ← COO identity setup (opt-in, see below)
-│   └── healthcheck.sh        ← smoke test: versions + PATH
-└── versions.lock             ← pinned tool versions + rationale
+│   ├── coo-bootstrap.sh      ← COO identity setup (opt-in)
+│   ├── session-start-sync.sh ← per-session boot
+│   ├── integrity-check.sh    ← invariants + JSON report
+│   ├── gh-coo-wrap.sh        ← PAT routing shim
+│   └── lib/common.sh         ← shared helpers
+└── versions.lock             ← pinned binaries
 ```
 
 ## How to use
 
-### With VS Code (recommended)
+### Claude Code on the web
 
-Copy (or symlink) the `.devcontainer/` folder into the vade-core
-checkout, then:
-
-```bash
-cd ~/GitHub/coo-labs/vade-core
-code .
-# → "Reopen in Container" when prompted
-```
-
-The container forwards port **5173** (Vite dev server) and **7600**
-(VADE MCP WebSocket bridge). A named volume `vade-library` persists
-`~/.vade/library/` across rebuilds.
-
-### With Docker directly
-
-```bash
-docker build -t vade-runtime .
-docker run -it --rm \
-  -v "$PWD:/workspace" \
-  -p 5173:5173 -p 7600:7600 \
-  -v vade-library:/home/node/.vade \
-  vade-runtime
-```
-
-### Verify the image
-
-```bash
-docker run --rm vade-runtime bash /workspace/scripts/healthcheck.sh
-```
-
-### With Claude Code on the web
-
-The harness clones `vade-core`, `vade-runtime`, and `vade-coo-memory` into
-`/home/user/` per session. Set the cloud environment's **Setup script** field
-to:
+The harness clones `coo-harness` and `coo-memory` into `/home/user/`
+per session. Set the cloud environment's **Setup script** field to:
 
 ```bash
 #!/bin/bash
@@ -86,45 +49,41 @@ set -e
 bash /home/user/vade-runtime/scripts/cloud-setup.sh
 ```
 
-`cloud-setup.sh` mirrors `vade-runtime/.claude/` into `~/.claude/`:
-subdirectories (`skills/`, `agents/`, `commands/`, `hooks/`) are symlinked so
-edits in the repo are live next session start; `settings.json` is copied so
-COO bootstrap can mutate the env block without dirtying the working tree.
+> **Note:** the local clone path is currently `vade-runtime/` until
+> the next container build picks up the rename to `coo-harness/`. See
+> the F11 PR's handoff prompt for the migration sequencing.
 
-To opt into the full local toolchain (npm install on vade-core, `tsx` global)
-during cloud setup, set `VADE_BOOT_INSTALL=1` in the cloud environment vars.
+`cloud-setup.sh` mirrors `coo-harness/.claude/` into `~/.claude/`:
+subdirectories (`skills/`, `agents/`, `commands/`, `hooks/`) are
+symlinked so edits in the repo are live next session start;
+`settings.json` is copied so COO bootstrap can mutate the env block
+without dirtying the working tree.
 
-## COO identity mode (cloud)
+## COO identity mode
 
-Claude Code web sessions can boot with a specific agent identity
-(currently the `vade-coo` GitHub user) pre-wired: SSH keys for push
-and signing, git identity, GitHub PAT, AgentMail API key. The
-mechanism is opt-in via a single env var set in the cloud environment
-config. See `vade-coo-memory/coo/cloud-env-bootstrap.md` for the
-authoritative contract; architecture rationale in MEMO 2026-04-22-03.
-
-### Activation
-
-Set one env var in the Claude Code cloud environment → Environment
-variables tab:
+Claude Code web sessions can boot with the `vade-coo` GitHub
+identity pre-wired: SSH keys for push and signing, git identity,
+GitHub PAT, AgentMail key, Mem0 key, R2 transcript credentials,
+Cloudflare API token, GitHub App credentials. Opt-in via a single
+env var set in the cloud environment config:
 
 ```
 OP_SERVICE_ACCOUNT_TOKEN=ops_...
 ```
 
-On next session boot, `cloud-setup.sh` detects the token and invokes
-`scripts/coo-bootstrap.sh`, which:
+On next session boot, `cloud-setup.sh` detects the token and
+invokes `scripts/coo-bootstrap.sh`, which:
 
 1. Installs the 1Password `op` CLI to `~/.local/bin/` if missing
 2. Authenticates with the service-account token
-3. Reads SSH keys + PAT + AgentMail key from a 1Password vault named
-   `COO`
-4. Writes `~/.ssh/vade-coo-auth`, `~/.ssh/vade-coo-sign`,
-   `~/.ssh/allowed_signers`, and `~/.gitconfig` with COO identity +
-   signed-commit config
+3. Reads SSH keys + PAT + AgentMail + Mem0 + R2 + Cloudflare + GH App
+   creds from the 1Password `COO` vault
+4. Writes `~/.ssh/vade-coo-{auth,sign}`, `~/.ssh/allowed_signers`,
+   `~/.gitconfig` with COO identity + signed-commit config
 5. Writes `~/.vade/coo-env` (sourceable) and merges vars into
-   `~/.claude/settings.json` so `.mcp.json` `${GITHUB_MCP_PAT}` and
-   `${AGENTMAIL_API_KEY}` substitutions resolve
+   `~/.claude/settings.json` so `.mcp.json` `${GITHUB_MCP_PAT}`,
+   `${AGENTMAIL_API_KEY}`, `${MEM0_API_KEY}`,
+   `${OP_SERVICE_ACCOUNT_TOKEN}` substitutions resolve
 6. Validates the PAT is actually for `vade-coo` — aborts loudly on
    mismatch
 
@@ -142,10 +101,13 @@ without blocking boot.
 |---|---|---|
 | `op://COO/vade-coo-self-2026-04` | API Credential | GitHub fine-grained PAT (`credential` field) |
 | `op://COO/agentmail-vade-coo` | API Credential | AgentMail API key (`credential` field) |
-| `op://COO/mem0-vade-coo` | API Credential | Mem0 Platform API key (`credential` field; prefix `m0-`) — powers the `mem0-rest.sh` break-glass fallback when the Mem0 MCP OAuth transport is degraded |
+| `op://COO/mem0-vade-coo` | API Credential | Mem0 Platform API key (`credential` field; prefix `m0-`) — powers the `mem0-rest.sh` fallback when the Mem0 MCP OAuth transport is degraded |
 | `op://COO/vade-coo-auth` | SSH Key | GitHub auth key (`ed25519`) |
 | `op://COO/vade-coo-sign` | SSH Key | GitHub signing key (`ed25519`) |
-| `op://COO/vade-canvas-coo` | API Credential | *Best-effort.* vade-canvas MCP bearer (`credential` field) — resolves the `${VADE_AUTH_TOKEN}` placeholder in `vade-core/.mcp.json`. Bearer must also appear in Fly's `VADE_AUTH_TOKENS.agents[]` for vade-canvas to accept it (see vade-core `docs/auth.md`). Absent until vade-core#93 follow-up creates it. |
+| `op://COO/cloudflare-api-token-vade-coo` | API Credential | *Best-effort.* Cloudflare API token (vade-app.dev zone scope) — Worker deploys, DNS edits |
+| `op://COO/transcripts-r2-vade-coo` | API Credential | *Best-effort.* R2 access keys for transcript export |
+| `op://COO/transcripts-age-key` | API Credential | *Best-effort.* age identity for transcript decryption (Stage-1 analyzer) |
+| `op://COO/vade-coo-app-2026-05` | API Credential | *Best-effort.* GitHub App ID + installation ID for org-admin operations |
 
 Fingerprints validated at boot:
 
@@ -161,14 +123,14 @@ The Claude Code cloud sandbox routes git through a local proxy
 (`http://local_proxy@127.0.0.1:<port>/git/<owner>/<repo>`) that
 intermittently 403s on push and, separately, substitutes a token
 without `workflow` scope on workflow-file pushes
-(`coo-labs/vade-runtime#67`).
+([coo-harness#67](https://github.com/coo-labs/coo-harness/issues/67)).
 
 `scripts/git-push-with-fallback.sh` wraps `git push` and, on a
 proxy-class failure, retries once via
 `https://vade-coo:${GITHUB_MCP_PAT}@github.com/<owner>/<repo>.git`,
 preserving `vade-coo` attribution. Genuine failures (permission
-denied, bad refspec, network down) pass through untouched with
-the original exit status.
+denied, bad refspec, network down) pass through untouched with the
+original exit status.
 
 ```bash
 scripts/git-push-with-fallback.sh -u origin claude/my-branch
@@ -184,24 +146,14 @@ agent), create a parallel vault (`NIGHTS_WATCH`, `PM`), a parallel
 service account, and either (a) clone `coo-bootstrap.sh` with the
 new vault name, or (b) parameterize via a `VADE_AGENT_VAULT` env var
 when this list grows past two. Keep the fingerprint-validation step
-— it's cheap insurance against a wrong vault binding.
-
-## Deferred
-
-- **Rust** — planned for Phase 3+ performance modules. Add via
-  `rustup` when the first Rust crate lands in vade-core.
-- **Python 3.12** — planned for scientific helpers (numpy/scipy).
-  Add when a canvas artifact needs it for agent-side computation.
-- **pnpm** — TBD; sticking with npm until there's a concrete reason
-  to switch.
+— cheap insurance against a wrong vault binding.
 
 ## Governance
 
-See [vade-governance](https://github.com/coo-labs/vade-governance).
-Changes to the runtime image affect every contributor's dev loop,
-so BDFL review is required for any non-trivial modification.
+Kernel design changes affect every COO session's boot; significant
+changes require BDFL review. Governance reference:
+[`coo-memory/identity/public-authority.md`](https://github.com/coo-labs/coo-memory/blob/main/identity/public-authority.md).
 
 ## License
 
-TBD — likely MIT or Apache-2.0, decided before the first external
-contribution window.
+Apache-2.0 (see [LICENSE](LICENSE)).
