@@ -546,14 +546,14 @@ else
 fi
 printf "  %-25s %s\n" "MEM0_API_KEY:" "settings.json env=$mem0_key"
 printf "  %-25s %s\n" "integrity-check E5:" "$e5_status"
-echo "  REST fallback (writes):   bin/mem0-rest.sh; canonical for memo_pointer (MEMO 2026-04-24-07)"
+echo "  REST fallback (writes):   .claude/_lib/mem0-rest.sh; canonical for memo_pointer (MEMO 2026-04-24-07)"
 case "$e5_status" in
   degraded)
     echo ""
     echo "  ⚠ Mem0 MCP is degraded. CLAUDE.md §4 + §12 boot rituals (CB-* / OG-* identity"
     echo "    load, recent-episodic handoff) cannot run via MCP this session. Fall back to"
     echo "    durable file layer (coo/episodic_memory.md + memo_index.json) per CLAUDE.md §6"
-    echo "    graceful-degradation clause; for writes route through bin/mem0-rest.sh."
+    echo "    graceful-degradation clause; for writes route through .claude/_lib/mem0-rest.sh."
     echo "    Detail: $e5_detail"
     ;;
   skip)
