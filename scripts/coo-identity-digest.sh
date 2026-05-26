@@ -129,6 +129,10 @@ if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   echo "    2) VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
   echo "    3) set -a; source \$HOME/.vade/coo-env; set +a"
   echo "    4) bash /home/user/coo-harness/scripts/integrity-check.sh"
+  if [[ ",$_integrity_degraded," == *",D4,"* ]]; then
+    echo ""
+    echo "  D4 is a known transient race error. Follow the recovery steps above."
+  fi
   echo ""
   echo "  CLAUDE.md step 1 (conditional gate): surface to BDFL, do no other work."
   echo "═══════════════════════════════════════════════════════════════"
