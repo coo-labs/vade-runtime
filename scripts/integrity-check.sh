@@ -827,7 +827,7 @@ fi
 _add E9 "$E9_ok" "$E9_detail"
 
 # ── Group F: Culture-system substrate discipline ─────────────
-# Implements E1–E4 from coo/foundations/2026-04-22_we-can-claim-a-record.md
+# Implements E1–E4 from foundations/2026-04-22_we-can-claim-a-record.md
 # §5d (label delta: the essay calls these E1–E4; Group E is occupied by
 # live MCP-surface probes, so the script reserves F). Adopted by
 # SOP-CULTURE-001 and MEMO 2026-04-24-12. Non-fatal on every path.
@@ -871,8 +871,10 @@ else
 fi
 
 # ── F1 — PR citation invariant ───────────────────────────────
-# Every commit since F_CUTOFF touching coo/, identity/, context/, or
-# CLAUDE.md (excluding _drafts/, _archive/, retrospectives/, and the
+# Every commit since F_CUTOFF touching identity/, operations/,
+# memos/, briefings/, plans/, projects/, instruments/, quorums/,
+# foundations/, lineage/, site/, personas/, funding/, or CLAUDE.md
+# (excluding _drafts/, _archive/, audits/, retrospectives/, and the
 # foundations/*_transcript.md pattern) must cite MEMO YYYY-MM-DD-NN
 # or #NNN in its message body. Diff mentions do not count.
 if [ -d "$F_REPO/.git" ] && check_cmd git; then
@@ -884,8 +886,8 @@ if [ -d "$F_REPO/.git" ] && check_cmd git; then
     [ -n "$sha" ] || continue
     # Paths this commit touched that are in scope.
     touched=$(git -C "$F_REPO" show --name-only --format= "$sha" 2>/dev/null \
-      | grep -E '^(coo/|identity/|context/|CLAUDE\.md$)' \
-      | grep -vE '^coo/_drafts/|^coo/_archive/|^coo/_evidence/|^coo/retrospectives/|^coo/foundations/.*_transcript\.md$' \
+      | grep -E '^(identity/|operations/|memos/|briefings/|plans/|projects/|instruments/|quorums/|foundations/|lineage/|site/|personas/|funding/|CLAUDE\.md$)' \
+      | grep -vE '^_drafts/|^_archive/|^audits/|^retrospectives/|^foundations/.*_transcript\.md$' \
       || true)
     [ -n "$touched" ] || continue
     f1_total=$((f1_total + 1))
@@ -907,12 +909,12 @@ else
 fi
 
 # ── F2 — Memo retirement invariant ───────────────────────────
-# Every memo dated >= F_CUTOFF in coo/memo_index.json must carry a
+# Every memo dated >= F_CUTOFF in memos/memo_index.json must carry a
 # 'Retirement condition' clause or `retention: "permanent"` in the body of
 # its per-memo file at $entry.file_path (post-#210 layout, MEMO-2026-04-27-5kaq;
-# canonical spec: coo/culture_system_sop.md F2 row).
+# canonical spec: operations/culture_system_sop.md F2 row).
 # Absence = case-law violation per memo_protocol.md.
-if [ -f "$F_REPO/coo/memo_index.json" ] && check_cmd jq; then
+if [ -f "$F_REPO/memos/memo_index.json" ] && check_cmd jq; then
   f2_total=0
   f2_bad=()
   while IFS='|' read -r id fp; do
@@ -926,7 +928,7 @@ if [ -f "$F_REPO/coo/memo_index.json" ] && check_cmd jq; then
     if ! grep -qE 'Retirement condition|retention: "permanent"' "$body_path"; then
       f2_bad+=("$id")
     fi
-  done < <(jq -r --arg c "$F_CUTOFF" '.[] | select(.date >= $c) | "\(.id)|\(.file_path)"' "$F_REPO/coo/memo_index.json" 2>/dev/null)
+  done < <(jq -r --arg c "$F_CUTOFF" '.[] | select(.date >= $c) | "\(.id)|\(.file_path)"' "$F_REPO/memos/memo_index.json" 2>/dev/null)
 
   if [ "$f2_total" -eq 0 ]; then
     _add F2 true "no post-cutoff memos to check"
@@ -936,19 +938,19 @@ if [ -f "$F_REPO/coo/memo_index.json" ] && check_cmd jq; then
     _add F2 false "missing retirement clause: $(IFS=,; echo "${f2_bad[*]}")"
   fi
 else
-  _add F2 skip "requires coo/memo_index.json and jq"
+  _add F2 skip "requires memos/memo_index.json and jq"
 fi
 
 # ── F3 — Essay companion invariant ───────────────────────────
-# Every coo/foundations/YYYY-MM-DD_*.md dated since F_CUTOFF (excluding
+# Every foundations/YYYY-MM-DD_*.md dated since F_CUTOFF (excluding
 # _transcript, _companion, and _agent-reports files) must have a matching
 # companion: either YYYY-MM-DD_transcript.md (single-session form) or any
 # YYYY-MM-DD_*_companion.md / YYYY-MM-DD_*-companion.md (multi-instance /
-# protocol-substrate form, e.g. coo/foundations/2026-04-28_letter-to-
+# protocol-substrate form, e.g. foundations/2026-04-28_letter-to-
 # anthropic-companion.md). Either satisfies the obligation; the companion
 # variant carries the same record-of-reasoning role for artifacts that
 # weren't authored in a single session.
-if [ -d "$F_REPO/coo/foundations" ]; then
+if [ -d "$F_REPO/foundations" ]; then
   f3_total=0
   f3_bad=()
   while IFS= read -r essay; do
@@ -961,19 +963,19 @@ if [ -d "$F_REPO/coo/foundations" ]; then
     esac
     f3_total=$((f3_total + 1))
     has_companion=0
-    if [ -f "$F_REPO/coo/foundations/${essay_date}_transcript.md" ]; then
+    if [ -f "$F_REPO/foundations/${essay_date}_transcript.md" ]; then
       has_companion=1
     else
       # Accept any same-date *_companion.md or *-companion.md as transcript-equivalent.
-      for c in "$F_REPO/coo/foundations/${essay_date}"_*_companion.md \
-               "$F_REPO/coo/foundations/${essay_date}"_*-companion.md; do
+      for c in "$F_REPO/foundations/${essay_date}"_*_companion.md \
+               "$F_REPO/foundations/${essay_date}"_*-companion.md; do
         [ -f "$c" ] && { has_companion=1; break; }
       done
     fi
     if [ "$has_companion" -eq 0 ]; then
       f3_bad+=("$essay")
     fi
-  done < <(ls -1 "$F_REPO/coo/foundations/" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_')
+  done < <(ls -1 "$F_REPO/foundations/" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}_')
 
   if [ "$f3_total" -eq 0 ]; then
     _add F3 true "no post-cutoff essays to check"
@@ -983,7 +985,7 @@ if [ -d "$F_REPO/coo/foundations" ]; then
     _add F3 false "missing transcript for: $(IFS=,; echo "${f3_bad[*]}")"
   fi
 else
-  _add F3 skip "no coo/foundations directory at $F_REPO"
+  _add F3 skip "no foundations directory at $F_REPO"
 fi
 
 # ── F4 — Attribution coverage ────────────────────────────────
@@ -1067,7 +1069,7 @@ fi
 # verification dimension). Runs bin/voice-density.py on each non-companion
 # foundations essay and fires when any falls below the calibrated floor
 # (default 6.0 carriers/1000 from the auto-detectable subset; baseline
-# observed min 6.92 per coo/instruments/voice-density.md §4).
+# observed min 6.92 per instruments/voice-density.md §4).
 #
 # Numbering note: integrity-check.sh F1-F4 are PR-citation, memo-retirement,
 # essay-companion, attribution-coverage. F5 extends the script's F-series
@@ -1084,9 +1086,9 @@ fi
 # Floor revisable by env: VADE_VOICE_DENSITY_FLOOR.
 F5_SCRIPT="$F_REPO/bin/voice-density.py"
 F5_FLOOR="${VADE_VOICE_DENSITY_FLOOR:-6.0}"
-if [ -f "$F5_SCRIPT" ] && [ -d "$F_REPO/coo/foundations" ] && check_cmd python3; then
+if [ -f "$F5_SCRIPT" ] && [ -d "$F_REPO/foundations" ] && check_cmd python3; then
   f5_tmp_err=$(mktemp 2>/dev/null || echo "/tmp/vade-f5-$$.err")
-  f5_count=$(python3 "$F5_SCRIPT" --all "$F_REPO/coo/foundations" \
+  f5_count=$(python3 "$F5_SCRIPT" --all "$F_REPO/foundations" \
     --exclude '*_transcript.md' \
     --exclude '*_companion.md' \
     --exclude '*-companion.md' \
@@ -1107,7 +1109,7 @@ if [ -f "$F5_SCRIPT" ] && [ -d "$F_REPO/coo/foundations" ] && check_cmd python3;
   fi
   rm -f "$f5_tmp_err"
 else
-  _add F5 skip "requires $F_REPO/bin/voice-density.py + coo/foundations + python3"
+  _add F5 skip "requires $F_REPO/bin/voice-density.py + foundations + python3"
 fi
 
 # ── F6 — External-touch (dark-accumulation pole, Stage 2) ─────
@@ -1130,19 +1132,19 @@ fi
 #   - one-shot categories (lineage, per coo-memory#508):
 #     no-mirror-past-window violations (age from first commit > floor).
 #     Mirrored-once = satisfied permanently.
-# See coo/instruments/external-touch.md §2.
+# See instruments/external-touch.md §2.
 #
 # Numbering note: same axis as F5 — extends integrity-check.sh's
 # F-series numerically; this implements disposition-proposal F5
 # sub-condition 1.
 F6_SCRIPT="$F_REPO/bin/external-touch.py"
 F6_CACHE="${VADE_EXTERNAL_TOUCH_CACHE:-$VADE_CLOUD_STATE_DIR/external-touch-cache.json}"
-if [ -f "$F6_SCRIPT" ] && [ -d "$F_REPO/coo" ] && check_cmd python3; then
+if [ -f "$F6_SCRIPT" ] && [ -d "$F_REPO/memos" ] && check_cmd python3; then
   if [ ! -f "$F6_CACHE" ]; then
     _add F6 skip "cache absent at $F6_CACHE — refresh via bin/external-touch.py --refresh-cache"
   else
     f6_tmp_err=$(mktemp 2>/dev/null || echo "/tmp/vade-f6-$$.err")
-    python3 "$F6_SCRIPT" --check --cache "$F6_CACHE" --coo-root "$F_REPO/coo" 2>"$f6_tmp_err"
+    python3 "$F6_SCRIPT" --check --cache "$F6_CACHE" --coo-root "$F_REPO" 2>"$f6_tmp_err"
     f6_rc=$?
     if [ "$f6_rc" -eq 0 ]; then
       f6_age=$(python3 -c "
@@ -1174,10 +1176,10 @@ fi
 # agent corpus pass over retrospectives and memos detecting "framed as
 # caution" patterns — perpetual non-externalization presented as
 # principled restraint without the principle stated, or with a principle
-# that would dissolve under scrutiny. Per coo/plans/2026-05-10_f4-f5-
-# completion.md §6 Phase 2 + coo/instruments/framed-as-caution.md §6.
+# that would dissolve under scrutiny. Per plans/2026-05-10_f4-f5-
+# completion.md §6 Phase 2 + instruments/framed-as-caution.md §6.
 #
-# Runs bin/framed-as-caution.py against coo/retrospectives/ + coo/memos/
+# Runs bin/framed-as-caution.py against retrospectives/ + memos/
 # (foundations excluded — covered by F4 / integrity-check F5) and fires
 # when the count of artifacts with strong (non-borderline) framed-as-
 # caution findings rises above the calibrated threshold.
@@ -1189,7 +1191,7 @@ fi
 # proposal F5 sub-condition 3 (where F5 here implemented disposition-
 # proposal F4 sub-condition 1 and F6 implemented F5 sub-condition 1).
 # F7 is reserved for fresh-boot reading-test cadence per
-# coo/instruments/fresh-boot-reading-test.md §6 if/when it lands as an
+# instruments/fresh-boot-reading-test.md §6 if/when it lands as an
 # invariant; F9 is reserved for the future section-positioning v2
 # (disposition-proposal F4 sub-condition 2) per the F4/F5 plan §6 Phase 3.
 #
@@ -1200,17 +1202,17 @@ fi
 #
 # Threshold revisable by env: VADE_FRAMED_AS_CAUTION_THRESHOLD.
 # Initial threshold TBD by first 3 quarterly runs per
-# coo/instruments/framed-as-caution.md §4 — calibration on first run
+# instruments/framed-as-caution.md §4 — calibration on first run
 # is a separate dispatch from the tooling-ship PR.
 F8_SCRIPT="$F_REPO/bin/framed-as-caution.py"
 F8_THRESHOLD="${VADE_FRAMED_AS_CAUTION_THRESHOLD:-0}"
 if [ -f "$F8_SCRIPT" ] \
-   && [ -d "$F_REPO/coo/retrospectives" ] \
-   && [ -d "$F_REPO/coo/memos" ] \
+   && [ -d "$F_REPO/retrospectives" ] \
+   && [ -d "$F_REPO/memos" ] \
    && check_cmd python3; then
   f8_tmp_err=$(mktemp 2>/dev/null || echo "/tmp/vade-f8-$$.err")
   f8_tmp_out=$(mktemp 2>/dev/null || echo "/tmp/vade-f8-$$.out")
-  python3 "$F8_SCRIPT" --corpus "$F_REPO/coo" --json --threshold "$F8_THRESHOLD" \
+  python3 "$F8_SCRIPT" --corpus "$F_REPO" --json --threshold "$F8_THRESHOLD" \
     >"$f8_tmp_out" 2>"$f8_tmp_err"
   f8_rc=$?
   if [ "$f8_rc" -eq 0 ]; then
@@ -1244,7 +1246,7 @@ except Exception:
   fi
   rm -f "$f8_tmp_err" "$f8_tmp_out"
 else
-  _add F8 skip "requires $F_REPO/bin/framed-as-caution.py + coo/retrospectives + coo/memos + python3"
+  _add F8 skip "requires $F_REPO/bin/framed-as-caution.py + retrospectives + memos + python3"
 fi
 
 # ── Serialize ────────────────────────────────────────────────
