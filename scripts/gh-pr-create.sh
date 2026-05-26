@@ -75,25 +75,44 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# Cloud-session compatibility (vade-coo-memory#703). In cloud sandboxes the
-# git remote is a local-proxy URL of the form
+# Cloud-session compatibility (vade-coo-memory#703, coo-memory#898). In cloud
+# sandboxes the git remote is a local-proxy URL of the form
 #   http://local_proxy@127.0.0.1:<port>/git/<owner>/<repo>
 # which `gh` cannot resolve to a known GitHub host, so `gh pr create` errors
 # with "none of the git remotes ... point to a known GitHub host" unless the
-# caller passes --repo. Auto-derive --repo from the proxy URL when the caller
-# didn't supply one; on a normal GitHub remote the regex won't match and we
-# leave args untouched.
-has_repo_flag=0
-for arg in "${pass_args[@]}"; do
-  case "$arg" in
-    --repo|--repo=*) has_repo_flag=1; break ;;
-  esac
-done
+# caller passes BOTH --repo AND --head. --repo alone isn't enough because gh
+# also needs to fork-detect the head ref; --head explicit short-circuits that
+# path. We auto-derive both from the proxy URL + current branch when the
+# caller didn't supply them; on a normal GitHub remote the regex won't match
+# and we leave args untouched.
+proxy_url=""
+origin_url="$(git remote get-url origin 2>/dev/null || true)"
+if [[ "$origin_url" =~ ^https?://[^@/]+@127\.0\.0\.1:[0-9]+/git/([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+?)(\.git)?/?$ ]]; then
+  proxy_url="$origin_url"
+  proxy_repo="${BASH_REMATCH[1]}"
+fi
 
-if [ "$has_repo_flag" -eq 0 ]; then
-  origin_url="$(git remote get-url origin 2>/dev/null || true)"
-  if [[ "$origin_url" =~ ^https?://[^@/]+@127\.0\.0\.1:[0-9]+/git/([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+?)(\.git)?/?$ ]]; then
-    pass_args=(--repo "${BASH_REMATCH[1]}" "${pass_args[@]}")
+if [ -n "$proxy_url" ]; then
+  has_repo_flag=0
+  has_head_flag=0
+  for arg in "${pass_args[@]}"; do
+    case "$arg" in
+      --repo|--repo=*) has_repo_flag=1 ;;
+      --head|--head=*) has_head_flag=1 ;;
+    esac
+  done
+
+  if [ "$has_repo_flag" -eq 0 ]; then
+    pass_args=(--repo "$proxy_repo" "${pass_args[@]}")
+  fi
+
+  if [ "$has_head_flag" -eq 0 ]; then
+    head_ref="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    if [ -z "$head_ref" ] || [ "$head_ref" = "HEAD" ]; then
+      echo "gh-pr-create: cloud-proxy mode requires a named branch (got: '${head_ref:-<empty>}'); pass --head <branch> explicitly or switch off detached HEAD." >&2
+      exit 2
+    fi
+    pass_args=(--head "$head_ref" "${pass_args[@]}")
   fi
 fi
 
