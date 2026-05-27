@@ -1,36 +1,26 @@
 #!/usr/bin/env bash
 # Claude Code web cloud environment setup.
-# Runs once at snapshot build (cached for ~7 days). Subsequent
-# session resumes restore the cached snapshot — this script does
-# not re-execute on resume.
+# Runs once at snapshot build (cached ~7 days; resume restores snapshot).
 #
-# Entry point: paste this into the cloud env "Setup script" field:
+# Entry point: paste into the cloud env "Setup script" field:
 #   #!/bin/bash
 #   set -e
-#   bash /home/user/coo-harness/scripts/cloud-setup.sh
+#   bash /home/user/coo-harness/scripts/boot/cloud-setup.sh
 #
-# The harness clones vade-core, vade-runtime, and vade-coo-memory into
-# /home/user/ before this runs, so we just point at /home/user/coo-harness.
+# coo-harness and coo-memory are cloned into /home/user/ before this runs.
 set -euo pipefail
 
-# The cloud snapshot IS the COO session by construction. Export
-# VADE_COO_MODE=1 so coo-bootstrap and the merge_coo_settings_* writers
-# in lib/common.sh fire normally. On Ven's local Mac the analogous flag
-# is set only by the `claude-coo` zsh wrapper, gating COO-mode writes
-# to opt-in sessions and leaving bare `claude` launches untouched —
-# even when fired from inside the coo-labs workspace where project-
-# scope hooks would otherwise re-trigger the COO pipeline.
-export VADE_COO_MODE=1
+# Cloud-detection gates downstream key on CLAUDE_CODE_REMOTE=true, which
+# Anthropic sets at both snapshot-build time and Claude Code launch time
+# (coo-harness#274). No export needed here.
 
 # Derive workspace root from script location so the bootstrap-regression
-# CI (.github/workflows/bootstrap-regression.yml) can stage a sandboxed
-# /tmp/<root>/vade-runtime tree without colliding with the production
-# /home/user/ working trees. In production both resolve to /home/user.
+# CI can stage a sandboxed tree without colliding with production paths.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUNTIME_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKSPACE_ROOT="$(cd "$RUNTIME_DIR/.." && pwd)"
 
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$RUNTIME_DIR/scripts/lib/common.sh"
 
 log "Cloud environment setup starting"
@@ -39,19 +29,6 @@ log "Baseline: node=$(node --version 2>/dev/null || echo 'missing') npm=$(npm --
 
 ensure_dirs
 sync_claude_config "$RUNTIME_DIR/.claude"
-# coo-harness#157 switched settings.json hook commands from
-# $HOME/.claude/vade-hooks/dispatch.sh to
-# $CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh. On local those paths
-# coincide because $CLAUDE_PROJECT_DIR resolves to $WORKSPACE_ROOT and the
-# user's personal $HOME is left untouched, but on cloud they diverge:
-# $HOME=/root while $CLAUDE_PROJECT_DIR=/home/user (=$WORKSPACE_ROOT) at
-# hook-fire time (see integrity-check B5). The sync_claude_config above
-# only installs the shim under $HOME/.claude, so without this extra
-# install the first SessionStart on a fresh snapshot would fail to
-# resolve any of the hook chain. Mirror the shim under the workspace
-# .claude as well — session-start-sync's full re-sync to
-# $WORKSPACE_ROOT/.claude takes over once the chain bootstraps.
-ensure_hooks_dispatch_shim "$RUNTIME_DIR/.claude" "$WORKSPACE_ROOT/.claude"
 # Aggregate per-repo primitives from data-owning repos into the
 # user-scope .claude/ via per-file symlinks. Per the data-ownership
 # rule (MEMO 2026-04-25-02), slash commands and skills live in the
@@ -63,7 +40,7 @@ mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$HOME/.claude" \
   "${_AGGREGATOR_REPOS[@]}"
 ensure_workspace_mcp_config "$RUNTIME_DIR/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
-ensure_workspace_identity_link "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
+ensure_workspace_identity_link "$VADE_COO_MEMORY_DIR/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
 # Validate the synced settings.json actually parses as JSON and has a
 # populated SessionStart:startup hook chain. File-exists alone would
@@ -95,7 +72,7 @@ WORKSPACE_MCP_SYMLINKED=false
 
 IDENTITY_LINK_OK=false
 [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && \
-  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
+  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null)" ] && \
   IDENTITY_LINK_OK=true
 
 # Workspace deps (npm install vade-core, install tsx) are opt-in:
@@ -197,15 +174,11 @@ else
   log "Warning: mem0-mcp-server install failed at build time; first session will boot with Mem0 MCP dark."
 fi
 
-# Install Quarto for slide-deck and document rendering. Same
-# snapshot-persistence rationale as op + gh + mem0-mcp-server: paying
-# the ~131 MB fetch at build time keeps SessionStart off the egress
-# proxy. Quarto bundles its own pandoc + deno, so the install also
-# brings pandoc onto the bundle without a separate package step.
-# Best-effort: on failure the first session that needs Quarto fetches
-# on demand. Introduced for the 2026-shiffrin-conference deck under
-# coo-memory/coo/_drafts/; kept standing for any future
-# markdown-to-{revealjs,pptx,pdf} workflow the chain produces.
+# Install Quarto. Primary use is the read.vade-app.dev publishing site
+# (bin/publish-site in coo-memory). Same snapshot-persistence rationale
+# as op + gh + mem0-mcp-server: pay the ~131 MB fetch at build time so
+# SessionStart stays off the egress proxy. Quarto bundles pandoc + deno.
+# Best-effort: on failure the first session that needs it fetches on demand.
 if ensure_quarto_cli; then
   build_log_record OK "cloud-setup: quarto installed at build time"
 else
@@ -213,17 +186,11 @@ else
   log "Warning: quarto install failed at build time; first session that uses it will pay a ~131 MB direct-fetch."
 fi
 
-# Pre-fetch the 1Password MCP server (@takescake/1password-mcp) into the
-# global npm cache so first-session `npx -y` resolves offline. Same
-# snapshot-persistence rationale as op + gh + mem0 — paying the npm
-# fetch cost at build time keeps the SessionStart MCP spawn off the
-# egress proxy. The MCP exists to close the rotated-PAT → restart
-# failure class (coo-harness#164): when 1Password rotates a credential
-# mid-session, an in-process MCP path can re-read the secret without
-# the harness restart that the cached `op` CLI bootstrap requires.
-# Read-only is enforced by the COO service account's vault permissions
-# (1Password's own recommendation per their MCP security guidance);
-# .mcp.json scopes credentials to OP_SERVICE_ACCOUNT_TOKEN only.
+# Pre-fetch the 1Password MCP server (@takescake/1password-mcp) so
+# first-session `npx -y` resolves offline. Closes the rotated-PAT →
+# restart class (coo-harness#164): the MCP can re-read secrets mid-session
+# without the restart the cached `op` CLI requires. Read-only is enforced
+# by the COO service account's vault permissions.
 if npm install -g "@takescake/1password-mcp@2.4.2" --no-audit --no-fund >/dev/null 2>&1; then
   build_log_record OK "cloud-setup: @takescake/1password-mcp installed at build time"
 else
@@ -248,7 +215,7 @@ COO_BOOTSTRAP_RAN=false
 if [ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
   OP_TOKEN_VISIBLE=true
   build_log_record PROBE "cloud-setup: OP_SERVICE_ACCOUNT_TOKEN visible at setup time (len=${#OP_SERVICE_ACCOUNT_TOKEN})"
-  if bash "$RUNTIME_DIR/scripts/coo-bootstrap.sh"; then
+  if bash "$RUNTIME_DIR/scripts/boot/coo-bootstrap.sh"; then
     COO_BOOTSTRAP_RAN=true
     build_log_record OK "cloud-setup: coo-bootstrap completed"
   else

@@ -12,7 +12,7 @@
 #
 # Invocation modes:
 #   1. Automatic at boot — session-start-sync.sh calls it at end.
-#   2. On-demand — `bash /home/user/coo-harness/scripts/integrity-check.sh`
+#   2. On-demand — `bash $VADE_RUNTIME_DIR/scripts/boot/integrity-check.sh`
 #   3. CI — tests run it after faking a SessionStart chain; Groups
 #      A/B/C gate PR merges, D/E are secret-dependent and skip in CI.
 #
@@ -21,8 +21,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # Belt-and-suspenders: common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default;
 # session-start-sync.sh now merges it into settings.json so hooks inherit the correct path,
@@ -33,7 +33,7 @@ if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
 fi
 
 OUT_FILE="${VADE_CLOUD_STATE_DIR}/integrity-check.json"
-RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUNTIME_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Workspace root: parent of vade-runtime. /home/user on cloud,
 # $WORKSPACE_ROOT (e.g. ~/GitHub/vade-app) on local. The cloud-style
 # convenience symlinks (CLAUDE.md and .mcp.json) live here on both
@@ -75,8 +75,8 @@ A3_ok=true
 if [ -f "$A1_receipt" ] && check_cmd node; then
   claim_mcp="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.workspace_mcp_symlinked))' "$A1_receipt" 2>/dev/null || echo unknown)"
   claim_id="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.identity_link_ok))' "$A1_receipt" 2>/dev/null || echo unknown)"
-  expected_mcp_target="$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null || true)"
-  expected_id_target="$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null || true)"
+  expected_mcp_target="$(readlink -f "$VADE_RUNTIME_DIR/.mcp.json" 2>/dev/null || true)"
+  expected_id_target="$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null || true)"
   observed_mcp=false; observed_id=false
   if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ -n "$expected_mcp_target" ] \
      && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json" 2>/dev/null)" = "$expected_mcp_target" ]; then
@@ -96,27 +96,45 @@ fi
 _add A3 "$A3_ok" "$A3_detail"
 
 # ── Group B: SessionStart hooks executable ────────────────────
-SHIM_DST="$HOME/.claude/vade-hooks/dispatch.sh"
-SHIM_SRC="$RUNTIME_DIR/scripts/hooks-dispatch.sh"
-if [ -L "$SHIM_DST" ] && [ -f "$(readlink -f "$SHIM_DST" 2>/dev/null)" ] && [ -x "$(readlink -f "$SHIM_DST" 2>/dev/null)" ]; then
-  _add B2 true "dispatch shim → $(readlink "$SHIM_DST")"
-elif [ -f "$SHIM_DST" ] && [ -x "$SHIM_DST" ]; then
-  _add B2 true "dispatch shim present (non-symlink) at $SHIM_DST"
-else
-  _add B2 false "dispatch shim missing or not executable at $SHIM_DST"
-fi
-
-# B1: re-run the resolver for each expected hook name
-B1_ok=true
-B1_detail=""
-for name in session-start-sync coo-bootstrap coo-identity-digest discussions-digest session-lifecycle session-idle-watchdog; do
-  if ! [ -f "$RUNTIME_DIR/scripts/$name.sh" ]; then
+# B1: hook self-test — every settings.json hook command path resolves
+# to an executable file. Recipe: audits/2026-05-25_file-sprawl-audit/migration-protocol.md §5.2.
+B1_settings="$HOME/.claude/settings.json"
+B1_ok=skip
+B1_detail="settings.json unreadable or jq missing"
+if [ -r "$B1_settings" ] && check_cmd jq; then
+  B1_missing=""
+  B1_checked=0
+  while IFS= read -r cmd; do
+    path="$(printf '%s' "$cmd" | grep -oE '"[^"]*\$VADE[^"]*"' | head -1 | tr -d '"' \
+      | sed -e "s|\$VADE_RUNTIME_DIR|$VADE_RUNTIME_DIR|g" \
+            -e "s|\$VADE_COO_MEMORY_DIR|$VADE_COO_MEMORY_DIR|g")"
+    [ -z "$path" ] && continue
+    B1_checked=$((B1_checked + 1))
+    if [ ! -x "$path" ]; then
+      B1_missing="${B1_missing}${path}; "
+    fi
+  done < <(jq -r '.. | objects | .command? // empty' "$B1_settings" 2>/dev/null)
+  if [ "$B1_checked" -eq 0 ]; then
+    B1_ok=skip
+    B1_detail="no \$VADE-prefixed hook command paths in settings.json (pre-PR9 style or non-COO settings)"
+  elif [ -z "$B1_missing" ]; then
+    B1_ok=true
+    B1_detail="$B1_checked hook command path(s) resolve and are executable"
+  else
     B1_ok=false
-    B1_detail="${B1_detail}missing: $name.sh; "
+    B1_detail="missing/non-executable: ${B1_missing% }"
   fi
-done
-[ "$B1_ok" = true ] && B1_detail="all 6 hook scripts present in runtime"
+fi
 _add B1 "$B1_ok" "$B1_detail"
+
+# B2: legacy .claude/vade-hooks/ indirection absent. settings.json
+# references scripts directly; a snapshot that still carries the old
+# shim is degraded.
+if [ ! -d "$HOME/.claude/vade-hooks" ]; then
+  _add B2 true "no legacy vade-hooks/ indirection"
+else
+  _add B2 false "legacy vade-hooks/ present at $HOME/.claude/vade-hooks"
+fi
 
 # B3: hook chain outcomes for the current session in boot.log.
 # The prior implementation grepped /tmp/claude-code.log cumulatively,
@@ -173,14 +191,15 @@ _add B5 info "CLAUDE_PROJECT_DIR=${CLAUDE_PROJECT_DIR:-<unset>} cwd=$(pwd) HOME=
 
 # ── Group C: Symlinks & MCP config ────────────────────────────
 # Workspace-root convenience symlinks (CLAUDE.md, .mcp.json) live at
-# $WORKSPACE_ROOT — /home/user on cloud, ~/GitHub/vade-app on local.
-if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ]; then
+# $WORKSPACE_ROOT/CLAUDE.md is the workspace-scope symlink; the target
+# is the coo-memory checkout.
+if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null)" ]; then
   _add C1 true "$WORKSPACE_ROOT/CLAUDE.md → coo-memory/CLAUDE.md"
 else
   _add C1 false "$WORKSPACE_ROOT/CLAUDE.md symlink missing or wrong target"
 fi
 
-if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null)" ]; then
+if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$VADE_RUNTIME_DIR/.mcp.json" 2>/dev/null)" ]; then
   _add C2 true "$WORKSPACE_ROOT/.mcp.json → coo-harness/.mcp.json"
 else
   _add C2 false "$WORKSPACE_ROOT/.mcp.json symlink missing or wrong target"
@@ -219,19 +238,32 @@ else
   _add D3 false "coo-bootstrap.log missing"
 fi
 
+# D4: MCP tokens in settings.json env (Claude Code substitutes them into
+# .mcp.json's ${TOKEN} refs at MCP-startup time, so they must live here);
+# VADE_*_DIR vars in process env (reach Claude Code via the container UI
+# .env block per coo-harness#274).
 if check_cmd node && [ -f "$HOME/.claude/settings.json" ]; then
-  D4_missing="$(node -e '
+  D4_missing_tokens="$(node -e '
     const fs = require("fs");
     let c = {};
     try { c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")) || {}; } catch { process.exit(0); }
     const env = c.env || {};
-    const req = ["GITHUB_MCP_PAT","GITHUB_TOKEN","AGENTMAIL_API_KEY","MEM0_API_KEY","VADE_CLOUD_STATE_DIR","VADE_RUNTIME_DIR"];
+    const req = ["GITHUB_MCP_PAT","GITHUB_TOKEN","AGENTMAIL_API_KEY","MEM0_API_KEY"];
     process.stdout.write(req.filter(k => !env[k]).join(","));
   ' "$HOME/.claude/settings.json" 2>/dev/null)"
-  if [ -z "$D4_missing" ]; then
-    _add D4 true "settings.json env has GITHUB_MCP_PAT, GITHUB_TOKEN, AGENTMAIL_API_KEY, MEM0_API_KEY, VADE_CLOUD_STATE_DIR, VADE_RUNTIME_DIR"
+  D4_missing_dirs=""
+  for v in VADE_CLOUD_STATE_DIR VADE_RUNTIME_DIR VADE_COO_MEMORY_DIR; do
+    eval "val=\${$v:-}"
+    [ -z "$val" ] && D4_missing_dirs="${D4_missing_dirs}${v},"
+  done
+  D4_missing_dirs="${D4_missing_dirs%,}"
+  if [ -z "$D4_missing_tokens" ] && [ -z "$D4_missing_dirs" ]; then
+    _add D4 true "MCP tokens in settings.json env + VADE_*_DIR in process env (UI .env-block source post-PR9)"
   else
-    _add D4 false "settings.json env missing: $D4_missing"
+    detail=""
+    [ -n "$D4_missing_tokens" ] && detail="settings.json env missing: $D4_missing_tokens"
+    [ -n "$D4_missing_dirs" ] && detail="${detail:+$detail; }process env missing: $D4_missing_dirs"
+    _add D4 false "$detail"
   fi
 else
   _add D4 skip "node or settings.json unavailable"
@@ -620,7 +652,7 @@ E7_ok=skip
 E7_detail="prerequisites missing"
 E7_K="${VADE_E7_SAMPLE_K:-3}"
 E7_CUTOFF="${VADE_E7_POST_CUTOFF:-2026-05-03T09:01:47+00:00}"
-E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-/home/user/coo-logs/transcripts}"
+E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-$(dirname "$VADE_COO_MEMORY_DIR")/coo-logs/transcripts}"
 if [ -n "${VADE_CI_WORKSPACE_ROOT:-}" ] || [ -n "${VADE_BINDIR_OVERRIDE:-}" ]; then
   E7_ok=skip
   E7_detail="skipped in CI fake-env (VADE_CI_WORKSPACE_ROOT or VADE_BINDIR_OVERRIDE set); live-only probe"
@@ -860,15 +892,7 @@ F_CUTOFF_GIT="2026-04-26 00:30:00 +0000"  # timestamp form — used for F1/F4 gi
 # override, sibling under WORKSPACE_ROOT (works on both cloud and
 # local since WORKSPACE_ROOT was derived from SCRIPT_DIR above),
 # macOS legacy fallback, cloud legacy fallback.
-if [ -n "${COO_MEMORY_DIR:-}" ]; then
-  F_REPO="$COO_MEMORY_DIR"
-elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
-  F_REPO="$WORKSPACE_ROOT/coo-memory"
-elif [ -d "$HOME/GitHub/coo-labs/coo-memory" ]; then
-  F_REPO="$HOME/GitHub/coo-labs/coo-memory"
-else
-  F_REPO="/home/user/coo-memory"
-fi
+F_REPO="${COO_MEMORY_DIR:-$VADE_COO_MEMORY_DIR}"
 
 # ── F1 — PR citation invariant ───────────────────────────────
 # Every commit since F_CUTOFF touching identity/, operations/,

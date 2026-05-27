@@ -28,8 +28,8 @@ node -e '
   lines.push("## Bootstrap regression — " + (ok ? "PASS ✅" : "FAIL ❌"));
   lines.push("");
   lines.push(
-    "Ran `scripts/cloud-setup.sh` → `scripts/session-start-sync.sh` → " +
-    "`scripts/integrity-check.sh` in fake-env mode (mock `op` + " +
+    "Ran `scripts/boot/cloud-setup.sh` → `scripts/boot/session-start-sync.sh` → " +
+    "`scripts/boot/integrity-check.sh` in fake-env mode (mock `op` + " +
     "`curl`-to-github-api)."
   );
   lines.push("");

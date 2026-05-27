@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CI smoke test for scripts/session-end-transcript-export.sh.
+CI smoke test for scripts/lifecycle/session-end-transcript-export.sh.
 
 Asserts the export hook's contract end-to-end against an isolated
 $HOME containing a synthetic jsonl with planted secrets:
@@ -37,7 +37,7 @@ import textwrap
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-HOOK_SH = REPO_ROOT / "scripts" / "session-end-transcript-export.sh"
+HOOK_SH = REPO_ROOT / "scripts" / "lifecycle" / "session-end-transcript-export.sh"
 
 
 # Fixture builders — never write these literal strings to disk.

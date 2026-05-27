@@ -15,18 +15,13 @@
 #      ships by default. Mirrors the cloud baseline state coo-bootstrap
 #      must overwrite-safely accept (vrt#266 allowlist; vrt#267 / Phase
 #      B of vcm#762 — the persistence-round-trip fixture).
-#   5. Run scripts/cloud-setup.sh (writes setup-receipt.json + invokes
+#   5. Run scripts/boot/cloud-setup.sh (writes setup-receipt.json + invokes
 #      coo-bootstrap.sh under the mocks).
-#   6. Unset VADE_COO_MODE, re-source the env block persisted to
-#      $TMP_HOME/.claude/settings.json (mirroring Claude Code's
-#      resume-time injection — the durable carrier on cloud), then
-#      run scripts/session-start-sync.sh + integrity-check.sh explicitly
-#      (in live sessions integrity-check.sh runs inside coo-identity-digest;
-#      CI only runs session-start-sync, so we call it directly here).
-#      The re-source step is the structural fix that displaces a prior
-#      `export VADE_COO_MODE=1` here: it tests the full persistence
-#      round-trip rather than masking failures in
-#      _write_claude_settings_env with a runtime pre-export.
+#   6. Re-source the env block persisted to $TMP_HOME/.claude/settings.json
+#      (mirroring Claude Code's resume-time injection — tokens etc.),
+#      then run scripts/boot/session-start-sync.sh + integrity-check.sh
+#      explicitly (in live sessions integrity-check.sh runs inside
+#      coo-identity-digest; CI only runs session-start-sync directly).
 #   7. Read integrity-check.json, subtract VADE_CI_ALLOWLIST, fail if any
 #      degraded invariants remain.
 #   8. Render a markdown summary (groups + per-invariant table) to
@@ -51,6 +46,14 @@ WORKSPACE_ROOT="${VADE_CI_WORKSPACE_ROOT:-/home/user}"
 RUNTIME_DST="$WORKSPACE_ROOT/coo-harness"
 COO_MEM_DST="$WORKSPACE_ROOT/coo-memory"
 CORE_DST="$WORKSPACE_ROOT/vade-canvas"
+
+# Point the production env vars at the CI staging paths so common.sh's
+# fallback defaults (/home/user/coo-harness, /home/user/coo-memory) don't
+# override the staged locations when $VADE_CI_WORKSPACE_ROOT diverges
+# from /home/user. Mirrors the cloud UI .env-block contract.
+export VADE_RUNTIME_DIR="$RUNTIME_DST"
+export VADE_COO_MEMORY_DIR="$COO_MEM_DST"
+export VADE_CLOUD_STATE_DIR="$WORKSPACE_ROOT/.vade-cloud-state"
 
 TEST_HOME="${VADE_CI_TEST_HOME:-/tmp/vade-ci-home}"
 MOCK_DIR="${VADE_CI_MOCK_DIR:-/tmp/vade-ci-mocks}"
@@ -103,6 +106,19 @@ Placeholder file so ensure_workspace_identity_link has a target and
 integrity-check C1 passes. The real CLAUDE.md lives at
 https://github.com/coo-labs/coo-memory/blob/main/CLAUDE.md.
 EOF
+# Stub the memo-index hook script so integrity-check B1 (hook self-test
+# against settings.json command paths) passes in CI. Settings.json
+# references $VADE_COO_MEMORY_DIR/.claude/_lib/memo-index.sh directly
+# post-PR9 (coo-memory#1066); the real script lives in coo-memory, which
+# is stubbed here, so we plant an executable no-op stub.
+mkdir -p "$COO_MEM_DST/.claude/_lib"
+cat > "$COO_MEM_DST/.claude/_lib/memo-index.sh" <<'EOF'
+#!/usr/bin/env bash
+# CI stub for the real memo-index.sh that lives in coo-memory.
+# integrity-check B1 only verifies executability, not behavior.
+exit 0
+EOF
+chmod +x "$COO_MEM_DST/.claude/_lib/memo-index.sh"
 mkdir -p "$CORE_DST/.claude"
 
 # ── 2. Fixture SSH keys + fingerprints ───────────────────────────
@@ -149,6 +165,11 @@ unset GIT_CONFIG_GLOBAL XDG_CONFIG_HOME
 
 # ── 5. Fake credentials + run cloud-setup ────────────────────────
 export OP_SERVICE_ACCOUNT_TOKEN="ops_FAKE_CI_TOKEN_DO_NOT_USE_FOR_REAL_CALLS"
+# Anthropic sets CLAUDE_CODE_REMOTE=true in real cloud sessions (both
+# at snapshot-build and Claude Code launch time per coo-harness#274).
+# GitHub Actions runners aren't a Claude Code env, so simulate the
+# signal — coo-bootstrap.sh's gate keys on it.
+export CLAUDE_CODE_REMOTE=true
 
 # Pin cloud-state under WORKSPACE_ROOT so the runner reads the same
 # integrity-check.json that cloud-setup wrote. Without this override the
@@ -170,33 +191,19 @@ export VADE_CLOUD_STATE_DIR="$WORKSPACE_ROOT/.vade-cloud-state"
 # — a state that does not exist in production cloud.
 git config --file "$TEST_HOME/.gitconfig" user.email noreply@anthropic.com
 
-log "Running scripts/cloud-setup.sh"
-bash "$RUNTIME_DST/scripts/cloud-setup.sh"
+log "Running scripts/boot/cloud-setup.sh"
+bash "$RUNTIME_DST/scripts/boot/cloud-setup.sh"
 
 # ── 6. Re-source persisted settings.json env, then session-start-sync ─
-log "Running scripts/session-start-sync.sh"
+log "Running scripts/boot/session-start-sync.sh"
 # Tag the integrity-check report with a CI-flavored session id so any
 # operator triaging the artifact can tell it's not a real session.
 export CLAUDE_CODE_SESSION_ID="ci-bootstrap-regression-${GITHUB_RUN_ID:-local}"
 # Simulate Claude Code's resume behavior: at session-start, Claude Code
 # reads settings.json.env and exports those keys into its own process
-# env, where hook subprocesses (session-start-sync, coo-bootstrap, etc.)
-# inherit them. cloud-setup.sh runs in a separate shell whose runtime
-# export of VADE_COO_MODE=1 does not survive into this stage; the
-# persisted settings.json.env is the durable carrier.
-#
-# Phase B (vcm#762 / vrt#267) replaces a hard `export VADE_COO_MODE=1`
-# here with the real persistence round-trip: unset the runtime carrier,
-# then re-source whatever cloud-setup actually persisted to
-# settings.json.env. If _write_claude_settings_env was broken (e.g. by
-# a regression in the COO-mode gate, the gitconfig-overwrite guard
-# tripping before persistence, etc.), VADE_COO_MODE will be absent from
-# settings.json.env, the writers in session-start-sync.sh / common.sh
-# will early-exit on `[ "${VADE_COO_MODE:-0}" = "1" ]`, and the D4
-# invariant (and others) will degrade — surfacing the regression as CI
-# failure. This is the structural fix for the "fix-local-broke-cloud"
-# class the pre-export was masking.
-unset VADE_COO_MODE
+# env so subprocesses inherit them. cloud-setup.sh ran in a separate
+# shell; re-source the persisted env so the next stage sees what a
+# real Claude Code resume would see (tokens, paths, etc.).
 SETTINGS_JSON_PATH="$TEST_HOME/.claude/settings.json"
 if [ ! -f "$SETTINGS_JSON_PATH" ]; then
   log "FATAL: $SETTINGS_JSON_PATH absent after cloud-setup.sh — cannot re-source env."
@@ -210,14 +217,13 @@ fi
 # pre-cloud-setup view.
 log "Re-sourcing env from $SETTINGS_JSON_PATH (persistence round-trip)"
 source <(jq -r '.env // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' "$SETTINGS_JSON_PATH")
-log "  VADE_COO_MODE after re-source: ${VADE_COO_MODE:-<unset>}"
-bash "$RUNTIME_DST/scripts/session-start-sync.sh"
+bash "$RUNTIME_DST/scripts/boot/session-start-sync.sh"
 
 # Run integrity-check.sh explicitly. In live sessions this is called by
 # coo-identity-digest.sh (hook position 4, after the platform repo-sync
 # settles). CI only runs session-start-sync, so we invoke it directly.
-log "Running scripts/integrity-check.sh"
-bash "$RUNTIME_DST/scripts/integrity-check.sh" 2>/dev/null || true
+log "Running scripts/boot/integrity-check.sh"
+bash "$RUNTIME_DST/scripts/boot/integrity-check.sh" 2>/dev/null || true
 
 # ── 7. Read integrity-check + apply allowlist ────────────────────
 INTEGRITY="${VADE_CLOUD_STATE_DIR:-$WORKSPACE_ROOT/.vade-cloud-state}/integrity-check.json"

@@ -69,7 +69,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUNTIME_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUNTIME_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # Constants + paths
@@ -358,7 +358,7 @@ cmd_close() {
     echo "with the real session summary — what was worked on, decisions made,"
     echo "open threads — so adoption-tracker grep paths still resolve."
     echo
-    echo "Authoring this stub: \`coo-harness/scripts/session-idle-watchdog.sh\`"
+    echo "Authoring this stub: \`coo-harness/scripts/lifecycle/session-idle-watchdog.sh\`"
     echo "(coo-labs/coo-logs#67)."
   } > "$stub_path"
   log "wrote stub session log: $stub_path"
@@ -451,9 +451,8 @@ _resolve_agent_logs_dir() {
     printf '%s\n' "$VADE_AGENT_LOGS_DIR"; return 0
   fi
   for cand in \
-    "$HOME/GitHub/coo-labs/coo-logs" \
-    "/home/user/coo-logs" \
-    "$RUNTIME_ROOT/../coo-logs"; do
+    "$(dirname "$VADE_COO_MEMORY_DIR")/coo-logs" \
+    "$HOME/GitHub/coo-labs/coo-logs"; do
     if [ -d "$cand" ]; then printf '%s\n' "$cand"; return 0; fi
   done
   return 1
@@ -613,7 +612,7 @@ _git_commit_and_push() {
 
   local msg_subject msg_body commit_rc
   msg_subject="watchdog: idle close for ${session_id}"
-  msg_body=$'Mechanical session-end protocol fired by\ncoo-harness/scripts/session-idle-watchdog.sh — the interactive COO\ndid not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\ncoo-labs/coo-logs#67'
+  msg_body=$'Mechanical session-end protocol fired by\ncoo-harness/scripts/lifecycle/session-idle-watchdog.sh — the interactive\nCOO did not call /end before the idle threshold expired.\n\nNext interactive session owes the real summary; see the\ncoo-idle-close-*.md stub for the handoff.\n\ncoo-labs/coo-logs#67'
 
   if git -C "$repo" -c commit.gpgsign=false commit \
        -m "$msg_subject" -m "$msg_body" >>"$WATCHDOG_LOG" 2>&1; then

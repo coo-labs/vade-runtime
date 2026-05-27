@@ -46,7 +46,7 @@ per session. Set the cloud environment's **Setup script** field to:
 ```bash
 #!/bin/bash
 set -e
-bash /home/user/coo-harness/scripts/cloud-setup.sh
+bash /home/user/coo-harness/scripts/boot/cloud-setup.sh
 ```
 
 > **Note:** the local clone path is currently `vade-runtime/` until

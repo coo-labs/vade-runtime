@@ -2,7 +2,7 @@
   "mcpServers": {
     "mem0": {
       "type": "stdio",
-      "command": "/home/user/coo-harness/scripts/mem0-mcp-projection.py",
+      "command": "/home/user/coo-harness/scripts/mcp/mem0-mcp-projection.py",
       "args": [],
       "env": {
         "MEM0_API_KEY": "${MEM0_API_KEY}",

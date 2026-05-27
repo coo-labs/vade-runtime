@@ -89,7 +89,7 @@ from pathlib import Path
 
 PARSER_VERSION = 1
 SCRIPT_DIR = Path(__file__).resolve().parent
-RUNTIME_ROOT = SCRIPT_DIR.parent
+RUNTIME_ROOT = SCRIPT_DIR.parent.parent
 REDACT_PY = RUNTIME_ROOT / "scripts" / "lib" / "transcript-redact.py"
 RECIPIENT_FILE = RUNTIME_ROOT / "scripts" / "lib" / "transcripts-recipient.age"
 REDACTION_CONFIG = RUNTIME_ROOT / "scripts" / "lib" / "transcript-redaction.json"
@@ -146,9 +146,10 @@ def _resolve_agent_logs_dir() -> Path:
             return p
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
 
+    coo_memory_dir = os.environ.get("VADE_COO_MEMORY_DIR")
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "coo-logs",
-        Path("/home/user/coo-logs"),
+        Path(coo_memory_dir).parent / "coo-logs" if coo_memory_dir else Path("/dev/null"),
+        Path.home() / "GitHub" / "coo-labs" / "coo-logs",
         RUNTIME_ROOT.parent / "coo-logs",
     ]
     for c in candidates:
@@ -635,7 +636,7 @@ def _open_meta_pr(
         body = (
             "## Summary\n\n"
             f"Auto-commit of `{rel_sidecar}` for session `{session_id}`.\n"
-            "Written by `coo-harness/scripts/session-end-transcript-export.py`\n"
+            "Written by `coo-harness/scripts/lifecycle/session-end-transcript-export.py`\n"
             "per coo-harness#148 Part A. The encrypted ciphertext is\n"
             "already in R2; this PR makes the sidecar visible to the\n"
             "transcript-analyzer pipeline.\n\n"

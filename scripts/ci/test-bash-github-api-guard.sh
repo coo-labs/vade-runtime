@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-bash-github-api-guard: smoke-test scripts/bash-github-api-guard.sh.
+# test-bash-github-api-guard: smoke-test scripts/hooks/bash-github-api-guard.sh.
 #
 # Mirrors the test-bash-token-guard.sh shape: pipe PreToolUse JSON
 # envelopes into the hook, assert block / allow per case.

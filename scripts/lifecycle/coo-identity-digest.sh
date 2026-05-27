@@ -13,8 +13,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=../lib/common.sh
+source "$SCRIPT_DIR/../lib/common.sh"
 
 boot_log_record coo-identity-digest start
 trap '_rc=$?; boot_log_record coo-identity-digest end $([ $_rc -eq 0 ] && echo ok || echo fail) rc=$_rc' EXIT
@@ -43,25 +43,15 @@ _digest_gap() {
   echo "───────────────────────────────────────────────────────────────"
 }
 
-# Resolve workspace root: parent of vade-runtime. /home/user on cloud,
-# $WORKSPACE_ROOT on local.
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-if [ -n "${COO_MEMORY_DIR:-}" ]; then
-  MEM_REPO="$COO_MEMORY_DIR"
-elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
-  MEM_REPO="$WORKSPACE_ROOT/coo-memory"
-elif [ -d "$HOME/GitHub/coo-labs/coo-memory" ]; then
-  MEM_REPO="$HOME/GitHub/coo-labs/coo-memory"
-else
-  MEM_REPO="/home/user/coo-memory"
-fi
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+MEM_REPO="${COO_MEMORY_DIR:-$VADE_COO_MEMORY_DIR}"
 CLAUDE_MD="$MEM_REPO/CLAUDE.md"
 MEMO_INDEX="$MEM_REPO/memos/memo_index.json"
 BOOTSTRAP_LOG="${HOME}/.vade/coo-bootstrap.log"
 SETTINGS_FILE="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 WORKSPACE_IDENTITY_LINK="$WORKSPACE_ROOT/CLAUDE.md"
 WORKSPACE_MCP_LINK="$WORKSPACE_ROOT/.mcp.json"
-WORKSPACE_MCP_SRC="$WORKSPACE_ROOT/coo-harness/.mcp.json"
+WORKSPACE_MCP_SRC="$VADE_RUNTIME_DIR/.mcp.json"
 # common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default; on Mac
 # local-setup.sh writes the receipt under ~/.vade/local-state/ and hook
 # subprocesses don't inherit its env exports. Redirect when the cloud
@@ -150,9 +140,9 @@ if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   fi
   echo "  Proven recovery (from 2026-05-13 audit recovery-transcript.txt):"
   echo "    1) git config --file \$HOME/.gitconfig --remove-section user  # clear non-COO gitconfig"
-  echo "    2) VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
+  echo "    2) CLAUDE_CODE_REMOTE=true bash \$VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh"
   echo "    3) set -a; source \$HOME/.vade/coo-env; set +a"
-  echo "    4) bash /home/user/coo-harness/scripts/integrity-check.sh"
+  echo "    4) bash \$VADE_RUNTIME_DIR/scripts/boot/integrity-check.sh"
   if [[ ",$_integrity_degraded," == *",D4,"* ]]; then
     echo ""
     echo "  D4 is a known transient race error. Follow the recovery steps above."
@@ -638,6 +628,6 @@ else
   echo "  (no receipt at $SETUP_RECEIPT)"
   echo "  cloud-setup.sh did not run at snapshot build, or ran but aborted before writing the receipt."
   echo "  Check the Anthropic cloud env 'Setup script' field —"
-  echo "    expected: bash /home/user/coo-harness/scripts/cloud-setup.sh"
+  echo "    expected: bash \$VADE_RUNTIME_DIR/scripts/boot/cloud-setup.sh"
 fi
 echo "───────────────────────────────────────────────────────────────"
