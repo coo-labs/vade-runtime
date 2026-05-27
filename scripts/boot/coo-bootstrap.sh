@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 boot_log_record coo-bootstrap start
 
@@ -55,7 +55,7 @@ if [ "${VADE_COO_MODE:-0}" != "1" ]; then
   # hit this skip with no surface. Phase A of coo-memory#762.
   _write_skip_reason \
     "VADE_COO_MODE!=1 — coo-bootstrap exited before identity load" \
-    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash /home/user/coo-harness/scripts/integrity-check.sh"
+    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash /home/user/coo-harness/scripts/boot/integrity-check.sh"
   trap - EXIT
   exit 0
 fi
@@ -89,7 +89,7 @@ if [ -n "$existing_email" ] \
   # for a non-Anthropic baseline. Mac silent-skips remain silent.
   _write_skip_reason \
     "coo-bootstrap refused to overwrite $GC (existing user.email=$existing_email)" \
-    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
+    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi
@@ -106,7 +106,7 @@ if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
   # provision the env (Anthropic cloud "Setup script" env var).
   _write_skip_reason \
     "OP_SERVICE_ACCOUNT_TOKEN unset — coo-bootstrap cannot fetch secrets" \
-    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
+    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi

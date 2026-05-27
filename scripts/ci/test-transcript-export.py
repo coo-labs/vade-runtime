@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CI smoke test for scripts/session-end-transcript-export.sh.
+CI smoke test for scripts/lifecycle/session-end-transcript-export.sh.
 
 Asserts the export hook's contract end-to-end against an isolated
 $HOME containing a synthetic jsonl with planted secrets:

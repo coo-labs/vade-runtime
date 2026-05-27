@@ -29,9 +29,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
-WORKSPACE_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACE_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default (/home/user/.vade-cloud-state);
 # on Mac local-setup.sh exports ~/.vade/local-state but hook subprocesses don't inherit its env.
@@ -42,7 +42,7 @@ if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
 fi
 
 boot_log_record session-start-sync start
-sync_claude_config "$SCRIPT_DIR/../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
+sync_claude_config "$SCRIPT_DIR/../../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
 # Heal $HOME/.claude/settings.json hooks block on cloud only — never on
 # Mac. Cloud build-time (cloud-setup.sh:41) bakes the hooks here once at
 # snapshot creation; without this resume-time re-sync, hooks-block commits
@@ -57,7 +57,7 @@ sync_claude_config "$SCRIPT_DIR/../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
 # VADE_COO_MODE leaks onto a local Mac) we still no-op. First tripped
 # by coo-memory#781 / coo-harness#334; audit-input for coo-memory#762.
 if [ "${VADE_COO_MODE:-0}" = "1" ] && [ "$HOME" != "$WORKSPACE_ROOT_DERIVED" ]; then
-  sync_claude_config "$SCRIPT_DIR/../.claude" "$HOME/.claude"
+  sync_claude_config "$SCRIPT_DIR/../../.claude" "$HOME/.claude"
 fi
 # Aggregate per-repo primitives from data-owning repos. Per the
 # data-ownership rule (MEMO 2026-04-25-02), slash commands and skills
@@ -69,7 +69,7 @@ fi
 mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT_DERIVED" "$WORKSPACE_ROOT_DERIVED/.claude" \
   "${_AGGREGATOR_REPOS[@]}"
-ensure_workspace_mcp_config "$SCRIPT_DIR/../.mcp.json" "$WORKSPACE_ROOT_DERIVED/.mcp.json"
+ensure_workspace_mcp_config "$SCRIPT_DIR/../../.mcp.json" "$WORKSPACE_ROOT_DERIVED/.mcp.json"
 ensure_workspace_identity_link "$WORKSPACE_ROOT_DERIVED/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT_DERIVED/CLAUDE.md"
 # Stale-snapshot fallback for the mem0 stdio MCP (coo-harness#109).
 # cloud-setup.sh is the canonical installer; this catches snapshots
@@ -87,29 +87,13 @@ ensure_gh_symlink_on_path
 # Install the gh-coo-wrap wrapper so every attributable `gh` write
 # auto-carries the Claude Code session URL. MEMO 2026-04-26-02
 # (issue #150). Idempotent via marker grep.
-ensure_gh_coo_wrap "$SCRIPT_DIR/gh-coo-wrap.sh"
-# Persist VADE_CLOUD_STATE_DIR into ~/.claude/settings.json env so hook subprocesses
-# (integrity-check.sh, coo-identity-digest.sh, etc.) inherit the correct path. Must run
-# before integrity-check.sh so the JSON lands at the right location. State-dir-only
-# variant: must NOT call merge_coo_settings_paths here, because that helper also
-# rewrites the PATH key from the live shell PATH. On macOS the SessionStart hook
-# subprocess inherits a thin non-login PATH (no Homebrew), and rewriting from that
-# would clobber the well-formed PATH coo-bootstrap captured at install time.
-# coo-harness#171.
-merge_coo_settings_state_dir
-# Persist VADE_RUNTIME_DIR into ~/.claude/settings.json env so subprocesses
-# (hooks, scheduled-runtime invocations, agents) inherit it and any
-# script call form `"$VADE_RUNTIME_DIR/..."` resolves at hook time
-# without an explicit-path fallback. Same state-dir-only rationale as
-# the call above (no PATH rewrite). coo-harness#228 carries the
-# specific evidence (the Night's Watch standing-order call form).
-merge_coo_settings_runtime_dir
-# Persist VADE_COO_MEMORY_DIR into ~/.claude/settings.json env. Sibling
-# parity with VADE_RUNTIME_DIR — gh-coo-wrap.sh and various skills/hooks
-# resolve the memory-repo path via $VADE_COO_MEMORY_DIR, and without
-# this merge it doesn't survive into subprocess env across resume.
-# coo-harness#265.
-merge_coo_settings_memory_dir
+ensure_gh_coo_wrap "$SCRIPT_DIR/../gh-coo-wrap.sh"
+# VADE_CLOUD_STATE_DIR / VADE_RUNTIME_DIR / VADE_COO_MEMORY_DIR reach
+# Claude Code via the container UI .env block, which Anthropic injects
+# into Claude Code's process at every launch (including session resume).
+# See coo-harness#274 for the two-mechanism model; the prior per-session
+# merge into ~/.claude/settings.json (merge_coo_settings_*_dir) was the
+# pre-coo-harness#274 workaround and is retired with PR9.
 # Refresh the external-touch (F6) cache when it's older than 24h.
 # Build-time prewarm in cloud-setup.sh handles the fresh-snapshot case;
 # this catches snapshots resumed after the cache has gone stale and

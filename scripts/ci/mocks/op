@@ -2,7 +2,7 @@
 # Mock 1Password CLI for the bootstrap-regression suite (issue #86).
 #
 # Returns canned vade-coo-shaped responses for the subset of `op` calls
-# made by scripts/coo-bootstrap.sh (whoami + read of the four COO refs).
+# made by scripts/boot/coo-bootstrap.sh (whoami + read of the four COO refs).
 # SSH key material is read from $VADE_CI_MOCK_KEYDIR/vade-coo-{auth,sign}{,.pub};
 # the runner generates fresh ed25519 keys per CI invocation and exports
 # their fingerprints as COO_AUTH_FP_EXPECTED / COO_SIGN_FP_EXPECTED so

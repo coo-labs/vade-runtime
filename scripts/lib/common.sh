@@ -99,20 +99,16 @@ VADE_CLOUD_STATE_DIR="${VADE_CLOUD_STATE_DIR:-/home/user/.vade-cloud-state}"
 VADE_BUILD_LOG="${VADE_CLOUD_STATE_DIR}/build.log"
 VADE_SETUP_RECEIPT="${VADE_CLOUD_STATE_DIR}/setup-receipt.json"
 
-# vade-runtime working tree path. The Night's Watch standing order at
-# coo/nightly_review_task.md §1.a calls scripts via "$VADE_RUNTIME_DIR/scripts/lib/...";
-# the call form silently breaks when the var resolves empty. In production
-# the cloud harness clones this repo into /home/user/coo-harness; persist
-# the value into ~/.claude/settings.json env via merge_coo_settings_runtime_dir
-# so hook subprocesses (and Night's Watch invocations) inherit it.
-# coo-harness#228.
+# coo-harness working tree path. Settings.json hook commands resolve via
+# "$VADE_RUNTIME_DIR/scripts/<subfolder>/<script>.sh"; the var is injected
+# into Claude Code's process at every launch via the Anthropic container UI
+# .env block (coo-harness#274). Cloud default is /home/user/coo-harness;
+# the fallback here keeps non-cloud invocations (CI, ad-hoc shells) working.
 VADE_RUNTIME_DIR="${VADE_RUNTIME_DIR:-/home/user/coo-harness}"
 
-# vade-coo-memory working tree path. Sibling parity with VADE_RUNTIME_DIR;
+# coo-memory working tree path. Sibling parity with VADE_RUNTIME_DIR;
 # gh-coo-wrap.sh and various skills/hooks resolve memory-repo paths via
-# $VADE_COO_MEMORY_DIR. Persisted into ~/.claude/settings.json env via
-# merge_coo_settings_memory_dir so hook subprocesses inherit it on resume.
-# coo-harness#265.
+# $VADE_COO_MEMORY_DIR. Same UI .env-block injection mechanism as above.
 VADE_COO_MEMORY_DIR="${VADE_COO_MEMORY_DIR:-/home/user/coo-memory}"
 
 # Same shape as bootstrap_log_record but writes to the durable build log.
@@ -419,41 +415,7 @@ sync_claude_config() {
   if [ -f "$src/settings.json" ]; then
     _sync_claude_settings "$src/settings.json" "$dst/settings.json"
   fi
-  # settings.json hooks reference $HOME/.claude/vade-hooks/dispatch.sh;
-  # install the shim alongside settings.json so both land atomically
-  # from a single sync_claude_config call.
-  ensure_hooks_dispatch_shim "$src" "$dst"
-  log "Synced $src → $dst (subdirs symlinked, settings.json copied, dispatch shim installed)"
-}
-
-# Install $HOME/.claude/vade-hooks/dispatch.sh pointing at the runtime
-# repo's hooks-dispatch.sh. Called from sync_claude_config, so every
-# build-time and session-start sync refreshes the shim — it self-heals
-# if the snapshot is stale or the target moved.
-#
-# The source is derived from the passed-in .claude dir, not hardcoded,
-# so local-setup.sh's custom runtime path works without extra plumbing.
-# Idempotent: if the symlink already points at the right target, no-op.
-ensure_hooks_dispatch_shim() {
-  local claude_src="$1" claude_dst="$2"
-  local runtime_src shim_src shim_dst
-  runtime_src="$(cd "$claude_src/.." 2>/dev/null && pwd)"
-  shim_src="$runtime_src/scripts/hooks-dispatch.sh"
-  shim_dst="$claude_dst/vade-hooks/dispatch.sh"
-  if [ ! -f "$shim_src" ]; then
-    log "hooks-dispatch: source $shim_src missing; skipping"
-    return 0
-  fi
-  mkdir -p "$(dirname "$shim_dst")"
-  if [ -L "$shim_dst" ] && [ "$(readlink -f "$shim_dst" 2>/dev/null)" = "$(readlink -f "$shim_src" 2>/dev/null)" ]; then
-    return 0
-  fi
-  if [ -e "$shim_dst" ] && [ ! -L "$shim_dst" ]; then
-    log "hooks-dispatch: $shim_dst exists and is not a symlink; leaving it alone"
-    return 0
-  fi
-  ln -snf "$shim_src" "$shim_dst"
-  log "hooks-dispatch: linked $shim_dst → $shim_src"
+  log "Synced $src → $dst (subdirs symlinked, settings.json copied)"
 }
 
 _sync_claude_subdir() {
@@ -1666,35 +1628,6 @@ merge_coo_settings_paths() {
   _write_claude_settings_paths "$VADE_CLOUD_STATE_DIR" "$bindir"
 }
 
-# Persist VADE_CLOUD_STATE_DIR ONLY (no PATH rewrite) into ~/.claude/settings.json
-# env. Split from merge_coo_settings_paths so callers that fire on session-start
-# (where the live shell PATH is whatever Claude Code's hook subprocess inherited —
-# typically a thin non-login PATH on macOS) don't clobber the rich PATH that
-# coo-bootstrap captured at install time. The state-dir value is host-stable and
-# safe to re-write on every session start; PATH is not. coo-harness#171.
-merge_coo_settings_state_dir() {
-  _write_claude_settings_state_dir "$VADE_CLOUD_STATE_DIR"
-}
-
-# Persist VADE_RUNTIME_DIR into ~/.claude/settings.json env. Same shape and
-# rationale as merge_coo_settings_state_dir: host-stable path, no PATH rewrite,
-# safe to re-write on every session start. Hook subprocesses and the Night's
-# Watch nightly scripts depend on this for the §1.a standing-order call form.
-# coo-harness#228.
-merge_coo_settings_runtime_dir() {
-  _write_claude_settings_runtime_dir "$VADE_RUNTIME_DIR"
-}
-
-# Persist VADE_COO_MEMORY_DIR into ~/.claude/settings.json env. Same shape and
-# rationale as merge_coo_settings_runtime_dir / merge_coo_settings_state_dir:
-# host-stable path, no PATH rewrite, safe to re-write on every session start.
-# Hook subprocesses, skills, and the gh-coo-wrap shim resolve memory-repo
-# paths via $VADE_COO_MEMORY_DIR (see gh-coo-wrap.sh:257); persist it so
-# they inherit the value on resume. coo-harness#265.
-merge_coo_settings_memory_dir() {
-  _write_claude_settings_memory_dir "$VADE_COO_MEMORY_DIR"
-}
-
 # Merge COO env vars into ~/.claude/settings.json "env" object. Claude
 # Code reads this at process startup, so ${GITHUB_MCP_PAT} etc. in
 # .mcp.json substitute correctly. Idempotent.
@@ -1904,116 +1837,6 @@ _write_claude_settings_paths() {
   ' "$settings_file"
   chmod 600 "$settings_file"
   log "  merged COO path vars into $settings_file"
-}
-
-# Write VADE_CLOUD_STATE_DIR into ~/.claude/settings.json env without touching
-# the PATH key. Used from the SessionStart sync path on macOS where the hook
-# subprocess inherits a thin PATH (no Homebrew); rewriting PATH from that
-# value would replace the well-formed PATH bootstrap captured at install
-# time. Idempotent. coo-harness#171.
-_write_claude_settings_state_dir() {
-  [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
-  local cloud_state_dir="$1"
-  if ! check_cmd node; then
-    log "Warning: node missing; skipping ~/.claude/settings.json state-dir merge"
-    return 0
-  fi
-  local settings_dir="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
-  local settings_file="$settings_dir/settings.json"
-  mkdir -p "$settings_dir"
-  [ -f "$settings_file" ] || echo '{}' > "$settings_file"
-
-  VADE_CLOUD_STATE_DIR="$cloud_state_dir" node -e '
-    const fs = require("fs");
-    const path = process.argv[1];
-    let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(path, "utf8")) || {}; }
-    catch (e) {
-      console.error("[vade-setup] " + path + " unparseable; aborting state-dir merge.");
-      process.exit(1);
-    }
-    const merged = Object.assign({}, cfg.env || {});
-    if (process.env.VADE_CLOUD_STATE_DIR) {
-      merged.VADE_CLOUD_STATE_DIR = process.env.VADE_CLOUD_STATE_DIR;
-    }
-    cfg.env = merged;
-    fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
-  ' "$settings_file"
-  chmod 600 "$settings_file"
-  log "  merged VADE_CLOUD_STATE_DIR into $settings_file"
-}
-
-# Write VADE_RUNTIME_DIR into ~/.claude/settings.json env without touching
-# the PATH key. Same shape as _write_claude_settings_state_dir; split from
-# any PATH-rewriting helper for the same rationale (hook subprocesses
-# inherit a thin PATH that would clobber the well-formed install-time
-# PATH if rewritten). Idempotent. coo-harness#228.
-_write_claude_settings_runtime_dir() {
-  [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
-  local runtime_dir="$1"
-  if ! check_cmd node; then
-    log "Warning: node missing; skipping ~/.claude/settings.json runtime-dir merge"
-    return 0
-  fi
-  local settings_dir="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
-  local settings_file="$settings_dir/settings.json"
-  mkdir -p "$settings_dir"
-  [ -f "$settings_file" ] || echo '{}' > "$settings_file"
-
-  VADE_RUNTIME_DIR="$runtime_dir" node -e '
-    const fs = require("fs");
-    const path = process.argv[1];
-    let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(path, "utf8")) || {}; }
-    catch (e) {
-      console.error("[vade-setup] " + path + " unparseable; aborting runtime-dir merge.");
-      process.exit(1);
-    }
-    const merged = Object.assign({}, cfg.env || {});
-    if (process.env.VADE_RUNTIME_DIR) {
-      merged.VADE_RUNTIME_DIR = process.env.VADE_RUNTIME_DIR;
-    }
-    cfg.env = merged;
-    fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
-  ' "$settings_file"
-  chmod 600 "$settings_file"
-  log "  merged VADE_RUNTIME_DIR into $settings_file"
-}
-
-# Write VADE_COO_MEMORY_DIR into ~/.claude/settings.json env without touching
-# the PATH key. Same shape and rationale as _write_claude_settings_runtime_dir.
-# coo-harness#265.
-_write_claude_settings_memory_dir() {
-  [ "${VADE_COO_MODE:-0}" = "1" ] || return 0
-  local memory_dir="$1"
-  [ -n "$memory_dir" ] || return 0
-  if ! check_cmd node; then
-    log "Warning: node missing; skipping ~/.claude/settings.json memory-dir merge"
-    return 0
-  fi
-  local settings_dir="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
-  local settings_file="$settings_dir/settings.json"
-  mkdir -p "$settings_dir"
-  [ -f "$settings_file" ] || echo '{}' > "$settings_file"
-
-  VADE_COO_MEMORY_DIR="$memory_dir" node -e '
-    const fs = require("fs");
-    const path = process.argv[1];
-    let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(path, "utf8")) || {}; }
-    catch (e) {
-      console.error("[vade-setup] " + path + " unparseable; aborting memory-dir merge.");
-      process.exit(1);
-    }
-    const merged = Object.assign({}, cfg.env || {});
-    if (process.env.VADE_COO_MEMORY_DIR) {
-      merged.VADE_COO_MEMORY_DIR = process.env.VADE_COO_MEMORY_DIR;
-    }
-    cfg.env = merged;
-    fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
-  ' "$settings_file"
-  chmod 600 "$settings_file"
-  log "  merged VADE_COO_MEMORY_DIR into $settings_file"
 }
 
 # Ensure openssh-client is present (provides ssh-keygen + ssh-keyscan).

@@ -15,12 +15,12 @@
 #      ships by default. Mirrors the cloud baseline state coo-bootstrap
 #      must overwrite-safely accept (vrt#266 allowlist; vrt#267 / Phase
 #      B of vcm#762 — the persistence-round-trip fixture).
-#   5. Run scripts/cloud-setup.sh (writes setup-receipt.json + invokes
+#   5. Run scripts/boot/cloud-setup.sh (writes setup-receipt.json + invokes
 #      coo-bootstrap.sh under the mocks).
 #   6. Unset VADE_COO_MODE, re-source the env block persisted to
 #      $TMP_HOME/.claude/settings.json (mirroring Claude Code's
 #      resume-time injection — the durable carrier on cloud), then
-#      run scripts/session-start-sync.sh + integrity-check.sh explicitly
+#      run scripts/boot/session-start-sync.sh + integrity-check.sh explicitly
 #      (in live sessions integrity-check.sh runs inside coo-identity-digest;
 #      CI only runs session-start-sync, so we call it directly here).
 #      The re-source step is the structural fix that displaces a prior
@@ -170,11 +170,11 @@ export VADE_CLOUD_STATE_DIR="$WORKSPACE_ROOT/.vade-cloud-state"
 # — a state that does not exist in production cloud.
 git config --file "$TEST_HOME/.gitconfig" user.email noreply@anthropic.com
 
-log "Running scripts/cloud-setup.sh"
-bash "$RUNTIME_DST/scripts/cloud-setup.sh"
+log "Running scripts/boot/cloud-setup.sh"
+bash "$RUNTIME_DST/scripts/boot/cloud-setup.sh"
 
 # ── 6. Re-source persisted settings.json env, then session-start-sync ─
-log "Running scripts/session-start-sync.sh"
+log "Running scripts/boot/session-start-sync.sh"
 # Tag the integrity-check report with a CI-flavored session id so any
 # operator triaging the artifact can tell it's not a real session.
 export CLAUDE_CODE_SESSION_ID="ci-bootstrap-regression-${GITHUB_RUN_ID:-local}"
@@ -211,13 +211,13 @@ fi
 log "Re-sourcing env from $SETTINGS_JSON_PATH (persistence round-trip)"
 source <(jq -r '.env // {} | to_entries[] | "export \(.key)=\(.value | @sh)"' "$SETTINGS_JSON_PATH")
 log "  VADE_COO_MODE after re-source: ${VADE_COO_MODE:-<unset>}"
-bash "$RUNTIME_DST/scripts/session-start-sync.sh"
+bash "$RUNTIME_DST/scripts/boot/session-start-sync.sh"
 
 # Run integrity-check.sh explicitly. In live sessions this is called by
 # coo-identity-digest.sh (hook position 4, after the platform repo-sync
 # settles). CI only runs session-start-sync, so we invoke it directly.
-log "Running scripts/integrity-check.sh"
-bash "$RUNTIME_DST/scripts/integrity-check.sh" 2>/dev/null || true
+log "Running scripts/boot/integrity-check.sh"
+bash "$RUNTIME_DST/scripts/boot/integrity-check.sh" 2>/dev/null || true
 
 # ── 7. Read integrity-check + apply allowlist ────────────────────
 INTEGRITY="${VADE_CLOUD_STATE_DIR:-$WORKSPACE_ROOT/.vade-cloud-state}/integrity-check.json"

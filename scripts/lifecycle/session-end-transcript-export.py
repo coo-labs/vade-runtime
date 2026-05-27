@@ -635,7 +635,7 @@ def _open_meta_pr(
         body = (
             "## Summary\n\n"
             f"Auto-commit of `{rel_sidecar}` for session `{session_id}`.\n"
-            "Written by `coo-harness/scripts/session-end-transcript-export.py`\n"
+            "Written by `coo-harness/scripts/lifecycle/session-end-transcript-export.py`\n"
             "per coo-harness#148 Part A. The encrypted ciphertext is\n"
             "already in R2; this PR makes the sidecar visible to the\n"
             "transcript-analyzer pipeline.\n\n"

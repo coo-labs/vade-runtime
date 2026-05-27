@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 boot_log_record coo-identity-digest start
 trap '_rc=$?; boot_log_record coo-identity-digest end $([ $_rc -eq 0 ] && echo ok || echo fail) rc=$_rc' EXIT
@@ -45,7 +45,7 @@ _digest_gap() {
 
 # Resolve workspace root: parent of vade-runtime. /home/user on cloud,
 # $WORKSPACE_ROOT on local.
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 if [ -n "${COO_MEMORY_DIR:-}" ]; then
   MEM_REPO="$COO_MEMORY_DIR"
 elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
@@ -150,9 +150,9 @@ if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   fi
   echo "  Proven recovery (from 2026-05-13 audit recovery-transcript.txt):"
   echo "    1) git config --file \$HOME/.gitconfig --remove-section user  # clear non-COO gitconfig"
-  echo "    2) VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/coo-bootstrap.sh"
+  echo "    2) VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh"
   echo "    3) set -a; source \$HOME/.vade/coo-env; set +a"
-  echo "    4) bash /home/user/coo-harness/scripts/integrity-check.sh"
+  echo "    4) bash /home/user/coo-harness/scripts/boot/integrity-check.sh"
   if [[ ",$_integrity_degraded," == *",D4,"* ]]; then
     echo ""
     echo "  D4 is a known transient race error. Follow the recovery steps above."
@@ -638,6 +638,6 @@ else
   echo "  (no receipt at $SETUP_RECEIPT)"
   echo "  cloud-setup.sh did not run at snapshot build, or ran but aborted before writing the receipt."
   echo "  Check the Anthropic cloud env 'Setup script' field —"
-  echo "    expected: bash /home/user/coo-harness/scripts/cloud-setup.sh"
+  echo "    expected: bash /home/user/coo-harness/scripts/boot/cloud-setup.sh"
 fi
 echo "───────────────────────────────────────────────────────────────"

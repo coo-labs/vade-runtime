@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI smoke test for scripts/session-end-transcript-export.sh.
+# CI smoke test for scripts/lifecycle/session-end-transcript-export.sh.
 #
 # Locks down the wrapper's contract — the bash side that holds the
 # Python child via `setsid -f` and block-waits on a marker file up to
@@ -41,7 +41,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WRAPPER_SRC="$REPO_ROOT/scripts/session-end-transcript-export.sh"
+WRAPPER_SRC="$REPO_ROOT/scripts/lifecycle/session-end-transcript-export.sh"
 
 if [ ! -x "$WRAPPER_SRC" ]; then
   echo "FAIL: $WRAPPER_SRC not executable" >&2
@@ -210,4 +210,4 @@ echo "ok: detached child PID $SLOW_CHILD_PID survives wrapper exit (setsid -f in
 
 # Cleanup of the slow child happens in the EXIT trap.
 
-echo "PASS: scripts/session-end-transcript-export.sh wrapper contract holds (4/4)"
+echo "PASS: scripts/lifecycle/session-end-transcript-export.sh wrapper contract holds (4/4)"

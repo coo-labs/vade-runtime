@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI smoke test for scripts/coo-identity-digest.sh gap-warning behavior.
+# CI smoke test for scripts/lifecycle/coo-identity-digest.sh gap-warning behavior.
 #
 # Locks down the contract added after coo-labs/coo-memory#1069 shipped
 # three boot-digest regressions: when expected input files / dirs are
@@ -37,7 +37,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DIGEST_SRC="$REPO_ROOT/scripts/coo-identity-digest.sh"
+DIGEST_SRC="$REPO_ROOT/scripts/lifecycle/coo-identity-digest.sh"
 
 if [ ! -x "$DIGEST_SRC" ]; then
   echo "FAIL: $DIGEST_SRC not executable" >&2

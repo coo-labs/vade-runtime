@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI smoke test for scripts/session-idle-watchdog.sh.
+# CI smoke test for scripts/lifecycle/session-idle-watchdog.sh.
 #
 # Three asserts:
 #
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WATCHDOG="$REPO_ROOT/scripts/session-idle-watchdog.sh"
+WATCHDOG="$REPO_ROOT/scripts/lifecycle/session-idle-watchdog.sh"
 
 if [ ! -x "$WATCHDOG" ]; then
   echo "FAIL: $WATCHDOG not executable" >&2

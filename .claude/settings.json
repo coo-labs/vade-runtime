@@ -10,31 +10,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-start-sync"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/boot/session-start-sync.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" coo-bootstrap"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" memo-index"
+            "command": "bash \"$VADE_COO_MEMORY_DIR/.claude/_lib/memo-index.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" coo-identity-digest"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/coo-identity-digest.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" discussions-digest"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/discussions-digest.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" project-board-digest"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/project-board-digest.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-idle-watchdog --start"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-idle-watchdog.sh\" --start"
           }
         ]
       },
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-lifecycle"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-lifecycle.sh\""
           }
         ]
       }
@@ -52,15 +52,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-end-transcript-export"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-end-transcript-export.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" session-lifecycle --end"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-lifecycle.sh\" --end"
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" persist-permissions"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/persist-permissions.sh\""
           }
         ]
       }
@@ -71,15 +71,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" bash-token-guard"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/bash-token-guard.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" bash-github-api-guard"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/bash-github-api-guard.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" strip-bash-xtrace"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/strip-bash-xtrace.sh\""
           }
         ]
       },
@@ -88,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" agent-model-guard"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/agent-model-guard.sh\""
           }
         ]
       }
@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\" auto-subscribe-pr"
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/auto-subscribe-pr.sh\""
           }
         ]
       }
@@ -200,7 +200,6 @@
       "Bash(bash *coo-harness/scripts/*:*)",
       "Bash(bash *.claude/_lib/*:*)",
       "Bash(bash *.claude/skills/*/scripts/*:*)",
-      "Bash(bash \"$CLAUDE_PROJECT_DIR/.claude/vade-hooks/dispatch.sh\":*)",
       "Read",
       "Edit",
       "Write",

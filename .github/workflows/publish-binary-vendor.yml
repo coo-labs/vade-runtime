@@ -1,7 +1,7 @@
 name: Publish binary vendor bundle
 
 # Builds a single tarball containing the four flake-prone binaries that
-# scripts/cloud-setup.sh fetches from third-party CDNs at cloud-snapshot
+# scripts/boot/cloud-setup.sh fetches from third-party CDNs at cloud-snapshot
 # build time (op, gh, uv, mem0-mcp-server), and publishes it as a
 # GitHub Release asset on this repo. cloud-setup.sh's
 # ensure_binaries_from_vendor then fetches the bundle in one curl with

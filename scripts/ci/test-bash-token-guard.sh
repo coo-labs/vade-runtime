@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-bash-token-guard: smoke-test scripts/bash-token-guard.sh.
+# test-bash-token-guard: smoke-test scripts/hooks/bash-token-guard.sh.
 #
 # For each fixture, build a Claude Code PreToolUse JSON envelope
 # `{"tool_input": {"command": "..."}}`, pipe it into the hook, and

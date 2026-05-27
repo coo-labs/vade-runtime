@@ -12,7 +12,7 @@
 #
 # Invocation modes:
 #   1. Automatic at boot — session-start-sync.sh calls it at end.
-#   2. On-demand — `bash /home/user/coo-harness/scripts/integrity-check.sh`
+#   2. On-demand — `bash /home/user/coo-harness/scripts/boot/integrity-check.sh`
 #   3. CI — tests run it after faking a SessionStart chain; Groups
 #      A/B/C gate PR merges, D/E are secret-dependent and skip in CI.
 #
@@ -22,7 +22,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # Belt-and-suspenders: common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default;
 # session-start-sync.sh now merges it into settings.json so hooks inherit the correct path,
@@ -33,7 +33,7 @@ if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
 fi
 
 OUT_FILE="${VADE_CLOUD_STATE_DIR}/integrity-check.json"
-RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUNTIME_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Workspace root: parent of vade-runtime. /home/user on cloud,
 # $WORKSPACE_ROOT (e.g. ~/GitHub/vade-app) on local. The cloud-style
 # convenience symlinks (CLAUDE.md and .mcp.json) live here on both
@@ -96,27 +96,49 @@ fi
 _add A3 "$A3_ok" "$A3_detail"
 
 # ── Group B: SessionStart hooks executable ────────────────────
-SHIM_DST="$HOME/.claude/vade-hooks/dispatch.sh"
-SHIM_SRC="$RUNTIME_DIR/scripts/hooks-dispatch.sh"
-if [ -L "$SHIM_DST" ] && [ -f "$(readlink -f "$SHIM_DST" 2>/dev/null)" ] && [ -x "$(readlink -f "$SHIM_DST" 2>/dev/null)" ]; then
-  _add B2 true "dispatch shim → $(readlink "$SHIM_DST")"
-elif [ -f "$SHIM_DST" ] && [ -x "$SHIM_DST" ]; then
-  _add B2 true "dispatch shim present (non-symlink) at $SHIM_DST"
-else
-  _add B2 false "dispatch shim missing or not executable at $SHIM_DST"
-fi
-
-# B1: re-run the resolver for each expected hook name
-B1_ok=true
-B1_detail=""
-for name in session-start-sync coo-bootstrap coo-identity-digest discussions-digest session-lifecycle session-idle-watchdog; do
-  if ! [ -f "$RUNTIME_DIR/scripts/$name.sh" ]; then
+# B1: hook self-test — every settings.json hook command path resolves to an
+# executable file. Settings.json references hooks directly via
+# $VADE_RUNTIME_DIR / $VADE_COO_MEMORY_DIR (UI .env-block injected,
+# coo-harness#274); the resolver iteration the prior B1 did is no longer
+# needed. Canonical recipe: audits/2026-05-25_file-sprawl-audit/migration-protocol.md §5.2.
+B1_settings="$HOME/.claude/settings.json"
+B1_ok=skip
+B1_detail="settings.json unreadable or jq missing"
+if [ -r "$B1_settings" ] && check_cmd jq; then
+  B1_missing=""
+  B1_checked=0
+  while IFS= read -r cmd; do
+    path="$(printf '%s' "$cmd" | grep -oE '"[^"]*\$VADE[^"]*"' | head -1 | tr -d '"' \
+      | sed -e "s|\$VADE_RUNTIME_DIR|$VADE_RUNTIME_DIR|g" \
+            -e "s|\$VADE_COO_MEMORY_DIR|$VADE_COO_MEMORY_DIR|g")"
+    [ -z "$path" ] && continue
+    B1_checked=$((B1_checked + 1))
+    if [ ! -x "$path" ]; then
+      B1_missing="${B1_missing}${path}; "
+    fi
+  done < <(jq -r '.. | objects | .command? // empty' "$B1_settings" 2>/dev/null)
+  if [ "$B1_checked" -eq 0 ]; then
+    B1_ok=skip
+    B1_detail="no \$VADE-prefixed hook command paths in settings.json (pre-PR9 style or non-COO settings)"
+  elif [ -z "$B1_missing" ]; then
+    B1_ok=true
+    B1_detail="$B1_checked hook command path(s) resolve and are executable"
+  else
     B1_ok=false
-    B1_detail="${B1_detail}missing: $name.sh; "
+    B1_detail="missing/non-executable: ${B1_missing% }"
   fi
-done
-[ "$B1_ok" = true ] && B1_detail="all 6 hook scripts present in runtime"
+fi
 _add B1 "$B1_ok" "$B1_detail"
+
+# B2: legacy .claude/vade-hooks/ indirection absent. The dispatch-shim
+# pattern was retired in PR9 (coo-memory#1066): settings.json hook
+# commands now reference $VADE_RUNTIME_DIR/scripts/<subfolder>/<script>
+# directly. A snapshot that still carries the old shim is degraded.
+if [ ! -d "$HOME/.claude/vade-hooks" ]; then
+  _add B2 true "no legacy vade-hooks/ indirection (PR9 cleanup verified)"
+else
+  _add B2 false "legacy vade-hooks/ present at $HOME/.claude/vade-hooks (retired in PR9)"
+fi
 
 # B3: hook chain outcomes for the current session in boot.log.
 # The prior implementation grepped /tmp/claude-code.log cumulatively,

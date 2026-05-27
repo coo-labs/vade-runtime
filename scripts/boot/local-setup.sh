@@ -29,17 +29,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Workspace root: /home/user in cloud, $DEV_DIR/vade-app locally. Default
-# derived from $DEV_DIR with a final fallback to $SCRIPT_DIR/../.. so
+# derived from $DEV_DIR with a final fallback to $SCRIPT_DIR/../../.. so
 # this runs even if the shell wrapper hasn't exported $DEV_DIR.
 : "${DEV_DIR:=${HOME}/GitHub}"
 WORKSPACE_ROOT="${VADE_WORKSPACE_ROOT:-${DEV_DIR}/vade-app}"
-[ -d "$WORKSPACE_ROOT" ] || WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[ -d "$WORKSPACE_ROOT" ] || WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 export VADE_CLOUD_STATE_DIR="${VADE_CLOUD_STATE_DIR:-${HOME}/.vade/local-state}"
 export VADE_COO_GITCONFIG="${VADE_COO_GITCONFIG:-${HOME}/.vade/gitconfig-coo}"
 
 # shellcheck source=lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 log "Local environment setup starting (workspace=$WORKSPACE_ROOT)"
 build_log_record START "local-setup: begin (mode=local)"

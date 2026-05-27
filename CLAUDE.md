@@ -17,7 +17,7 @@ projection, PAT routing, session lifecycle, transcript export.
 Boot orchestration: every primitive a Claude Code session needs at
 boot, in order. SessionStart hooks (`.claude/settings.json`), MCP
 server projection (`.mcp.json`), integrity invariants
-(`scripts/integrity-check.sh`), PAT routing
+(`scripts/boot/integrity-check.sh`), PAT routing
 (`scripts/gh-coo-wrap.sh`), session-lifecycle scripts (transcript
 export, end-session helpers), the boot-time skill aggregator.
 
@@ -56,10 +56,10 @@ bug the kernel's reproducibility discipline exists to prevent.
 
 ## Current state
 
-Production boot kernel. `scripts/cloud-setup.sh` pre-bakes `op`,
+Production boot kernel. `scripts/boot/cloud-setup.sh` pre-bakes `op`,
 `gh`, `uv`, `mem0-mcp-server`, and the 1Password MCP into a snapshot;
 subsequent sessions resume warm with these tools in place. Identity
-bootstrap (`scripts/coo-bootstrap.sh`) wires the `vade-coo` GitHub
+bootstrap (`scripts/boot/coo-bootstrap.sh`) wires the `vade-coo` GitHub
 identity when `OP_SERVICE_ACCOUNT_TOKEN` is set in the cloud-env
 config.
 
@@ -68,8 +68,8 @@ config.
 PRs that touch `scripts/`, `.claude/`, `.mcp.json`, or
 `versions.lock` trigger
 `.github/workflows/bootstrap-regression.yml`, which stages a
-cloud-style workspace under `/home/user`, runs `scripts/cloud-setup.sh`
-+ `scripts/session-start-sync.sh` end-to-end in **fake-env mode**
+cloud-style workspace under `/home/user`, runs `scripts/boot/cloud-setup.sh`
++ `scripts/boot/session-start-sync.sh` end-to-end in **fake-env mode**
 (PATH-shadowed `op` and `curl`-to-`api.github.com/user` mocks under
 `scripts/ci/mocks/`), then asserts the integrity-check report has no
 degraded invariants modulo the `VADE_CI_ALLOWLIST` env. Catches
