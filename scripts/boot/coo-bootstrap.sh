@@ -54,10 +54,9 @@ COO_BOOTSTRAP_STEP="ensure_coo_identity_minimal"
 GC="${VADE_COO_GITCONFIG:-${HOME}/.gitconfig}"
 mkdir -p "$(dirname "$GC")"
 # Belt-and-suspenders guard: refuse to overwrite a gitconfig owned by
-# someone other than COO. Catches the case where VADE_COO_MODE=1 leaks
-# into a context (manual debugging, future regression in the wrapper)
-# where VADE_COO_GITCONFIG is unset and GC defaults to a personal
-# $HOME/.gitconfig. Anthropic cloud snapshots ship a baseline
+# someone other than COO. Catches the edge case where VADE_COO_GITCONFIG
+# is unset and GC defaults to a personal $HOME/.gitconfig (manual
+# debugging, future regression). Anthropic cloud snapshots ship a baseline
 # user.email=noreply@anthropic.com from the harness base image — that
 # is overwrite-safe (harness-default, not a real user identity) and
 # was the regression that broke 2026-05-13 cloud sessions when the

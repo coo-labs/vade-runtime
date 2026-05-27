@@ -10,11 +10,9 @@
 # coo-harness and coo-memory are cloned into /home/user/ before this runs.
 set -euo pipefail
 
-# VADE_COO_MODE=1 for common.sh helpers that haven't migrated to the
-# CLAUDE_CODE_REMOTE check yet. CLAUDE_CODE_REMOTE itself is set by
-# Anthropic at both snapshot-build time and Claude Code launch time
-# (coo-harness#274) — no export needed here.
-export VADE_COO_MODE=1
+# Cloud-detection gates downstream key on CLAUDE_CODE_REMOTE=true, which
+# Anthropic sets at both snapshot-build time and Claude Code launch time
+# (coo-harness#274). No export needed here.
 
 # Derive workspace root from script location so the bootstrap-regression
 # CI can stage a sandboxed tree without colliding with production paths.

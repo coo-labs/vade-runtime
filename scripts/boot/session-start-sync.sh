@@ -34,20 +34,13 @@ fi
 
 boot_log_record session-start-sync start
 sync_claude_config "$SCRIPT_DIR/../../.claude" "$WORKSPACE_ROOT_DERIVED/.claude"
-# Heal $HOME/.claude/settings.json hooks block on cloud only — never on
-# Mac. Cloud build-time (cloud-setup.sh:41) bakes the hooks here once at
-# snapshot creation; without this resume-time re-sync, hooks-block commits
-# landing between bake and resume leave the user-scope settings frozen at
-# bake-time SHA. integrity-check B4 trips, and any future config that
-# Claude Code merges user-scope-precedent goes stale. The VADE_COO_MODE
-# gate matches the pattern in _write_claude_settings_* (common.sh:1717,
-# 1845, 1915, 1952, 1987) per coo-harness#262: Mac sessions don't set the
-# flag, so the personal ~/.claude/settings.json stays untouched. The
-# path-inequality clause is defense-in-depth — on cloud $HOME=/root and
-# $WORKSPACE_ROOT_DERIVED=/home/user diverge; if they ever converge (or
-# VADE_COO_MODE leaks onto a local Mac) we still no-op. First tripped
-# by coo-memory#781 / coo-harness#334; audit-input for coo-memory#762.
-if [ "${VADE_COO_MODE:-0}" = "1" ] && [ "$HOME" != "$WORKSPACE_ROOT_DERIVED" ]; then
+# Heal $HOME/.claude/settings.json hooks block on cloud. Without this
+# resume-time re-sync, hooks-block commits landing between bake and
+# resume leave the user-scope settings frozen at bake-time SHA;
+# integrity-check B4 trips. CLAUDE_CODE_REMOTE gates "we're in the
+# Anthropic cloud"; the $HOME-inequality clause is defense-in-depth
+# (on cloud $HOME=/root and $WORKSPACE_ROOT_DERIVED=/home/user diverge).
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ "$HOME" != "$WORKSPACE_ROOT_DERIVED" ]; then
   sync_claude_config "$SCRIPT_DIR/../../.claude" "$HOME/.claude"
 fi
 # Aggregate per-repo primitives from data-owning repos. Per the
