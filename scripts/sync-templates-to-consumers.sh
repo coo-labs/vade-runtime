@@ -5,7 +5,7 @@
 #
 # Canonical: coo-memory#938 (F8). Replaces BetaHuhn/repo-file-sync-action
 # after the action's Node 20 deprecation (coo-harness#321). Mechanism rationale:
-# coo-memory/coo/operations/template-centralization.md.
+# coo-memory/operations/template-centralization.md.
 #
 # Consumer list source: coo-labs/.github/repos.yaml (the F17 canonical
 # registry). Same selector as the F17b drift-check this script obsoletes:
@@ -46,7 +46,7 @@ Auto-synced from `coo-labs/coo-harness` canonical issue templates (F8).
 **Edit the canonical**, not this PR: [`coo-harness/.github/ISSUE_TEMPLATE/`](https://github.com/coo-labs/coo-harness/tree/main/.github/ISSUE_TEMPLATE). Changes there auto-propagate here on next push to `main`.
 
 - Canonical issue: [coo-memory#938](https://github.com/coo-labs/coo-memory/issues/938)
-- Operations doc: [`coo/operations/template-centralization.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/template-centralization.md)
+- Operations doc: [`operations/template-centralization.md`](https://github.com/coo-labs/coo-memory/blob/main/operations/template-centralization.md)
 - Sync mechanism: [`coo-harness/scripts/sync-templates-to-consumers.sh`](https://github.com/coo-labs/coo-harness/blob/main/scripts/sync-templates-to-consumers.sh)
 
 Orphan deletion is in effect — files deleted from the canonical are deleted here too.
