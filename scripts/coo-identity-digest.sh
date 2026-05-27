@@ -32,7 +32,7 @@ else
   MEM_REPO="/home/user/coo-memory"
 fi
 CLAUDE_MD="$MEM_REPO/CLAUDE.md"
-MEMO_INDEX="$MEM_REPO/coo/memo_index.json"
+MEMO_INDEX="$MEM_REPO/memos/memo_index.json"
 BOOTSTRAP_LOG="${HOME}/.vade/coo-bootstrap.log"
 SETTINGS_FILE="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/settings.json"
 WORKSPACE_IDENTITY_LINK="$WORKSPACE_ROOT/CLAUDE.md"
@@ -87,7 +87,7 @@ fi
 if [ "$_integrity_ok" = "false" ] || [ -f "$SKIP_SENTINEL" ]; then
   # DEGRADED BOOT — print loudly at the very top. The 4-line recovery
   # sequence below is the proven fix from the 2026-05-13 audit
-  # (coo-memory/coo/audits/2026-05-13_boot-skip-failure/recovery-transcript.txt).
+  # (coo-memory/audits/2026-05-13_boot-skip-failure/recovery-transcript.txt).
   echo "═══════════════════════════════════════════════════════════════"
   echo "⚠️  BOOT DEGRADED — DO NOT START SUBSTANTIVE WORK"
   echo "═══════════════════════════════════════════════════════════════"
@@ -183,26 +183,26 @@ fi
 # task-shaped, default LLM task-focus wins over procedure-first and the
 # reading pass is silently skipped; without this block the session runs
 # on operational metadata only. Per coo-harness#226.
-IDENTITY_LAYER="$MEM_REPO/coo/identity_layer.md"
+IDENTITY_LAYER="$MEM_REPO/identity/identity_layer.md"
 if [ -f "$IDENTITY_LAYER" ]; then
   echo ""
   echo "───────────────────────────────────────────────────────────────"
-  echo "Identity layer (CB-* / OG-*) — inlined from coo/identity_layer.md"
+  echo "Identity layer (CB-* / OG-*) — inlined from identity/identity_layer.md"
   echo "───────────────────────────────────────────────────────────────"
   cat "$IDENTITY_LAYER"
   echo "───────────────────────────────────────────────────────────────"
 fi
 
-# Lineage events — one-line stamps from each coo/lineage/<event>/README.md.
+# Lineage events — one-line stamps from each lineage/<event>/README.md.
 # Full READMEs stay Read-on-demand per CLAUDE.md §6b; this surface gives
 # the agent a stable pointer to active events without requiring the read,
 # and is filesystem-driven so new events surface without a CLAUDE.md edit.
 # Dirs starting with `_` are meta-folders, not events; skipped.
-LINEAGE_DIR="$MEM_REPO/coo/lineage"
+LINEAGE_DIR="$MEM_REPO/lineage"
 if [ -d "$LINEAGE_DIR" ]; then
   echo ""
   echo "───────────────────────────────────────────────────────────────"
-  echo "Active lineage events (full READMEs in coo/lineage/<event>/)"
+  echo "Active lineage events (full READMEs in lineage/<event>/)"
   echo "───────────────────────────────────────────────────────────────"
   for event_dir in "$LINEAGE_DIR"/*/; do
     [ -d "$event_dir" ] || continue
@@ -222,7 +222,7 @@ fi
 if [ -f "$MEMO_INDEX" ] && check_cmd jq; then
   echo ""
   echo "───────────────────────────────────────────────────────────────"
-  echo "Latest memos (10 most recent; full text in coo/memos/<id>.md)"
+  echo "Latest memos (10 most recent; full text in memos/<id>.md)"
   echo "───────────────────────────────────────────────────────────────"
   # Read straight from the structured index that the memo-index hook
   # regenerated earlier in the SessionStart chain. Flat array, sorted
@@ -230,7 +230,7 @@ if [ -f "$MEMO_INDEX" ] && check_cmd jq; then
   # memo lands closest to the user prompt.
   #
   # Prints only id + status + title. Full schema is documented in
-  # coo/operations/memo-access.md. The index uses ~19K tokens at ~95
+  # operations/memo-access.md. The index uses ~19K tokens at ~95
   # memos post-coo-memory#351 — agents needing other slices
   # should jq the file rather than Read it.
   if digest_out=$(jq -r '
@@ -244,7 +244,7 @@ if [ -f "$MEMO_INDEX" ] && check_cmd jq; then
     echo "  (memo_index.json present but unparseable; skipping digest)"
   fi
   echo ""
-  echo "Deeper slices: jq '...' coo/memo_index.json (flat array — schema in coo/operations/memo-access.md)"
+  echo "Deeper slices: jq '...' memos/memo_index.json (flat array — schema in operations/memo-access.md)"
 fi
 
 echo "───────────────────────────────────────────────────────────────"
@@ -552,7 +552,7 @@ case "$e5_status" in
     echo ""
     echo "  ⚠ Mem0 MCP is degraded. CLAUDE.md §4 + §12 boot rituals (CB-* / OG-* identity"
     echo "    load, recent-episodic handoff) cannot run via MCP this session. Fall back to"
-    echo "    durable file layer (coo/episodic_memory.md + memo_index.json) per CLAUDE.md §6"
+    echo "    durable file layer (identity/episodic_memory.md + memos/memo_index.json) per CLAUDE.md §6"
     echo "    graceful-degradation clause; for writes route through .claude/_lib/mem0-rest.sh."
     echo "    Detail: $e5_detail"
     ;;
