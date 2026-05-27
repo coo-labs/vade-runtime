@@ -33,6 +33,13 @@ if [ ! -d "$VADE_CLOUD_STATE_DIR" ] && [ -d "$HOME/.vade/local-state" ]; then
 fi
 
 OUT_FILE="${VADE_CLOUD_STATE_DIR}/integrity-check.json"
+
+# Unlink any prior-session output: the writers below swallow write failures,
+# so without this a failed write leaves stale data masquerading as current.
+# Loud absence is the right polarity for the CLAUDE.md step-1 gate.
+mkdir -p "$(dirname "$OUT_FILE")" 2>/dev/null || true
+rm -f "$OUT_FILE"
+
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Workspace root: parent of vade-runtime. /home/user on cloud,
 # $WORKSPACE_ROOT (e.g. ~/GitHub/vade-app) on local. The cloud-style
