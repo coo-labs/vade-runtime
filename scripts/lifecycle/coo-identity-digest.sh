@@ -77,7 +77,7 @@ SKIP_SENTINEL="${HOME}/.vade/.coo-bootstrap-skip-reason"
 # Run integrity-check FIRST so the file we read below reflects this
 # session. Original position (after Mem0 banner) eliminated to avoid
 # duplication.
-bash "$SCRIPT_DIR/integrity-check.sh" 2>/dev/null || true
+bash "$VADE_RUNTIME_DIR/scripts/boot/integrity-check.sh" || true
 
 _integrity_ok="unknown"
 _integrity_passed="?"
@@ -359,7 +359,7 @@ else
   echo ""
   echo "  WARN: identity is degraded — required env vars are missing."
   echo "  Inspect $BOOTSTRAP_LOG for the failing step, then re-run:"
-  echo "    VADE_FORCE_COO_BOOTSTRAP=1 bash \"${SCRIPT_DIR}/coo-bootstrap.sh\""
+  echo "    VADE_FORCE_COO_BOOTSTRAP=1 bash \"\$VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh\""
 fi
 
 # Classify OP_SERVICE_ACCOUNT_TOKEN visibility across build/session. The
