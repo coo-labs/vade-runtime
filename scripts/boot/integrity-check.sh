@@ -241,19 +241,36 @@ else
   _add D3 false "coo-bootstrap.log missing"
 fi
 
+# D4 checks two things post-PR9 (coo-memory#1066):
+#   (a) MCP tokens in settings.json env block — Claude Code substitutes
+#       these into .mcp.json's ${GITHUB_MCP_PAT} etc. references at
+#       MCP-startup time, so they MUST live in settings.json.
+#   (b) VADE_*_DIR vars in process env — these reach Claude Code via the
+#       container UI .env block (coo-harness#274), not via settings.json
+#       env block. The per-session merge that wrote them into settings.json
+#       was retired with PR9 (no race window).
 if check_cmd node && [ -f "$HOME/.claude/settings.json" ]; then
-  D4_missing="$(node -e '
+  D4_missing_tokens="$(node -e '
     const fs = require("fs");
     let c = {};
     try { c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")) || {}; } catch { process.exit(0); }
     const env = c.env || {};
-    const req = ["GITHUB_MCP_PAT","GITHUB_TOKEN","AGENTMAIL_API_KEY","MEM0_API_KEY","VADE_CLOUD_STATE_DIR","VADE_RUNTIME_DIR"];
+    const req = ["GITHUB_MCP_PAT","GITHUB_TOKEN","AGENTMAIL_API_KEY","MEM0_API_KEY"];
     process.stdout.write(req.filter(k => !env[k]).join(","));
   ' "$HOME/.claude/settings.json" 2>/dev/null)"
-  if [ -z "$D4_missing" ]; then
-    _add D4 true "settings.json env has GITHUB_MCP_PAT, GITHUB_TOKEN, AGENTMAIL_API_KEY, MEM0_API_KEY, VADE_CLOUD_STATE_DIR, VADE_RUNTIME_DIR"
+  D4_missing_dirs=""
+  for v in VADE_CLOUD_STATE_DIR VADE_RUNTIME_DIR VADE_COO_MEMORY_DIR; do
+    eval "val=\${$v:-}"
+    [ -z "$val" ] && D4_missing_dirs="${D4_missing_dirs}${v},"
+  done
+  D4_missing_dirs="${D4_missing_dirs%,}"
+  if [ -z "$D4_missing_tokens" ] && [ -z "$D4_missing_dirs" ]; then
+    _add D4 true "MCP tokens in settings.json env + VADE_*_DIR in process env (UI .env-block source post-PR9)"
   else
-    _add D4 false "settings.json env missing: $D4_missing"
+    detail=""
+    [ -n "$D4_missing_tokens" ] && detail="settings.json env missing: $D4_missing_tokens"
+    [ -n "$D4_missing_dirs" ] && detail="${detail:+$detail; }process env missing: $D4_missing_dirs"
+    _add D4 false "$detail"
   fi
 else
   _add D4 skip "node or settings.json unavailable"

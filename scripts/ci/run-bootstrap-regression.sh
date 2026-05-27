@@ -103,6 +103,19 @@ Placeholder file so ensure_workspace_identity_link has a target and
 integrity-check C1 passes. The real CLAUDE.md lives at
 https://github.com/coo-labs/coo-memory/blob/main/CLAUDE.md.
 EOF
+# Stub the memo-index hook script so integrity-check B1 (hook self-test
+# against settings.json command paths) passes in CI. Settings.json
+# references $VADE_COO_MEMORY_DIR/.claude/_lib/memo-index.sh directly
+# post-PR9 (coo-memory#1066); the real script lives in coo-memory, which
+# is stubbed here, so we plant an executable no-op stub.
+mkdir -p "$COO_MEM_DST/.claude/_lib"
+cat > "$COO_MEM_DST/.claude/_lib/memo-index.sh" <<'EOF'
+#!/usr/bin/env bash
+# CI stub for the real memo-index.sh that lives in coo-memory.
+# integrity-check B1 only verifies executability, not behavior.
+exit 0
+EOF
+chmod +x "$COO_MEM_DST/.claude/_lib/memo-index.sh"
 mkdir -p "$CORE_DST/.claude"
 
 # ── 2. Fixture SSH keys + fingerprints ───────────────────────────
