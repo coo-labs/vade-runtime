@@ -89,7 +89,7 @@ from pathlib import Path
 
 PARSER_VERSION = 1
 SCRIPT_DIR = Path(__file__).resolve().parent
-RUNTIME_ROOT = SCRIPT_DIR.parent
+RUNTIME_ROOT = SCRIPT_DIR.parent.parent
 REDACT_PY = RUNTIME_ROOT / "scripts" / "lib" / "transcript-redact.py"
 RECIPIENT_FILE = RUNTIME_ROOT / "scripts" / "lib" / "transcripts-recipient.age"
 REDACTION_CONFIG = RUNTIME_ROOT / "scripts" / "lib" / "transcript-redaction.json"
