@@ -23,7 +23,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
 DRY_RUN=0

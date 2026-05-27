@@ -21,7 +21,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
 # Belt-and-suspenders: common.sh seeds VADE_CLOUD_STATE_DIR with a cloud-host default;
@@ -75,8 +75,8 @@ A3_ok=true
 if [ -f "$A1_receipt" ] && check_cmd node; then
   claim_mcp="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.workspace_mcp_symlinked))' "$A1_receipt" 2>/dev/null || echo unknown)"
   claim_id="$(node -e 'const r=JSON.parse(require("fs").readFileSync(process.argv[1])); process.stdout.write(String(!!r.identity_link_ok))' "$A1_receipt" 2>/dev/null || echo unknown)"
-  expected_mcp_target="$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null || true)"
-  expected_id_target="$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null || true)"
+  expected_mcp_target="$(readlink -f "$VADE_RUNTIME_DIR/.mcp.json" 2>/dev/null || true)"
+  expected_id_target="$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null || true)"
   observed_mcp=false; observed_id=false
   if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ -n "$expected_mcp_target" ] \
      && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json" 2>/dev/null)" = "$expected_mcp_target" ]; then
@@ -96,11 +96,8 @@ fi
 _add A3 "$A3_ok" "$A3_detail"
 
 # ── Group B: SessionStart hooks executable ────────────────────
-# B1: hook self-test — every settings.json hook command path resolves to an
-# executable file. Settings.json references hooks directly via
-# $VADE_RUNTIME_DIR / $VADE_COO_MEMORY_DIR (UI .env-block injected,
-# coo-harness#274); the resolver iteration the prior B1 did is no longer
-# needed. Canonical recipe: audits/2026-05-25_file-sprawl-audit/migration-protocol.md §5.2.
+# B1: hook self-test — every settings.json hook command path resolves
+# to an executable file. Recipe: audits/2026-05-25_file-sprawl-audit/migration-protocol.md §5.2.
 B1_settings="$HOME/.claude/settings.json"
 B1_ok=skip
 B1_detail="settings.json unreadable or jq missing"
@@ -130,14 +127,13 @@ if [ -r "$B1_settings" ] && check_cmd jq; then
 fi
 _add B1 "$B1_ok" "$B1_detail"
 
-# B2: legacy .claude/vade-hooks/ indirection absent. The dispatch-shim
-# pattern was retired in PR9 (coo-memory#1066): settings.json hook
-# commands now reference $VADE_RUNTIME_DIR/scripts/<subfolder>/<script>
-# directly. A snapshot that still carries the old shim is degraded.
+# B2: legacy .claude/vade-hooks/ indirection absent. settings.json
+# references scripts directly; a snapshot that still carries the old
+# shim is degraded.
 if [ ! -d "$HOME/.claude/vade-hooks" ]; then
-  _add B2 true "no legacy vade-hooks/ indirection (PR9 cleanup verified)"
+  _add B2 true "no legacy vade-hooks/ indirection"
 else
-  _add B2 false "legacy vade-hooks/ present at $HOME/.claude/vade-hooks (retired in PR9)"
+  _add B2 false "legacy vade-hooks/ present at $HOME/.claude/vade-hooks"
 fi
 
 # B3: hook chain outcomes for the current session in boot.log.
@@ -241,14 +237,10 @@ else
   _add D3 false "coo-bootstrap.log missing"
 fi
 
-# D4 checks two things post-PR9 (coo-memory#1066):
-#   (a) MCP tokens in settings.json env block — Claude Code substitutes
-#       these into .mcp.json's ${GITHUB_MCP_PAT} etc. references at
-#       MCP-startup time, so they MUST live in settings.json.
-#   (b) VADE_*_DIR vars in process env — these reach Claude Code via the
-#       container UI .env block (coo-harness#274), not via settings.json
-#       env block. The per-session merge that wrote them into settings.json
-#       was retired with PR9 (no race window).
+# D4: MCP tokens in settings.json env (Claude Code substitutes them into
+# .mcp.json's ${TOKEN} refs at MCP-startup time, so they must live here);
+# VADE_*_DIR vars in process env (reach Claude Code via the container UI
+# .env block per coo-harness#274).
 if check_cmd node && [ -f "$HOME/.claude/settings.json" ]; then
   D4_missing_tokens="$(node -e '
     const fs = require("fs");
@@ -899,15 +891,7 @@ F_CUTOFF_GIT="2026-04-26 00:30:00 +0000"  # timestamp form — used for F1/F4 gi
 # override, sibling under WORKSPACE_ROOT (works on both cloud and
 # local since WORKSPACE_ROOT was derived from SCRIPT_DIR above),
 # macOS legacy fallback, cloud legacy fallback.
-if [ -n "${COO_MEMORY_DIR:-}" ]; then
-  F_REPO="$COO_MEMORY_DIR"
-elif [ -d "$WORKSPACE_ROOT/coo-memory" ]; then
-  F_REPO="$WORKSPACE_ROOT/coo-memory"
-elif [ -d "$HOME/GitHub/coo-labs/coo-memory" ]; then
-  F_REPO="$HOME/GitHub/coo-labs/coo-memory"
-else
-  F_REPO="/home/user/coo-memory"
-fi
+F_REPO="${COO_MEMORY_DIR:-$VADE_COO_MEMORY_DIR}"
 
 # ── F1 — PR citation invariant ───────────────────────────────
 # Every commit since F_CUTOFF touching identity/, operations/,

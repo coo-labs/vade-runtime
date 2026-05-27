@@ -38,7 +38,7 @@ WORKSPACE_ROOT="${VADE_WORKSPACE_ROOT:-${DEV_DIR}/vade-app}"
 export VADE_CLOUD_STATE_DIR="${VADE_CLOUD_STATE_DIR:-${HOME}/.vade/local-state}"
 export VADE_COO_GITCONFIG="${VADE_COO_GITCONFIG:-${HOME}/.vade/gitconfig-coo}"
 
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
 log "Local environment setup starting (workspace=$WORKSPACE_ROOT)"

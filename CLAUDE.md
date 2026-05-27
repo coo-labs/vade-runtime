@@ -21,14 +21,6 @@ server projection (`.mcp.json`), integrity invariants
 (`scripts/gh-coo-wrap.sh`), session-lifecycle scripts (transcript
 export, end-session helpers), the boot-time skill aggregator.
 
-Divorced from canvas (per F11,
-[coo-harness#313](https://github.com/coo-labs/coo-harness/issues/313)
-+ MEMO-2026-05-24-q3tk): canvas-MCP wiring, canvas-only skills
-(`canvas-ui`, `tldraw-docs`, `algorithmic-art`), and the
-`vade-canvas` aggregator arg are out of scope. Docker / devcontainer
-bits dropped after F3a verification
-([coo-harness#312](https://github.com/coo-labs/coo-harness/issues/312)).
-
 ## What may be done autonomously
 
 - Update boot scripts under `scripts/`.

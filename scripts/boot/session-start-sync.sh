@@ -1,34 +1,25 @@
 #!/usr/bin/env bash
 # Defensive re-sync on every SessionStart.
 #
-# Snapshots go stale: the committed repo advances, but the
-# baked-in <workspace>/.claude/settings.json and workspace-scope symlinks
-# reflect whatever was in vade-runtime at build time. This script closes
-# that gap by re-running the idempotent pieces of cloud-setup.sh /
-# local-setup.sh that don't need 1Password access:
+# Snapshots go stale: the committed repo advances, but the baked-in
+# workspace .claude/settings.json and workspace symlinks reflect whatever
+# was in coo-harness at build time. This script closes the gap by
+# re-running the idempotent pieces of cloud-setup.sh that don't need
+# 1Password access:
 #
-#   1. sync_claude_config  — mirror coo-harness/.claude into the
-#      workspace .claude (preserves the env block populated by
-#      coo-bootstrap so MCPs still pick up credentials).
-#   2. ensure_workspace_mcp_config — workspace .mcp.json symlink.
-#   3. ensure_workspace_identity_link — workspace CLAUDE.md symlink so
-#      the harness memory loader auto-reads vade-coo-memory's identity.
+#   1. sync_claude_config — mirror coo-harness/.claude into workspace .claude
+#   2. ensure_workspace_mcp_config — workspace .mcp.json symlink
+#   3. ensure_workspace_identity_link — workspace CLAUDE.md symlink
 #
-# Target is $WORKSPACE_ROOT/.claude (the parent of vade-runtime). On
-# cloud that resolves to $HOME (/home/user); on local it resolves to
-# $DEV_DIR/vade-app, leaving the user's personal $HOME/.claude alone.
-#
-# Runs first in the SessionStart:startup hook chain (before
-# coo-bootstrap) so all later hooks see the freshest hook list and
-# symlinks. The sync itself still runs after MCP resolution, so new
-# MCPs from a repo update only become visible from session N+1. That's
-# the fundamental Phase-B constraint, not something we can close here.
-#
-# Safe to re-run any number of times; exits 0 on every path.
+# Path conventions: $VADE_RUNTIME_DIR (coo-harness checkout) and
+# $VADE_COO_MEMORY_DIR (coo-memory checkout) are injected by Anthropic's
+# container UI .env block on every Claude Code launch (coo-harness#274).
+# Runs first in the SessionStart:startup chain so later hooks see the
+# freshest config. Safe to re-run; exits 0 on every path.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
 WORKSPACE_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -88,12 +79,6 @@ ensure_gh_symlink_on_path
 # auto-carries the Claude Code session URL. MEMO 2026-04-26-02
 # (issue #150). Idempotent via marker grep.
 ensure_gh_coo_wrap "$SCRIPT_DIR/../gh-coo-wrap.sh"
-# VADE_CLOUD_STATE_DIR / VADE_RUNTIME_DIR / VADE_COO_MEMORY_DIR reach
-# Claude Code via the container UI .env block, which Anthropic injects
-# into Claude Code's process at every launch (including session resume).
-# See coo-harness#274 for the two-mechanism model; the prior per-session
-# merge into ~/.claude/settings.json (merge_coo_settings_*_dir) was the
-# pre-coo-harness#274 workaround and is retired with PR9.
 # Refresh the external-touch (F6) cache when it's older than 24h.
 # Build-time prewarm in cloud-setup.sh handles the fresh-snapshot case;
 # this catches snapshots resumed after the cache has gone stale and

@@ -4,16 +4,14 @@
 # Called by cloud-setup.sh when OP_SERVICE_ACCOUNT_TOKEN is present.
 # Pulls COO credentials from 1Password (vault "COO") via the op CLI,
 # writes SSH keys + gitconfig + env file, validates GitHub identity.
-#
-# Contract: coo-memory/coo/cloud-env-bootstrap.md.
-# Architecture rationale: MEMO 2026-04-22-03 (supersedes -22-01 §2).
+# Architecture rationale: MEMO-2026-04-22-03.
 #
 # Fail modes are loud (exit non-zero) so the caller can decide whether
 # to continue the VADE setup without COO identity.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/common.sh
+# shellcheck source=../lib/common.sh
 source "$SCRIPT_DIR/../lib/common.sh"
 
 boot_log_record coo-bootstrap start
@@ -35,37 +33,23 @@ _on_exit() {
 }
 trap _on_exit EXIT
 
-# Defense-in-depth: coo-bootstrap is a no-op outside an explicit COO
-# session. cloud-setup.sh exports VADE_COO_MODE=1 once for the lifetime
-# of the cloud snapshot; the local `claude-coo` zsh wrapper exports it
-# on Ven's Mac only when explicitly invoked. Outside those contexts —
-# bare `claude` from any cwd, including from inside the coo-labs
-# workspace where project-scope hooks would otherwise fire this chain —
-# the entire bootstrap pipeline (gitconfig write, secret fetch,
-# settings.json merge) early-exits without touching the user's state.
-if [ "${VADE_COO_MODE:-0}" != "1" ]; then
-  log "coo-bootstrap: VADE_COO_MODE!=1; skipping COO bootstrap entirely."
-  COO_BOOTSTRAP_STEP="skip-no-coo-mode"
-  bootstrap_log_record SKIP "VADE_COO_MODE!=1"
-  # Cloud-aware loud-skip: write a sentinel the identity-digest hook
-  # surfaces at the TOP of its banner. Mac silent-skips remain silent
-  # (helper no-ops outside cloud context). 2026-05-13 root cause:
-  # this exact gate fired silently when the gitconfig-overwrite guard
-  # blocked the persistence write, leaving every subsequent boot to
-  # hit this skip with no surface. Phase A of coo-memory#762.
+# Cloud-detection gate: coo-bootstrap is a no-op outside a cloud session.
+# Anthropic sets CLAUDE_CODE_REMOTE=true in cloud Claude Code (coo-harness#274).
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  log "coo-bootstrap: CLAUDE_CODE_REMOTE!=true; skipping COO bootstrap."
+  COO_BOOTSTRAP_STEP="skip-not-remote"
+  bootstrap_log_record SKIP "CLAUDE_CODE_REMOTE!=true"
   _write_skip_reason \
-    "VADE_COO_MODE!=1 — coo-bootstrap exited before identity load" \
-    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 VADE_COO_MODE=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash /home/user/coo-harness/scripts/boot/integrity-check.sh"
+    "CLAUDE_CODE_REMOTE!=true — coo-bootstrap exited before identity load" \
+    "Fix: VADE_FORCE_COO_BOOTSTRAP=1 CLAUDE_CODE_REMOTE=true bash $VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh; set -a; source ~/.vade/coo-env; set +a; bash $VADE_RUNTIME_DIR/scripts/boot/integrity-check.sh"
   trap - EXIT
   exit 0
 fi
 
-# Ensure baseline COO identity in gitconfig BEFORE any early-exit gate.
-# Signing keys and full-fidelity gitconfig still gated behind
-# write_coo_gitconfig (which needs OP_SERVICE_ACCOUNT_TOKEN). This minimal
-# write only sets attribution name/email so commits survive no-op-token
-# boots without falling back to the container default ("Test <test@test.com>").
-# Closes coo-memory#287.
+# Baseline COO identity in gitconfig BEFORE any early-exit gate. Signing keys
+# stay gated behind write_coo_gitconfig (needs OP_SERVICE_ACCOUNT_TOKEN); this
+# minimal write only sets attribution name/email so commits survive no-op-token
+# boots without the container default ("Test <test@test.com>").
 COO_BOOTSTRAP_STEP="ensure_coo_identity_minimal"
 GC="${VADE_COO_GITCONFIG:-${HOME}/.gitconfig}"
 mkdir -p "$(dirname "$GC")"
