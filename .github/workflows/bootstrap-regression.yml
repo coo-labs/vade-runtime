@@ -123,3 +123,6 @@ jobs:
 
       - name: Idle watchdog — close sequence smoke (coo-logs#67)
         run: bash "$GITHUB_WORKSPACE/scripts/ci/test-session-idle-watchdog.sh"
+
+      - name: Identity digest — gap-warning contract (coo-memory#1069)
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/test-digest-gap-warnings.sh"

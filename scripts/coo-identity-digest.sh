@@ -19,6 +19,30 @@ source "$SCRIPT_DIR/lib/common.sh"
 boot_log_record coo-identity-digest start
 trap '_rc=$?; boot_log_record coo-identity-digest end $([ $_rc -eq 0 ] && echo ok || echo fail) rc=$_rc' EXIT
 
+# _digest_gap: emit a loud warning when an expected digest input is
+# missing. Section-block guards default to silent no-ops when their
+# `[ -f ... ]` probes fall through — exactly the shape that let
+# coo-labs/coo-memory#1069 ship three boot-digest regressions unnoticed
+# (the script ran to exit 0; the hook self-test passed; the blocks were
+# just empty). This helper closes that gap: every guarded section emits
+# either content or a clearly-marked gap warning naming the missing
+# path. Format mirrors the BOOT DEGRADED block below but at warning
+# severity — the digest is informative, not gate-bearing.
+#
+# Args:
+#   $1  section name (e.g. "Identity layer")
+#   $2  expected path or path + dep
+#   $3  brief cause / hint
+_digest_gap() {
+  echo ""
+  echo "───────────────────────────────────────────────────────────────"
+  echo "⚠ DIGEST GAP — $1 unavailable"
+  echo "───────────────────────────────────────────────────────────────"
+  echo "  Expected: $2"
+  echo "  Cause:    $3"
+  echo "───────────────────────────────────────────────────────────────"
+}
+
 # Resolve workspace root: parent of vade-runtime. /home/user on cloud,
 # $WORKSPACE_ROOT on local.
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -191,6 +215,9 @@ if [ -f "$IDENTITY_LAYER" ]; then
   echo "───────────────────────────────────────────────────────────────"
   cat "$IDENTITY_LAYER"
   echo "───────────────────────────────────────────────────────────────"
+else
+  _digest_gap "Identity layer (CB-* / OG-*)" "$IDENTITY_LAYER" \
+    "file not found — CB-*/OG-* beliefs not inlined this boot"
 fi
 
 # Lineage events — one-line stamps from each lineage/<event>/README.md.
@@ -217,9 +244,23 @@ if [ -d "$LINEAGE_DIR" ]; then
     [ -n "$stamp" ] && printf "  %-18s %s\n" "" "$stamp"
   done
   echo "───────────────────────────────────────────────────────────────"
+else
+  _digest_gap "Active lineage events" "$LINEAGE_DIR" \
+    "directory not found — lineage events not surfaced this boot"
 fi
 
-if [ -f "$MEMO_INDEX" ] && check_cmd jq; then
+# Memo digest: split the previous single-`if` guard into three cases so
+# each failure mode surfaces a precise gap warning instead of silently
+# no-op'ing. Pre-#1069 the combined guard `[ -f "$MEMO_INDEX" ] &&
+# check_cmd jq` had no else branch — when the path constant pointed at
+# a deleted location, the entire memo block silently produced nothing.
+if [ ! -f "$MEMO_INDEX" ]; then
+  _digest_gap "Latest memos" "$MEMO_INDEX" \
+    "memo_index.json not found — regen via .claude/_lib/memo-index.sh"
+elif ! check_cmd jq; then
+  _digest_gap "Latest memos" "$MEMO_INDEX (+ jq)" \
+    "jq not on PATH — install jq to enable memo-digest rendering"
+else
   echo ""
   echo "───────────────────────────────────────────────────────────────"
   echo "Latest memos (10 most recent; full text in memos/<id>.md)"
