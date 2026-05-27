@@ -401,7 +401,7 @@ install_deps() {
 # subsequent runs). We preserve dest env via a node-based merge when
 # both files exist; otherwise we fall back to a plain copy.
 sync_claude_config() {
-  local src="${1:-/home/user/coo-harness/.claude}"
+  local src="${1:-$VADE_RUNTIME_DIR/.claude}"
   local dst="${2:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
   if [ ! -d "$src" ]; then
     log "sync_claude_config: source $src missing; skipping"
@@ -609,8 +609,8 @@ _sync_claude_settings() {
 # were unified.
 # Idempotent: if the symlink already points at the right target, no-op.
 ensure_workspace_mcp_config() {
-  local src="${1:-/home/user/coo-harness/.mcp.json}"
-  local dst="${2:-/home/user/.mcp.json}"
+  local src="${1:-$VADE_RUNTIME_DIR/.mcp.json}"
+  local dst="${2:-$(dirname "$VADE_RUNTIME_DIR")/.mcp.json}"
   if [ ! -f "$src" ]; then
     log "mcp-link: source $src missing; skipping"
     return 0
@@ -633,8 +633,8 @@ ensure_workspace_mcp_config() {
 # after MCP resolution and isn't visible to the harness memory system.
 # Idempotent, mirrors ensure_workspace_mcp_config's guards.
 ensure_workspace_identity_link() {
-  local src="${1:-/home/user/coo-memory/CLAUDE.md}"
-  local dst="${2:-/home/user/CLAUDE.md}"
+  local src="${1:-$VADE_COO_MEMORY_DIR/CLAUDE.md}"
+  local dst="${2:-$(dirname "$VADE_COO_MEMORY_DIR")/CLAUDE.md}"
   if [ ! -f "$src" ]; then
     log "identity-link: source $src missing; skipping"
     return 0

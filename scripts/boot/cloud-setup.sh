@@ -40,7 +40,7 @@ mapfile -t _AGGREGATOR_REPOS < <(load_aggregator_repos)
 aggregate_workspace_claude_config "$WORKSPACE_ROOT" "$HOME/.claude" \
   "${_AGGREGATOR_REPOS[@]}"
 ensure_workspace_mcp_config "$RUNTIME_DIR/.mcp.json" "$WORKSPACE_ROOT/.mcp.json"
-ensure_workspace_identity_link "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
+ensure_workspace_identity_link "$VADE_COO_MEMORY_DIR/CLAUDE.md" "$WORKSPACE_ROOT/CLAUDE.md"
 
 # Validate the synced settings.json actually parses as JSON and has a
 # populated SessionStart:startup hook chain. File-exists alone would
@@ -72,7 +72,7 @@ WORKSPACE_MCP_SYMLINKED=false
 
 IDENTITY_LINK_OK=false
 [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && \
-  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ] && \
+  [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null)" ] && \
   IDENTITY_LINK_OK=true
 
 # Workspace deps (npm install vade-core, install tsx) are opt-in:

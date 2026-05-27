@@ -46,7 +46,7 @@ for candidate in \
   "${CLAUDE_PROJECT_DIR:-}/.claude/settings.local.json" \
   "$HOME/.claude/settings.local.json" \
   "/root/.claude/settings.local.json" \
-  "/home/user/.claude/settings.local.json"; do
+  "$(dirname "$VADE_RUNTIME_DIR")/.claude/settings.local.json"; do
   if [ -n "$candidate" ] && [ -f "$candidate" ]; then
     LOCAL="$candidate"
     break

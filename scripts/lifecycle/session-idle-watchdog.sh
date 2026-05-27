@@ -451,9 +451,8 @@ _resolve_agent_logs_dir() {
     printf '%s\n' "$VADE_AGENT_LOGS_DIR"; return 0
   fi
   for cand in \
-    "$HOME/GitHub/coo-labs/coo-logs" \
-    "/home/user/coo-logs" \
-    "$RUNTIME_ROOT/../coo-logs"; do
+    "$(dirname "$VADE_COO_MEMORY_DIR")/coo-logs" \
+    "$HOME/GitHub/coo-labs/coo-logs"; do
     if [ -d "$cand" ]; then printf '%s\n' "$cand"; return 0; fi
   done
   return 1

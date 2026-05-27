@@ -146,9 +146,10 @@ def _resolve_agent_logs_dir() -> Path:
             return p
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
 
+    coo_memory_dir = os.environ.get("VADE_COO_MEMORY_DIR")
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "coo-logs",
-        Path("/home/user/coo-logs"),
+        Path(coo_memory_dir).parent / "coo-logs" if coo_memory_dir else Path("/dev/null"),
+        Path.home() / "GitHub" / "coo-labs" / "coo-logs",
         RUNTIME_ROOT.parent / "coo-logs",
     ]
     for c in candidates:

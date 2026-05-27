@@ -47,6 +47,14 @@ RUNTIME_DST="$WORKSPACE_ROOT/coo-harness"
 COO_MEM_DST="$WORKSPACE_ROOT/coo-memory"
 CORE_DST="$WORKSPACE_ROOT/vade-canvas"
 
+# Point the production env vars at the CI staging paths so common.sh's
+# fallback defaults (/home/user/coo-harness, /home/user/coo-memory) don't
+# override the staged locations when $VADE_CI_WORKSPACE_ROOT diverges
+# from /home/user. Mirrors the cloud UI .env-block contract.
+export VADE_RUNTIME_DIR="$RUNTIME_DST"
+export VADE_COO_MEMORY_DIR="$COO_MEM_DST"
+export VADE_CLOUD_STATE_DIR="$WORKSPACE_ROOT/.vade-cloud-state"
+
 TEST_HOME="${VADE_CI_TEST_HOME:-/tmp/vade-ci-home}"
 MOCK_DIR="${VADE_CI_MOCK_DIR:-/tmp/vade-ci-mocks}"
 SUMMARY_OUT="${VADE_CI_SUMMARY_OUT:-/tmp/bootstrap-regression-summary.md}"

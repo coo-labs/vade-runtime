@@ -51,7 +51,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
         "--logs-dir",
-        default="/home/user/coo-logs/transcripts",
+        default=str(Path(os.environ.get("VADE_COO_MEMORY_DIR", "/home/user/coo-memory")).parent / "coo-logs" / "transcripts"),
         help="Path to coo-logs/transcripts root.",
     )
     ap.add_argument(

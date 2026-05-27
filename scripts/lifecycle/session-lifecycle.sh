@@ -60,7 +60,7 @@ if [ "$MODE" = "start" ]; then
   fi
 
   agent_logs_dir=""
-  for _cand in "$HOME/GitHub/coo-labs/coo-logs" "/home/user/coo-logs"; do
+  for _cand in "$(dirname "$VADE_COO_MEMORY_DIR")/coo-logs" "$HOME/GitHub/coo-labs/coo-logs"; do
     if [ -d "$_cand" ]; then agent_logs_dir="$_cand"; break; fi
   done
   if [ -n "$agent_logs_dir" ] && [ -d "$agent_logs_dir/sessions" ]; then

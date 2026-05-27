@@ -12,7 +12,7 @@
 #
 # Invocation modes:
 #   1. Automatic at boot — session-start-sync.sh calls it at end.
-#   2. On-demand — `bash /home/user/coo-harness/scripts/boot/integrity-check.sh`
+#   2. On-demand — `bash $VADE_RUNTIME_DIR/scripts/boot/integrity-check.sh`
 #   3. CI — tests run it after faking a SessionStart chain; Groups
 #      A/B/C gate PR merges, D/E are secret-dependent and skip in CI.
 #
@@ -191,14 +191,15 @@ _add B5 info "CLAUDE_PROJECT_DIR=${CLAUDE_PROJECT_DIR:-<unset>} cwd=$(pwd) HOME=
 
 # ── Group C: Symlinks & MCP config ────────────────────────────
 # Workspace-root convenience symlinks (CLAUDE.md, .mcp.json) live at
-# $WORKSPACE_ROOT — /home/user on cloud, ~/GitHub/vade-app on local.
-if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$WORKSPACE_ROOT/coo-memory/CLAUDE.md" 2>/dev/null)" ]; then
+# $WORKSPACE_ROOT/CLAUDE.md is the workspace-scope symlink; the target
+# is the coo-memory checkout.
+if [ -L "$WORKSPACE_ROOT/CLAUDE.md" ] && [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md")" = "$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null)" ]; then
   _add C1 true "$WORKSPACE_ROOT/CLAUDE.md → coo-memory/CLAUDE.md"
 else
   _add C1 false "$WORKSPACE_ROOT/CLAUDE.md symlink missing or wrong target"
 fi
 
-if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$WORKSPACE_ROOT/coo-harness/.mcp.json" 2>/dev/null)" ]; then
+if [ -L "$WORKSPACE_ROOT/.mcp.json" ] && [ "$(readlink -f "$WORKSPACE_ROOT/.mcp.json")" = "$(readlink -f "$VADE_RUNTIME_DIR/.mcp.json" 2>/dev/null)" ]; then
   _add C2 true "$WORKSPACE_ROOT/.mcp.json → coo-harness/.mcp.json"
 else
   _add C2 false "$WORKSPACE_ROOT/.mcp.json symlink missing or wrong target"
@@ -651,7 +652,7 @@ E7_ok=skip
 E7_detail="prerequisites missing"
 E7_K="${VADE_E7_SAMPLE_K:-3}"
 E7_CUTOFF="${VADE_E7_POST_CUTOFF:-2026-05-03T09:01:47+00:00}"
-E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-/home/user/coo-logs/transcripts}"
+E7_LOGS_DIR="${VADE_E7_LOGS_DIR:-$(dirname "$VADE_COO_MEMORY_DIR")/coo-logs/transcripts}"
 if [ -n "${VADE_CI_WORKSPACE_ROOT:-}" ] || [ -n "${VADE_BINDIR_OVERRIDE:-}" ]; then
   E7_ok=skip
   E7_detail="skipped in CI fake-env (VADE_CI_WORKSPACE_ROOT or VADE_BINDIR_OVERRIDE set); live-only probe"

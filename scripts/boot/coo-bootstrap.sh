@@ -72,7 +72,7 @@ if [ -n "$existing_email" ] \
   # for a non-Anthropic baseline. Mac silent-skips remain silent.
   _write_skip_reason \
     "coo-bootstrap refused to overwrite $GC (existing user.email=$existing_email)" \
-    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh"
+    "Fix: inspect $GC, remove the non-COO user section (git config --file $GC --remove-section user), then VADE_FORCE_COO_BOOTSTRAP=1 bash \$VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi
@@ -89,7 +89,7 @@ if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
   # provision the env (Anthropic cloud "Setup script" env var).
   _write_skip_reason \
     "OP_SERVICE_ACCOUNT_TOKEN unset — coo-bootstrap cannot fetch secrets" \
-    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash /home/user/coo-harness/scripts/boot/coo-bootstrap.sh"
+    "Fix: provision OP_SERVICE_ACCOUNT_TOKEN in the Anthropic cloud 'Setup script' env, then resume the container. For ad-hoc recovery, export the token then VADE_FORCE_COO_BOOTSTRAP=1 bash \$VADE_RUNTIME_DIR/scripts/boot/coo-bootstrap.sh"
   trap - EXIT
   exit 0
 fi
