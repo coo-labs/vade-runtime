@@ -162,6 +162,11 @@ unset GIT_CONFIG_GLOBAL XDG_CONFIG_HOME
 
 # ── 5. Fake credentials + run cloud-setup ────────────────────────
 export OP_SERVICE_ACCOUNT_TOKEN="ops_FAKE_CI_TOKEN_DO_NOT_USE_FOR_REAL_CALLS"
+# Anthropic sets CLAUDE_CODE_REMOTE=true in real cloud sessions (both
+# at snapshot-build and Claude Code launch time per coo-harness#274).
+# GitHub Actions runners aren't a Claude Code env, so simulate the
+# signal — coo-bootstrap.sh's gate keys on it.
+export CLAUDE_CODE_REMOTE=true
 
 # Pin cloud-state under WORKSPACE_ROOT so the runner reads the same
 # integrity-check.json that cloud-setup wrote. Without this override the
