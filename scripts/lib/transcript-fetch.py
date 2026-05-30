@@ -12,7 +12,7 @@ sidecar's ciphertext_sha256, decrypts via TRANSCRIPTS_AGE_IDENTITY,
 gunzips, and prints the absolute path to the redacted jsonl on stdout.
 
 Designed for the Stage-1 transcript-analyzer sub-agent
-(`.claude/agents/transcript-analyzer.md` in vade-coo-memory) but
+(`.claude/agents/transcript-analyzer.md` in coo-memory) but
 works as a standalone debugging CLI too.
 
 Usage:
@@ -90,7 +90,7 @@ def _resolve_agent_logs_dir() -> Path:
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
 
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "coo-logs",
+        Path.home() / "GitHub" / "coo-labs" / "coo-logs",
         Path("/home/user/coo-logs"),
     ]
     for c in candidates:

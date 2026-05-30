@@ -49,7 +49,7 @@ set -e
 bash /home/user/coo-harness/scripts/boot/cloud-setup.sh
 ```
 
-> **Note:** the local clone path is currently `vade-runtime/` until
+> **Note:** the local clone path is currently `coo-harness/` until
 > the next container build picks up the rename to `coo-harness/`. See
 > the F11 PR's handoff prompt for the migration sequencing.
 

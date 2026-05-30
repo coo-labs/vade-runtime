@@ -257,7 +257,7 @@
       "Read(/tmp/**)",
       "Bash(jq '.permissions.allow |= map\\(select\\(\\(. | contains\\(\"vade-canvas\"\\) | not\\) and \\(. | contains\\(\"canvas-\"\\) | not\\)\\)\\)' .claude/settings.json)",
       "Bash(mv .claude/settings.json.tmp .claude/settings.json)",
-      "Bash(echo \"=== count Mac-local path refs in settings.json ===\" && grep -c \"GitHub/coo-labs/vade-\\\\|/vade-runtime/\\\\|/vade-coo-memory/\\\\|/vade-agent-logs/\\\\|/vade-core/\" .claude/settings.json && echo \"\" && echo \"=== apply bulk replacement ===\" && sed -i \\\\ *)",
+      "Bash(echo \"=== count Mac-local path refs in settings.json ===\" && grep -c \"GitHub/coo-labs/vade-\\\\|/coo-harness/\\\\|/coo-memory/\\\\|/coo-logs/\\\\|/vade-canvas/\" .claude/settings.json && echo \"\" && echo \"=== apply bulk replacement ===\" && sed -i \\\\ *)",
       "Bash(sed -i \\\\ *)"
     ],
     "additionalDirectories": [

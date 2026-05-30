@@ -3,7 +3,7 @@
 # COO-attributed `gh` writes, then run the real gh.
 #
 # Substrate enforcement of the rule in
-# vade-coo-memory MEMO 2026-04-26-02 (issue #150). Carved out so the
+# coo-memory MEMO 2026-04-26-02 (issue #150). Carved out so the
 # COO does not have to add the trail manually each turn — every
 # attributable write that flows through `gh` carries the link back
 # to the originating session.

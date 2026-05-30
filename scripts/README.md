@@ -19,7 +19,7 @@ count justifies the cost of breaking references in `CLAUDE.md`,
 
 **Session lifecycle (6)**
 - `session-start-sync.sh` — re-syncs `~/.claude/` config from
-  vade-runtime on every SessionStart.
+  coo-harness on every SessionStart.
 - `session-lifecycle.sh` — boot/end-of-session reminders
   (`--end` flag selects mode).
 - `coo-identity-digest.sh` — prints CLAUDE.md + recent memo headers

@@ -6,7 +6,7 @@
 
 set -u
 
-ROOT="${DEV_DIR}/vade-app"
+ROOT="${DEV_DIR}/coo-labs"
 
 REPOS=(coo4one coo-logs coo-memory vade-canvas coo-harness site tjsonl skills coo-console)
 

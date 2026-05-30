@@ -42,7 +42,7 @@ rm -f "$OUT_FILE"
 
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Workspace root: parent of vade-runtime. /home/user on cloud,
-# $WORKSPACE_ROOT (e.g. ~/GitHub/vade-app) on local. The cloud-style
+# $WORKSPACE_ROOT (e.g. ~/GitHub/coo-labs) on local. The cloud-style
 # convenience symlinks (CLAUDE.md and .mcp.json) live here on both
 # surfaces; deriving from SCRIPT_DIR keeps the invariants portable.
 WORKSPACE_ROOT="$(cd "$RUNTIME_DIR/.." && pwd)"
@@ -895,7 +895,7 @@ _add E9 "$E9_ok" "$E9_detail"
 F_CUTOFF="2026-04-24"                     # date form — used for F2 memo-index, F3 essay-filename comparisons
 F_CUTOFF_GIT="2026-04-26 00:30:00 +0000"  # timestamp form — used for F1/F4 git log --since
 
-# Resolve the vade-coo-memory repo path. Canonical order: env
+# Resolve the coo-memory repo path. Canonical order: env
 # override, sibling under WORKSPACE_ROOT (works on both cloud and
 # local since WORKSPACE_ROOT was derived from SCRIPT_DIR above),
 # macOS legacy fallback, cloud legacy fallback.
@@ -1030,7 +1030,7 @@ fi
 # the merge are handled by the fallback at audit time, not this list.
 # Tracked structurally at coo-memory#271.
 F4_ALLOWLIST_SHA=(
-  # 7cb8a86da4 — vade-coo-memory direct commit "update gitignore" by
+  # 7cb8a86da4 — coo-memory direct commit "update gitignore" by
   # Ven on 2026-05-01 outside the PR flow (no PR body, so the f4-marker
   # workflow at coo-memory/.github/workflows/f4-marker.yml had no
   # surface to inject ven-human-action: into). Direct-to-main quick-fix
@@ -1146,7 +1146,7 @@ fi
 # ── F6 — External-touch (dark-accumulation pole, Stage 2) ─────
 # Stage 2 of disposition-proposal §5 F5 sub-condition 1
 # (time-since-last-external-touch per artifact category). Runs
-# bin/external-touch.py in --check mode against a cached vade-core
+# bin/external-touch.py in --check mode against a cached vade-canvas
 # discussions index; fires when any mirrored artifact's most recent
 # external touch is past the category floor (foundations 60d,
 # retrospectives 90d, lineage 7d, memos tracked-not-floored).

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # COO identity digest for cloud Claude Code sessions.
 #
-# Prints the vade-coo-memory boot instructions (CLAUDE.md) and the
+# Prints the coo-memory boot instructions (CLAUDE.md) and the
 # latest memo header(s) so the identity reading order lands in the
 # session's context on startup, rather than requiring a manual read
 # pass. Called from the SessionStart: startup hook after
 # coo-bootstrap.sh.
 #
-# No-op if vade-coo-memory is not checked out at the expected path.
+# No-op if coo-memory is not checked out at the expected path.
 # Output is reminder-only — it does not load Mem0, does not commit
 # files, does not fail the session if the repo is missing.
 set -euo pipefail

@@ -6,7 +6,7 @@
 # Use this as the FIRST response when a `gh` write fails silently:
 # exit 1, zero bytes stdout, zero bytes stderr. That signature is the
 # canonical fingerprint of a stale-PAT mid-session — see
-# MEMO-2026-05-21-r9rt and vade-coo-memory#820.
+# MEMO-2026-05-21-r9rt and coo-labs/coo-memory#820.
 #
 # Output (single line) one of:
 #   OK <sha8>                          — env matches 1Password
@@ -22,7 +22,7 @@
 # and re-run the failed gh write. In cloud, a fresh session inherits
 # the rotated value at boot.
 #
-# Source: issue vade-coo-memory#820.
+# Source: issue coo-labs/coo-memory#820.
 
 set -eu
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Local (macOS) equivalent of cloud-setup.sh. Runs the same pipeline
 # cloud-setup.sh runs at snapshot-build time, with one substitution:
-# $DEV_DIR/vade-app takes the place of /home/user as the workspace root
-# where sibling repos (vade-runtime, vade-coo-memory, vade-core) live
+# $DEV_DIR/coo-labs takes the place of /home/user as the workspace root
+# where sibling repos (coo-harness, coo-memory, vade-canvas) live
 # and where the workspace-root symlinks (.mcp.json, CLAUDE.md) land.
 #
 # Unlike cloud, the synced .claude/ goes to project-scope
@@ -23,16 +23,16 @@
 # Expects OP_SERVICE_ACCOUNT_TOKEN in the process env. The dotfiles
 # claude() wrapper is the intended provisioner: it `op read`s the COO
 # vault's sandbox SA token into OP_SERVICE_ACCOUNT_TOKEN only when $PWD
-# is under ~/GitHub/vade-app/, so non-vade projects stay untouched.
+# is under ~/GitHub/coo-labs/, so non-vade projects stay untouched.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Workspace root: /home/user in cloud, $DEV_DIR/vade-app locally. Default
+# Workspace root: /home/user in cloud, $DEV_DIR/coo-labs locally. Default
 # derived from $DEV_DIR with a final fallback to $SCRIPT_DIR/../../.. so
 # this runs even if the shell wrapper hasn't exported $DEV_DIR.
 : "${DEV_DIR:=${HOME}/GitHub}"
-WORKSPACE_ROOT="${VADE_WORKSPACE_ROOT:-${DEV_DIR}/vade-app}"
+WORKSPACE_ROOT="${VADE_WORKSPACE_ROOT:-${DEV_DIR}/coo-labs}"
 [ -d "$WORKSPACE_ROOT" ] || WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 export VADE_CLOUD_STATE_DIR="${VADE_CLOUD_STATE_DIR:-${HOME}/.vade/local-state}"

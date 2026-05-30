@@ -75,7 +75,7 @@ IDENTITY_LINK_OK=false
   [ "$(readlink -f "$WORKSPACE_ROOT/CLAUDE.md" 2>/dev/null)" = "$(readlink -f "$VADE_COO_MEMORY_DIR/CLAUDE.md" 2>/dev/null)" ] && \
   IDENTITY_LINK_OK=true
 
-# Workspace deps (npm install vade-core, install tsx) are opt-in:
+# Workspace deps (npm install vade-canvas, install tsx) are opt-in:
 # nothing in the SessionStart hook pipeline imports from node_modules,
 # and MCP runs remote (mcp.vade-app.dev). Contributors who want the
 # full local toolchain set VADE_BOOT_INSTALL=1.
@@ -87,7 +87,7 @@ fi
 print_versions
 
 # Fetch the consolidated binary vendor bundle (op + gh + uv +
-# mem0-mcp-server) in one curl from the vade-runtime release asset,
+# mem0-mcp-server) in one curl from the coo-harness release asset,
 # replacing four per-CDN fetches at snapshot-build time. Best-effort:
 # on any failure (missing pin, network, sha mismatch) the per-binary
 # ensure_*_cli paths below run as fallback. Briefing 004 / B1 reframe;
@@ -232,7 +232,7 @@ fi
 # — refresh via bin/external-touch.py" (which required a manual handoff
 # step on every cold boot). Runs after coo-bootstrap so $GITHUB_MCP_PAT
 # is exported; fail-open if either is missing or external-touch.py is
-# absent (CI fake-env stages a stub vade-coo-memory without it).
+# absent (CI fake-env stages a stub coo-memory without it).
 # coo-memory#429 cache-refresh follow-up.
 . "$HOME/.vade/coo-env" 2>/dev/null || true
 prewarm_external_touch_cache "$WORKSPACE_ROOT"

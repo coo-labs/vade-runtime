@@ -501,7 +501,7 @@ load_aggregator_repos() {
 #
 # Why: under the data-ownership rule (MEMO 2026-04-25-02), slash
 # commands and skills live in the repo whose data they manipulate
-# (e.g. /memo-query in vade-coo-memory). For Ven to invoke them
+# (e.g. /memo-query in coo-memory). For Ven to invoke them
 # regardless of which repo he launched Claude Code from, the workspace
 # .claude/ must surface every per-repo primitive in one place. This
 # function does that with per-file symlinks — Claude Code resolves the
@@ -513,7 +513,7 @@ load_aggregator_repos() {
 #
 # Usage: aggregate_workspace_claude_config <workspace_root> <dst_root> <repo1> [repo2] ...
 #   workspace_root  — directory containing the repo dirs (e.g. /home/user
-#                     on cloud, ~/GitHub/vade-app on local).
+#                     on cloud, ~/GitHub/coo-labs on local).
 #   dst_root        — where the aggregated .claude/ should land. On cloud
 #                     this is $HOME/.claude (user-scope); on local this is
 #                     $WORKSPACE_ROOT/.claude (project-scope).
@@ -1361,7 +1361,7 @@ ensure_gh_symlink_on_path() {
 
 # Install the gh-coo-wrap wrapper at /home/user/.local/bin/gh so every
 # attributable `gh` write auto-carries the Claude Code session URL.
-# Substrate enforcement of vade-coo-memory MEMO 2026-04-26-02 (issue
+# Substrate enforcement of coo-memory MEMO 2026-04-26-02 (issue
 # #150). The real gh binary moves to /home/user/.local/bin/gh-real;
 # the wrapper exec's it after augmenting --body / --body-file.
 #

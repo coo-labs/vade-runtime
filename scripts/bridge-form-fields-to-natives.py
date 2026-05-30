@@ -7,7 +7,7 @@ in the `coo-labs` organization, and call `setIssueFieldValue` to populate
 the native field.
 
 Invoked from `.github/workflows/bridge-form-fields-to-natives.yml`
-(reusable workflow in vade-runtime) on `issues.opened` events in
+(reusable workflow in coo-harness) on `issues.opened` events in
 caller repos. Stage 2 of the issue-fields-and-types migration
 (MEMO-2026-05-21-xfqh + coo-memory#811).
 
