@@ -705,21 +705,67 @@ def _build_toc(rendered_entries: list[tuple[int, str, str]]) -> str:
     return f'<nav class="toc"><h2>User turns</h2><ol>{"".join(items)}</ol></nav>'
 
 
-def _compute_session_url(session_id: str) -> str:
-    """Derive the claude.ai/code session URL from env. Only safe when
-    CLAUDE_CODE_SESSION_ID matches the session being rendered — the
-    SessionEnd-hook path satisfies this by construction; manual
-    renders satisfy it iff the operator targets the current session;
-    backfill never satisfies it (returns "")."""
-    env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
-    if not env_sid or env_sid != session_id:
-        return ""
-    remote_sid = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID", "").strip()
+def _format_session_url(remote_sid: str) -> str:
+    remote_sid = remote_sid.strip()
     if not remote_sid:
         return ""
     if remote_sid.startswith("cse_"):
         remote_sid = remote_sid[4:]
     return f"https://claude.ai/code/session_{remote_sid}"
+
+
+def _fetch_remote_sid_from_export_meta(session_id: str) -> str:
+    """Best-effort lookup of CLAUDE_CODE_REMOTE_SESSION_ID from the
+    export pipeline's meta.json at transcripts/meta/<sid>.meta.json.
+    Returns "" on any failure or absence. Schema version 3 added the
+    field; older sidecars return "" silently."""
+    access_key = os.environ.get("R2_TRANSCRIPTS_ACCESS_KEY_ID", "").strip()
+    secret_key = os.environ.get("R2_TRANSCRIPTS_SECRET_ACCESS_KEY", "").strip()
+    if not access_key or not secret_key:
+        return ""
+    try:
+        endpoint, bucket = _r2_endpoint_bucket()
+    except RuntimeError:
+        return ""
+    try:
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import ClientError
+    except ImportError:
+        return ""
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="auto",
+        config=Config(signature_version="s3v4", retries={"max_attempts": 2, "mode": "standard"}),
+    )
+    try:
+        resp = s3.get_object(Bucket=bucket, Key=f"transcripts/meta/{session_id}.meta.json")
+        body = resp["Body"].read()
+        meta = json.loads(body)
+        return str(meta.get("claude_code_remote_session_id") or "")
+    except (ClientError, KeyError, ValueError):
+        return ""
+
+
+def _compute_session_url(session_id: str) -> str:
+    """Derive the claude.ai/code session URL for `session_id`.
+
+    Lookup order:
+      1. Env (CLAUDE_CODE_SESSION_ID matches target → use
+         CLAUDE_CODE_REMOTE_SESSION_ID). Stop-hook path is here.
+      2. Export meta.json sidecar in R2 (schema v3+ carries the
+         remote-session-id). Backfill path is here.
+    Returns "" when neither source has it."""
+    env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    if env_sid and env_sid == session_id:
+        remote = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID", "").strip()
+        url = _format_session_url(remote)
+        if url:
+            return url
+    return _format_session_url(_fetch_remote_sid_from_export_meta(session_id))
 
 
 def compute_metadata(session_id: str, entries: list[dict]) -> dict:
