@@ -27,19 +27,31 @@ Algorithm (per the 2026-05-30 comment on coo-console#23):
      `Open in Claude Code` link. Best-effort: sids whose ciphertext
      is no longer in the R2 archive log a FAIL and the sidecar
      patch still stands.
+  5. Optional (`--scan-transcript`): for sidecars the title-fast-path
+     missed, decrypt the ciphertext and scan the jsonl for in-transcript
+     signals: (a) literal `claude.ai/code/session_<id>` URLs echoed
+     into tool_results, and (b) coo-labs PR/issue references
+     reverse-looked-up in `session_artifacts.json`. Accepts a URL
+     when pattern A fires OR pattern B votes unanimously / by strong
+     mode (≥ 2× rest). Empirically catches a small additional slice
+     of cohort B+C — sessions that opened coo-labs artifacts but
+     didn't produce a per-session auto-meta-PR.
 
 Coverage caveat: only sids landed by per-session auto-meta-PRs are
-in scope. Sids landed by bulk PRs, or never auto-PR'd at all
-(pre-pipeline ciphertext-only sessions backfilled by
-`transcript-render-backfill.py`), are out of scope for this script
-— they need a different recovery path (e.g. the lossy heuristic
-from the original #23 body) or are accepted as gap. Empirically
-about 16% of the missing-session_url population sits in the
-in-scope slice (see #23 comment thread for the cohort breakdown).
+in scope for the default path. The remaining missing-session_url
+population splits into (a) sessions exported but never auto-PR'd
+(cohort B; bulk PRs or auto-PR-step failures); (b) ciphertext-only
+sessions rendered by `transcript-render-backfill.py` (cohort C;
+predate the export pipeline). `--scan-transcript` recovers the
+fraction of cohort B+C that referenced their own coo-labs artifacts
+inside the conversation. Cohort C/B sids that opened no coo-labs
+artifacts stay unrecoverable here — route to coo-labs/coo-console#22
+(resume-and-recover) for per-session URL re-derivation when needed.
 
 Usage:
   transcript-url-backfill.py [--limit N] [--dry-run] [--include-populated]
-                             [--rerender] [--key-prefix rendered]
+                             [--rerender] [--scan-transcript]
+                             [--key-prefix rendered]
 
 Env:
   R2_TRANSCRIPTS_ACCESS_KEY_ID      — R2 access key
@@ -64,7 +76,9 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
+from typing import Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 FETCH_SH = SCRIPT_DIR / "lib" / "transcript-fetch.sh"
@@ -80,6 +94,29 @@ AUTO_META_PR_TITLE_RE = re.compile(
     r"([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
     re.IGNORECASE,
 )
+TRANSCRIPT_SESSION_URL_RE = re.compile(
+    r"https://claude\.ai/code/session_(01[A-Za-z0-9]{18,40})"
+)
+TRANSCRIPT_PR_URL_RE = re.compile(
+    r"https://github\.com/((?:coo-labs|vade-app)/[\w.-]+)/(?:pull|issues)/(\d+)"
+)
+TRANSCRIPT_PR_AUTOLINK_RE = re.compile(
+    r"\b((?:coo-labs|vade-app)/[\w.-]+)#(\d+)\b"
+)
+# vade-app/* repos were renamed under coo-labs/* during the 2026-05 org cutover.
+# Normalize before reverse-lookup in session_artifacts.json (built against
+# current coo-labs/* names). Identity for already-coo-labs/* keys.
+REPO_RENAME = {
+    "vade-app/vade-agent-logs": "coo-labs/coo-logs",
+    "vade-app/vade-runtime": "coo-labs/coo-harness",
+    "vade-app/vade-coo-memory": "coo-labs/coo-memory",
+    "vade-app/vade-canvas": "coo-labs/vade-canvas",
+    "vade-app/site": "coo-labs/site",
+    "vade-app/coo4one": "coo-labs/coo4one",
+    "vade-app/tjsonl": "coo-labs/tjsonl",
+    "vade-app/skills": "coo-labs/skills",
+    "vade-app/vade-governance": "coo-labs/vade-governance",
+}
 
 
 def _stderr(msg: str) -> None:
@@ -191,6 +228,186 @@ def _list_candidate_sidecars(
     return cands
 
 
+def _build_pr_to_url_map(index: dict) -> dict[tuple[str, str], str]:
+    """Map (repo, str(number)) -> session_url for every PR/issue authored
+    by a session in the reverse index. First-write-wins on multi-author
+    collisions (rare)."""
+    out: dict[tuple[str, str], str] = {}
+    for s in index.get("sessions", []):
+        url = (s.get("session_url") or "").strip()
+        if not url:
+            continue
+        for a in s.get("artifacts", []):
+            if a.get("type") not in ("pr", "issue"):
+                continue
+            key = (a.get("repo"), str(a.get("number")))
+            if key not in out:
+                out[key] = url
+    return out
+
+
+def _yield_text(entry: dict, root_type: str):
+    msg = entry.get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, str):
+        yield content
+    elif isinstance(content, list):
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            btype = block.get("type")
+            if btype == "text":
+                yield block.get("text", "") or ""
+            elif btype == "tool_use":
+                inp = block.get("input")
+                if isinstance(inp, dict):
+                    yield from _flatten_strings(inp)
+            elif btype == "tool_result":
+                tc = block.get("content")
+                if isinstance(tc, str):
+                    yield tc
+                elif isinstance(tc, list):
+                    for sub in tc:
+                        if isinstance(sub, dict) and sub.get("type") == "text":
+                            yield sub.get("text", "") or ""
+            elif btype == "thinking":
+                yield block.get("thinking", "") or ""
+    tur = entry.get("toolUseResult")
+    if isinstance(tur, (dict, list)):
+        yield from _flatten_strings(tur)
+    elif isinstance(tur, str):
+        yield tur
+
+
+def _flatten_strings(obj):
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _flatten_strings(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _flatten_strings(v)
+
+
+def _normalize_repo(repo: str) -> str:
+    return REPO_RENAME.get(repo, repo)
+
+
+def _scan_jsonl_for_url(
+    jsonl_path: Path, pr_map: dict[tuple[str, str], str]
+) -> tuple[Optional[str], str]:
+    """Scan a decrypted jsonl. Returns (session_url, detail).
+
+    Priority ladder:
+      1. `pr-link` entries (top-level jsonl objects of type='pr-link'
+         emitted by the gh-coo-wrap PostToolUse hook for PRs this
+         session opened). Strong signal — direct authorship.
+      2. Pattern A: literal claude.ai/code/session_<id> URLs (strict
+         01-prefix regex to avoid false positives like 'session_2026').
+      3. Pattern B: coo-labs/* and vade-app/* PR/issue references in
+         prose, reverse-looked-up in pr_map. Requires unanimous OR
+         mode >= 2 * rest.
+    """
+    pr_link_prs: set[tuple[str, str]] = set()
+    a_votes: Counter = Counter()
+    prose_prs: set[tuple[str, str]] = set()
+    try:
+        f = open(jsonl_path)
+    except OSError as e:
+        return None, f"jsonl unreadable: {e}"
+    with f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("type") == "pr-link":
+                repo = (entry.get("prRepository") or "").strip()
+                num = entry.get("prNumber")
+                if repo and num is not None:
+                    pr_link_prs.add((repo, str(num)))
+                continue
+            for txt in _yield_text(entry, entry.get("type", "?")):
+                for m in TRANSCRIPT_SESSION_URL_RE.findall(txt):
+                    a_votes[f"{SESSION_URL_PREFIX}{m}"] += 1
+                for m in TRANSCRIPT_PR_URL_RE.findall(txt):
+                    prose_prs.add(m)
+                for m in TRANSCRIPT_PR_AUTOLINK_RE.findall(txt):
+                    prose_prs.add(m)
+
+    if pr_link_prs:
+        pl_votes: Counter = Counter()
+        for repo, num in pr_link_prs:
+            key = (_normalize_repo(repo), str(num))
+            if key in pr_map:
+                pl_votes[pr_map[key]] += 1
+        if pl_votes:
+            url, c = pl_votes.most_common(1)[0]
+            rest = sum(pl_votes.values()) - c
+            if rest == 0:
+                return url, f"pr-link unanimous ({c}/{len(pr_link_prs)} pr-link PRs in index)"
+            if c >= 2 * rest:
+                return url, f"pr-link strong mode ({c} of {sum(pl_votes.values())})"
+
+    if a_votes:
+        url, c = a_votes.most_common(1)[0]
+        return url, f"pattern-A literal URL (×{c} of {sum(a_votes.values())})"
+
+    b_votes: Counter = Counter()
+    for repo, num in prose_prs:
+        key = (_normalize_repo(repo), str(num))
+        if key in pr_map:
+            b_votes[pr_map[key]] += 1
+
+    if not b_votes:
+        return None, (
+            f"no signal (pr-link={len(pr_link_prs)}, "
+            f"prose-PRs={len(prose_prs)}, none in index)"
+        )
+    url, c = b_votes.most_common(1)[0]
+    rest = sum(b_votes.values()) - c
+    if rest == 0:
+        return url, f"pattern-B unanimous ({c} authored-PR refs)"
+    if c >= 2 * rest:
+        return url, f"pattern-B strong mode ({c} of {sum(b_votes.values())})"
+    return None, f"pattern-B conflict ({b_votes.most_common(3)})"
+
+
+def _resolve_via_scan(
+    session_id: str, pr_map: dict[tuple[str, str], str]
+) -> tuple[Optional[str], str]:
+    """Decrypt + scan + cleanup. Returns (url, detail)."""
+    if not FETCH_SH.is_file():
+        return None, f"fetch wrapper missing: {FETCH_SH}"
+    try:
+        fetch = subprocess.run(
+            ["bash", str(FETCH_SH), session_id],
+            check=True, capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.CalledProcessError as e:
+        return None, f"fetch failed: rc={e.returncode} {e.stderr.strip()[:200]}"
+    except subprocess.TimeoutExpired:
+        return None, "fetch timed out after 120s"
+    jsonl_path = fetch.stdout.strip()
+    if not jsonl_path or not Path(jsonl_path).is_file():
+        return None, f"fetch returned no usable path ({jsonl_path!r})"
+    try:
+        url, detail = _scan_jsonl_for_url(Path(jsonl_path), pr_map)
+    finally:
+        try:
+            subprocess.run(
+                ["bash", str(FETCH_SH), "--cleanup", jsonl_path],
+                check=False, capture_output=True, timeout=10,
+            )
+        except subprocess.TimeoutExpired:
+            pass
+    return url, detail
+
+
 def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[bool, str]:
     """Decrypt ciphertext via transcript-fetch.sh and re-run the renderer
     with env-injected CLAUDE_CODE_SESSION_ID/REMOTE_SESSION_ID so the
@@ -282,6 +499,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="after patching the sidecar, also re-run the renderer "
                         "with env-injected CLAUDE_CODE_SESSION_ID/REMOTE_SESSION_ID "
                         "so the HTML body includes the 'Open in Claude Code' link")
+    p.add_argument("--scan-transcript", action="store_true",
+                   help="for sidecars the title-fast-path missed, decrypt the "
+                        "ciphertext and scan jsonl content for literal session "
+                        "URLs (strict regex) or coo-labs PR/issue refs (reverse "
+                        "looked up via session_artifacts.json). Cohort B+C "
+                        "fallback path.")
     p.add_argument("--key-prefix", default="rendered",
                    help="R2 key prefix for rendered HTML/meta (default: rendered)")
     args = p.parse_args(argv)
@@ -309,27 +532,46 @@ def main(argv: list[str] | None = None) -> int:
         f"({'missing or populated' if args.include_populated else 'missing'} session_url)"
     )
 
-    hits = [(sid, key, sid_to_url[sid]) for sid, key in candidates if sid in sid_to_url]
+    hits = [(sid, key, sid_to_url[sid], "title") for sid, key in candidates if sid in sid_to_url]
+    misses = [(sid, key) for sid, key in candidates if sid not in sid_to_url]
     _stderr(
         f"  {len(hits)} resolvable via title-fast-path "
-        f"({len(candidates) - len(hits)} unresolved)"
+        f"({len(misses)} unresolved by title)"
     )
 
+    scan_resolved: list[tuple[str, str, str, str]] = []
+    scan_unresolved = 0
+    if args.scan_transcript and misses:
+        _stderr(f"scan-transcript: probing {len(misses)} title-miss sids…")
+        pr_to_url = _build_pr_to_url_map(index)
+        _stderr(f"  pr/issue reverse-index has {len(pr_to_url)} entries")
+        for i, (sid, key) in enumerate(misses, 1):
+            _stderr(f"[scan {i}/{len(misses)}] {sid}")
+            url, detail = _resolve_via_scan(sid, pr_to_url)
+            if url:
+                scan_resolved.append((sid, key, url, f"scan:{detail}"))
+                _stderr(f"  scan OK · {detail} -> {url}")
+            else:
+                scan_unresolved += 1
+                _stderr(f"  scan FAIL · {detail}")
+        _stderr(f"  scan resolved={len(scan_resolved)} fail={scan_unresolved}")
+
+    all_hits = hits + scan_resolved
     if args.limit is not None:
-        hits = hits[: args.limit]
-        _stderr(f"  limited to {len(hits)}")
+        all_hits = all_hits[: args.limit]
+        _stderr(f"  limited to {len(all_hits)}")
 
     if args.dry_run:
-        for sid, _key, url in hits:
-            sys.stdout.write(f"{sid}\t{url}\n")
+        for sid, _key, url, source in all_hits:
+            sys.stdout.write(f"{sid}\t{url}\t{source}\n")
         return 0
 
     ok = 0
     failed = 0
     rerender_ok = 0
     rerender_fail = 0
-    for i, (sid, key, url) in enumerate(hits, 1):
-        _stderr(f"[{i}/{len(hits)}] {sid}")
+    for i, (sid, key, url, source) in enumerate(all_hits, 1):
+        _stderr(f"[{i}/{len(all_hits)}] {sid} ({source})")
         success, detail = _patch_one(s3, bucket, key, url)
         if success:
             ok += 1
@@ -347,7 +589,10 @@ def main(argv: list[str] | None = None) -> int:
                 rerender_fail += 1
                 _stderr(f"  rerender FAIL · {r_detail}")
 
-    summary = f"done: patch ok={ok} fail={failed} total={len(hits)}"
+    summary = (
+        f"done: patch ok={ok} fail={failed} total={len(all_hits)} "
+        f"(title={len(hits)} scan={len(scan_resolved)})"
+    )
     if args.rerender:
         summary += f" | rerender ok={rerender_ok} fail={rerender_fail}"
     _stderr(summary)
