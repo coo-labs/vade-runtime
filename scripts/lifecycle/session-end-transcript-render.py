@@ -979,7 +979,7 @@ def render_html(session_id: str, entries: list[dict]) -> str:
 <body>
 {toc}
 <main>
-  <p class="back"><a href="/transcripts/">← All transcripts</a>{(' &nbsp;·&nbsp; <a href="' + _esc(session_url) + '" target="_blank" rel="noopener">Open in Claude Code ↗</a>') if session_url else ''}</p>
+  <p class="back"><a href="/transcripts/">← All transcripts</a>{(' &nbsp;·&nbsp; <a href="' + _esc(session_url) + '" target="_blank" rel="noopener">Open in Claude Code ↗</a>') if session_url else ''}{(' &nbsp;·&nbsp; <a href="/sessions/' + _esc(session_url.rsplit('/session_', 1)[-1]) + '">GitHub artifacts ↗</a>') if session_url and '/session_' in session_url else ''}</p>
   <header class="session">
     <h1>{_esc(session_id)}</h1>
     <div class="meta">
