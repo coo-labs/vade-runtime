@@ -104,9 +104,9 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix=f"transcript-export-test-{sid}-") as scratch:
         scratch_path = Path(scratch)
-        # Mac-default layout that the hook prefers (Path.home() / GitHub / vade-app / coo-logs).
+        # Mac-default layout that the hook prefers (Path.home() / GitHub / coo-labs / coo-logs).
         fake_home = scratch_path / "home"
-        agent_logs = fake_home / "GitHub" / "vade-app" / "coo-logs"
+        agent_logs = fake_home / "GitHub" / "coo-labs" / "coo-logs"
         projects = fake_home / ".claude" / "projects" / "test-proj"
         projects.mkdir(parents=True, exist_ok=True)
         agent_logs.mkdir(parents=True, exist_ok=True)

@@ -12,7 +12,7 @@
 # the failure profile this produces: high-confidence shallow
 # heuristics, uncalibrated assertions, plausible hallucinations that
 # fail under verification. The motivating audit is
-# vade-agent-logs#347 (Phase-1 orientation pass: two Explore
+# coo-labs/coo-logs#347 (Phase-1 orientation pass: two Explore
 # sub-agents made confident attribution errors based on branch-name
 # heuristics; both required active disambiguation in parent context).
 #

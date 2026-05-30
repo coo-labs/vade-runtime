@@ -90,7 +90,7 @@ fi
 
 # --- end mode ---
 
-# Gate on marker written by the /end-session skill (vade-coo-memory).
+# Gate on marker written by the /end-session skill (coo-memory).
 # The skill runs the full session-end checklist and touches this file
 # as its last step. When the marker is present, cleanup is done —
 # consume it and exit silently rather than injecting a 50-line reminder

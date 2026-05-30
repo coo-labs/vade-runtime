@@ -238,7 +238,7 @@ def _read_recipient_pubkey() -> str:
     own parser convention (one recipient per line, leading `#` is a
     comment). Embedded in sidecar so a reader holding only meta.json
     can verify which recipient encrypted the ciphertext without
-    cloning vade-runtime at the same SHA the hook ran from."""
+    cloning coo-harness at the same SHA the hook ran from."""
     try:
         for line in reversed(RECIPIENT_FILE.read_text().splitlines()):
             s = line.strip()

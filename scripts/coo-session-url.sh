@@ -8,7 +8,7 @@
 # by humans / scripts that need the URL ad-hoc — e.g. inside an
 # editor body, a heredoc, or a manual MCP call.
 #
-# Source: issue vade-coo-memory#150; MEMO 2026-04-26-02.
+# Source: issue coo-labs/coo-memory#150; MEMO 2026-04-26-02.
 
 set -eu
 

@@ -105,7 +105,7 @@
       "regex": "\\bGITHUB_APP_ID(?:[=:][\"']?|\" *: *[\"']?)\\d+\\b",
       "replacement": "GITHUB_APP_ID=[REDACTED:github-app-id]",
       "secret_var": "GITHUB_APP_ID",
-      "notes": "vade-coo-app numeric App ID. Public value (shown on the App's settings page) but registered for defense-in-depth: redacts the env-shape assignment so a leaked transcript doesn't ship the exact ID alongside other operational config. Context-scoped to the assignment shape (=, :, JSON-key form) to avoid false positives against arbitrary 6-7-digit numbers (commit-counts, line numbers, etc). vade-coo-memory#837."
+      "notes": "vade-coo-app numeric App ID. Public value (shown on the App's settings page) but registered for defense-in-depth: redacts the env-shape assignment so a leaked transcript doesn't ship the exact ID alongside other operational config. Context-scoped to the assignment shape (=, :, JSON-key form) to avoid false positives against arbitrary 6-7-digit numbers (commit-counts, line numbers, etc). coo-labs/coo-memory#837."
     },
     {
       "id": "github-app-installation-id",
@@ -210,7 +210,7 @@
       "regex": "(?i)(VADE_AUTH_TOKEN\\s*[=:]\\s*['\"]?)[A-Za-z0-9_\\-+/=]{16,}",
       "replacement": "\\g<1>[REDACTED:vade-auth-token]",
       "secret_var": "VADE_AUTH_TOKEN",
-      "notes": "vade-canvas MCP bearer (vade-core#93). Opaque shape — bearer is operator-chosen (typically random hex >= 32 chars), so kv-anchored to its env-var name. The entropy fallback also catches it as defense-in-depth."
+      "notes": "vade-canvas MCP bearer (coo-labs/vade-canvas#93). Opaque shape — bearer is operator-chosen (typically random hex >= 32 chars), so kv-anchored to its env-var name. The entropy fallback also catches it as defense-in-depth."
     },
     {
       "id": "auth-header",

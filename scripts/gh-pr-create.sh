@@ -75,7 +75,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# Cloud-session compatibility (vade-coo-memory#703, coo-memory#898). In cloud
+# Cloud-session compatibility (coo-labs/coo-memory#703, coo-memory#898). In cloud
 # sandboxes the git remote is a local-proxy URL of the form
 #   http://local_proxy@127.0.0.1:<port>/git/<owner>/<repo>
 # which `gh` cannot resolve to a known GitHub host, so `gh pr create` errors

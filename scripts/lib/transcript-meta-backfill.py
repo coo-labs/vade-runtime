@@ -99,7 +99,7 @@ def _resolve_agent_logs_dir(explicit: str | None) -> Path:
             return p
         raise FileNotFoundError(f"VADE_AGENT_LOGS_DIR={p} does not exist")
     candidates = [
-        Path.home() / "GitHub" / "vade-app" / "coo-logs",
+        Path.home() / "GitHub" / "coo-labs" / "coo-logs",
         Path("/home/user/coo-logs"),
         RUNTIME_ROOT.parent / "coo-logs",
     ]

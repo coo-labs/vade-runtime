@@ -37,7 +37,7 @@ Don't invoke for:
 - Running a fresh capture (handled by `bootstrap-trace-init.sh` and the
   container UI env vars per `scripts/debug/README.md`).
 - Proposing fixes to the boot pipeline (the
-  [coo-labs/vade-coo-memory#762](https://github.com/coo-labs/vade-coo-memory/issues/762)
+  [coo-labs/coo-memory#762](https://github.com/coo-labs/coo-memory/issues/762)
   pause forbids it — render-and-document only).
 - Traces produced by tools other than the bootstrap-trace harness
   (file layout is specific to this harness).
@@ -59,7 +59,7 @@ report — the harness either hasn't run or its output rolled.
 ### 2. Render
 
 ```sh
-python3 /home/user/vade-runtime/scripts/debug/render-trace-timeline.py "$TRACE" /tmp/trace-timeline.html
+python3 /home/user/coo-harness/scripts/debug/render-trace-timeline.py "$TRACE" /tmp/trace-timeline.html
 ```
 
 The script:
@@ -127,7 +127,7 @@ Orient the user briefly:
   what the script actually executed.
 
 If the trace contains a D4=false event (the canonical reader-vs-writer
-race for coo-labs/vade-coo-memory#762), name it explicitly — the bright
+race for coo-labs/coo-memory#762), name it explicitly — the bright
 red glowing dot in the integrity-check row, with the three orange
 write markers in the session-start-sync row immediately around it,
 **is** the race.
@@ -166,7 +166,7 @@ The renderer is parameterized. Point it at any `~/.vade/traces/<run-id>/`
 directory — pass the path positionally:
 
 ```sh
-python3 /home/user/vade-runtime/scripts/debug/render-trace-timeline.py \
+python3 /home/user/coo-harness/scripts/debug/render-trace-timeline.py \
     ~/.vade/traces/bootstrap-trace-XXXX-YYYY \
     /tmp/trace-timeline.html
 ```
