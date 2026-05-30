@@ -528,6 +528,9 @@ nav.toc a { color: var(--fg); text-decoration: none; display: block;
   padding: 4px 6px; border-radius: 4px; }
 nav.toc a:hover { background: var(--bg); }
 main { padding: 16px 24px; min-width: 0; max-width: 100%; }
+p.back { margin: 0 0 8px 0; font-size: 12px; }
+p.back a { color: var(--muted); text-decoration: none; }
+p.back a:hover { color: var(--accent); }
 header.session { padding-bottom: 16px; border-bottom: 1px solid var(--border);
   margin-bottom: 16px; }
 header.session h1 { margin: 0 0 4px 0; font-size: 18px; font-family: ui-monospace,
@@ -774,6 +777,7 @@ def render_html(session_id: str, entries: list[dict]) -> str:
 <body>
 {toc}
 <main>
+  <p class="back"><a href="/transcripts/">← All transcripts</a></p>
   <header class="session">
     <h1>{_esc(session_id)}</h1>
     <div class="meta">
