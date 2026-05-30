@@ -705,6 +705,88 @@ def _build_toc(rendered_entries: list[tuple[int, str, str]]) -> str:
     return f'<nav class="toc"><h2>User turns</h2><ol>{"".join(items)}</ol></nav>'
 
 
+def compute_metadata(session_id: str, entries: list[dict]) -> dict:
+    """Walk entries once; return the metadata blob for the list-page sidecar.
+
+    Schema (renderer_version=1):
+      session_id, started_at, ended_at, duration_seconds,
+      entry_count, user_turn_count, assistant_turn_count,
+      tool_call_count, error_count, first_user_preview,
+      renderer_version.
+    """
+    first_ts: datetime.datetime | None = None
+    last_ts: datetime.datetime | None = None
+    user_count = 0
+    assistant_count = 0
+    tool_call_count = 0
+    error_count = 0
+    first_user_preview = ""
+
+    for entry in entries:
+        kind = _classify(entry)
+        ts = _ts_to_dt(entry.get("timestamp"))
+        if ts is not None:
+            if first_ts is None:
+                first_ts = ts
+            last_ts = ts
+
+        if kind == "user":
+            user_count += 1
+            if not first_user_preview:
+                msg = entry.get("message", {}) or {}
+                content = msg.get("content")
+                text = ""
+                if isinstance(content, str):
+                    text = content
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = block.get("text", "")
+                            break
+                text = SYSTEM_REMINDER_RE.sub("", text).strip()
+                if text:
+                    first_user_preview = _first_line(text, 140)
+        elif kind in ("assistant", "tool_use", "thinking"):
+            assistant_count += 1
+            msg = entry.get("message", {}) or {}
+            content = msg.get("content")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        tool_call_count += 1
+        elif kind == "tool_result":
+            msg = entry.get("message", {}) or {}
+            content = msg.get("content")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_result":
+                        if block.get("is_error"):
+                            error_count += 1
+        elif kind == "attachment":
+            att = entry.get("attachment", {}) or {}
+            exit_code = att.get("exitCode")
+            if isinstance(exit_code, int) and exit_code != 0:
+                error_count += 1
+
+    duration_seconds = 0
+    if first_ts is not None and last_ts is not None:
+        duration_seconds = max(0, int((last_ts - first_ts).total_seconds()))
+
+    return {
+        "session_id": session_id,
+        "started_at": first_ts.isoformat() if first_ts else None,
+        "ended_at": last_ts.isoformat() if last_ts else None,
+        "duration_seconds": duration_seconds,
+        "entry_count": len(entries),
+        "user_turn_count": user_count,
+        "assistant_turn_count": assistant_count,
+        "tool_call_count": tool_call_count,
+        "error_count": error_count,
+        "first_user_preview": first_user_preview,
+        "renderer_version": PARSER_VERSION,
+    }
+
+
 def render_html(session_id: str, entries: list[dict]) -> str:
     rendered: list[str] = []
     toc_entries: list[tuple[int, str, str]] = []
@@ -836,7 +918,14 @@ def _r2_endpoint_bucket() -> tuple[str, str]:
     return endpoint, bucket
 
 
-def _r2_put_html(html_bytes: bytes, key: str, *, overwrite: bool) -> dict:
+def _r2_put_bytes(
+    body: bytes,
+    key: str,
+    *,
+    overwrite: bool,
+    content_type: str,
+    cache_control: str = "private, max-age=0, must-revalidate",
+) -> dict:
     access_key = os.environ.get("R2_TRANSCRIPTS_ACCESS_KEY_ID", "").strip()
     secret_key = os.environ.get("R2_TRANSCRIPTS_SECRET_ACCESS_KEY", "").strip()
     if not access_key or not secret_key:
@@ -861,9 +950,9 @@ def _r2_put_html(html_bytes: bytes, key: str, *, overwrite: bool) -> dict:
     put_kwargs = {
         "Bucket": bucket,
         "Key": key,
-        "Body": html_bytes,
-        "ContentType": "text/html; charset=utf-8",
-        "CacheControl": "private, max-age=0, must-revalidate",
+        "Body": body,
+        "ContentType": content_type,
+        "CacheControl": cache_control,
     }
     if not overwrite:
         put_kwargs["IfNoneMatch"] = "*"
@@ -920,14 +1009,35 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout.write(html_doc)
         return 0
 
-    key = f"{args.key_prefix.rstrip('/')}/{session_id}.html"
+    key_prefix = args.key_prefix.rstrip("/")
+    html_key = f"{key_prefix}/{session_id}.html"
+    meta_key = f"{key_prefix}/{session_id}.meta.json"
     try:
-        result = _r2_put_html(html_bytes, key, overwrite=args.overwrite)
+        html_result = _r2_put_bytes(
+            html_bytes, html_key,
+            overwrite=args.overwrite,
+            content_type="text/html; charset=utf-8",
+        )
     except Exception as e:
-        _stderr(f"R2 upload failed: {e}")
+        _stderr(f"R2 upload (html) failed: {e}")
         return 2
-    _stderr(f"uploaded → {result['endpoint']}/{result['bucket']}/{result['key']}"
-            + (" (ceded)" if result.get("ceded") else ""))
+    _stderr(f"uploaded → {html_result['endpoint']}/{html_result['bucket']}/{html_result['key']}"
+            + (" (ceded)" if html_result.get("ceded") else ""))
+
+    metadata = compute_metadata(session_id, entries)
+    meta_bytes = json.dumps(metadata, separators=(",", ":")).encode("utf-8")
+    try:
+        meta_result = _r2_put_bytes(
+            meta_bytes, meta_key,
+            overwrite=args.overwrite,
+            content_type="application/json; charset=utf-8",
+        )
+    except Exception as e:
+        # HTML already landed; sidecar miss is non-fatal — list page tolerates absence.
+        _stderr(f"R2 upload (meta sidecar) failed: {e}")
+        return 0
+    _stderr(f"uploaded → {meta_result['endpoint']}/{meta_result['bucket']}/{meta_result['key']}"
+            + (" (ceded)" if meta_result.get("ceded") else ""))
     return 0
 
 
