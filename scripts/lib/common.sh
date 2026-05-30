@@ -408,7 +408,7 @@ sync_claude_config() {
     return 0
   fi
   mkdir -p "$dst"
-  for sub in skills agents commands hooks; do
+  for sub in skills agents commands hooks output-styles; do
     [ -d "$src/$sub" ] || continue
     _sync_claude_subdir "$src/$sub" "$dst/$sub"
   done
@@ -527,7 +527,7 @@ aggregate_workspace_claude_config() {
   local dst_root="$1"; shift
   mkdir -p "$dst_root"
   local sub
-  for sub in commands agents skills hooks; do
+  for sub in commands agents skills hooks output-styles; do
     local dst_sub="$dst_root/$sub"
     # If dst is a symlink (legacy single-source layout), materialize it
     # into a real directory so we can union multiple sources into it.
