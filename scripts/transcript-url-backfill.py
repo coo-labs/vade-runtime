@@ -228,21 +228,25 @@ def _list_candidate_sidecars(
     return cands
 
 
-def _build_pr_to_url_map(index: dict) -> dict[tuple[str, str], str]:
-    """Map (repo, str(number)) -> session_url for every PR/issue authored
-    by a session in the reverse index. First-write-wins on multi-author
-    collisions (rare)."""
-    out: dict[tuple[str, str], str] = {}
+def _build_pr_to_url_map(index: dict) -> dict[tuple[str, str], tuple[str, str]]:
+    """Map (repo, str(number)) -> (session_url, artifact_type) for every
+    PR/issue authored by a session in the reverse index. artifact_type is
+    'pr' or 'issue' — used to weight votes during scan-transcript resolution
+    (PRs are stronger authorship signals than issues, which sessions
+    frequently reference without having opened). First-write-wins on
+    multi-author collisions (rare)."""
+    out: dict[tuple[str, str], tuple[str, str]] = {}
     for s in index.get("sessions", []):
         url = (s.get("session_url") or "").strip()
         if not url:
             continue
         for a in s.get("artifacts", []):
-            if a.get("type") not in ("pr", "issue"):
+            atype = a.get("type")
+            if atype not in ("pr", "issue"):
                 continue
             key = (a.get("repo"), str(a.get("number")))
             if key not in out:
-                out[key] = url
+                out[key] = (url, atype)
     return out
 
 
@@ -294,20 +298,34 @@ def _normalize_repo(repo: str) -> str:
     return REPO_RENAME.get(repo, repo)
 
 
+SCAN_WEIGHTS = {
+    "pr_link": 10,
+    "pattern_a": 5,
+    "prose_pr": 3,
+    "prose_issue": 1,
+}
+
+
 def _scan_jsonl_for_url(
-    jsonl_path: Path, pr_map: dict[tuple[str, str], str]
+    jsonl_path: Path, pr_map: dict[tuple[str, str], tuple[str, str]]
 ) -> tuple[Optional[str], str]:
     """Scan a decrypted jsonl. Returns (session_url, detail).
 
-    Priority ladder:
-      1. `pr-link` entries (top-level jsonl objects of type='pr-link'
-         emitted by the gh-coo-wrap PostToolUse hook for PRs this
-         session opened). Strong signal — direct authorship.
-      2. Pattern A: literal claude.ai/code/session_<id> URLs (strict
-         01-prefix regex to avoid false positives like 'session_2026').
-      3. Pattern B: coo-labs/* and vade-app/* PR/issue references in
-         prose, reverse-looked-up in pr_map. Requires unanimous OR
-         mode >= 2 * rest.
+    Single weighted vote across four signals, summed per candidate
+    session_url:
+      pr-link entries (top-level jsonl objects of type='pr-link'
+        emitted by gh-coo-wrap's PostToolUse hook for PRs this session
+        opened) — direct authorship, weight 10 each.
+      Pattern A: literal claude.ai/code/session_<id> URLs with strict
+        01-prefix — weight 5 each.
+      Pattern B: prose PR refs (coo-labs/* and vade-app/* normalized)
+        looked up in pr_map; PRs weight 3 each (sessions open few PRs
+        and they strongly indicate authorship), issues weight 1 each
+        (sessions reference many issues they didn't open).
+
+    Accept if the top candidate has >= 2x the second-place votes
+    (unanimous when there's no second place). Reject as conflict
+    otherwise.
     """
     pr_link_prs: set[tuple[str, str]] = set()
     a_votes: Counter = Counter()
@@ -339,42 +357,52 @@ def _scan_jsonl_for_url(
                 for m in TRANSCRIPT_PR_AUTOLINK_RE.findall(txt):
                     prose_prs.add(m)
 
-    if pr_link_prs:
-        pl_votes: Counter = Counter()
-        for repo, num in pr_link_prs:
-            key = (_normalize_repo(repo), str(num))
-            if key in pr_map:
-                pl_votes[pr_map[key]] += 1
-        if pl_votes:
-            url, c = pl_votes.most_common(1)[0]
-            rest = sum(pl_votes.values()) - c
-            if rest == 0:
-                return url, f"pr-link unanimous ({c}/{len(pr_link_prs)} pr-link PRs in index)"
-            if c >= 2 * rest:
-                return url, f"pr-link strong mode ({c} of {sum(pl_votes.values())})"
+    votes: Counter = Counter()
+    breakdown: dict[str, dict[str, int]] = {}
 
-    if a_votes:
-        url, c = a_votes.most_common(1)[0]
-        return url, f"pattern-A literal URL (×{c} of {sum(a_votes.values())})"
+    def _add(url: str, kind: str, n: int = 1):
+        votes[url] += n * SCAN_WEIGHTS[kind]
+        breakdown.setdefault(url, {}).setdefault(kind, 0)
+        breakdown[url][kind] += n
 
-    b_votes: Counter = Counter()
+    for repo, num in pr_link_prs:
+        key = (_normalize_repo(repo), str(num))
+        if key in pr_map:
+            url, _ = pr_map[key]
+            _add(url, "pr_link")
+    for url, c in a_votes.items():
+        _add(url, "pattern_a", c)
     for repo, num in prose_prs:
         key = (_normalize_repo(repo), str(num))
         if key in pr_map:
-            b_votes[pr_map[key]] += 1
+            url, atype = pr_map[key]
+            _add(url, "prose_pr" if atype == "pr" else "prose_issue")
 
-    if not b_votes:
+    if not votes:
         return None, (
             f"no signal (pr-link={len(pr_link_prs)}, "
-            f"prose-PRs={len(prose_prs)}, none in index)"
+            f"prose-PRs={len(prose_prs)}, A-literal={sum(a_votes.values())}, "
+            f"none in index)"
         )
-    url, c = b_votes.most_common(1)[0]
-    rest = sum(b_votes.values()) - c
-    if rest == 0:
-        return url, f"pattern-B unanimous ({c} authored-PR refs)"
-    if c >= 2 * rest:
-        return url, f"pattern-B strong mode ({c} of {sum(b_votes.values())})"
-    return None, f"pattern-B conflict ({b_votes.most_common(3)})"
+    top = votes.most_common(2)
+    top_url, top_score = top[0]
+    runner_score = top[1][1] if len(top) > 1 else 0
+    parts = breakdown.get(top_url, {})
+    parts_str = "+".join(f"{n}{k[0]}" for k, n in parts.items())
+    # Reject weak signal: 1-2pt = single issue reference with no PR/pr-link
+    # backing. Too easy to be a passing reference rather than authorship.
+    if top_score < 3:
+        return None, f"too weak ({top_score}pt: {parts_str})"
+    if runner_score == 0:
+        return top_url, f"unanimous ({top_score}pt: {parts_str})"
+    if top_score >= 2 * runner_score:
+        return top_url, (
+            f"strong mode ({top_score}pt vs {runner_score}pt 2nd; {parts_str})"
+        )
+    return None, (
+        f"conflict (top {top_score}pt vs 2nd {runner_score}pt; "
+        f"top3={votes.most_common(3)})"
+    )
 
 
 def _resolve_via_scan(
