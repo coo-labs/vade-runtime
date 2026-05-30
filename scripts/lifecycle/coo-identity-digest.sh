@@ -280,6 +280,31 @@ fi
 
 echo "───────────────────────────────────────────────────────────────"
 
+# Open briefings — strictly "needs pickup" subset (status=open AND
+# claimed_by_session=null). Claimed briefings are already in flight and
+# don't need recall on every boot. Silent (no header) when zero open or
+# index missing — keeps the digest lean on a clean board and survives a
+# partial-deploy boot where coo-memory has the index but coo-harness
+# hasn't been updated to read it yet. Schema + claim lifecycle in
+# .claude/skills/briefing/reference.md. (coo-memory#1092 / #1097.)
+BRIEFING_INDEX="$MEM_REPO/briefings/briefing_index.json"
+if [ -f "$BRIEFING_INDEX" ] && check_cmd jq; then
+  open_briefings=$(jq -r '
+    map(select(.status == "open" and (.claimed_by_session == null))) |
+    sort_by(.nnn) | .[0:10] | .[] |
+    "  " + (.nnn | tostring | ("000"[0:3-length]) + .) + " " + .slug
+  ' "$BRIEFING_INDEX" 2>/dev/null)
+  if [ -n "$open_briefings" ]; then
+    echo ""
+    echo "───────────────────────────────────────────────────────────────"
+    echo "Open briefings (awaiting pickup; full list: briefings/)"
+    echo "───────────────────────────────────────────────────────────────"
+    printf '%s\n' "$open_briefings"
+    echo ""
+    echo "Pick up via: /briefing pickup"
+  fi
+fi
+
 # Bootstrap posture — loud surface of whether this session boots with
 # a full identity. Three signals:
 #   (a) last coo-bootstrap outcome (from the log)
