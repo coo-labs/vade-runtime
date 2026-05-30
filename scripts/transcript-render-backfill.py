@@ -117,7 +117,7 @@ def _list_sessions(s3, bucket: str, prefix: str, key_re: re.Pattern[str]) -> set
     return sids
 
 
-def _render_one(session_id: str, key_prefix: str) -> tuple[bool, str]:
+def _render_one(session_id: str, key_prefix: str, overwrite: bool) -> tuple[bool, str]:
     """Returns (ok, detail). detail is a one-line message for stderr."""
     # 1. Fetch (decrypt) → path on stdout, lives under ~/.vade/transcript-cache/
     try:
@@ -139,15 +139,18 @@ def _render_one(session_id: str, key_prefix: str) -> tuple[bool, str]:
     if not jsonl.is_file():
         return False, f"fetch claimed {jsonl_path} but file missing"
 
-    # 2. Render → uploads to R2 under <key-prefix>/<sid>.html (first-write-wins).
+    # 2. Render → uploads to R2 under <key-prefix>/<sid>.html.
+    render_cmd = [
+        str(RENDER_PY),
+        "--session-id", session_id,
+        "--input", str(jsonl),
+        "--key-prefix", key_prefix,
+    ]
+    if overwrite:
+        render_cmd.append("--overwrite")
     try:
         render = subprocess.run(
-            [
-                str(RENDER_PY),
-                "--session-id", session_id,
-                "--input", str(jsonl),
-                "--key-prefix", key_prefix,
-            ],
+            render_cmd,
             check=True,
             capture_output=True,
             text=True,
@@ -182,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="list what would be rendered without doing it")
     p.add_argument("--include-existing", action="store_true",
                    help="re-render sessions that already have an HTML in R2")
+    p.add_argument("--overwrite", action="store_true",
+                   help="pass --overwrite to the renderer (default: first-write-wins)")
     p.add_argument("--key-prefix", default="rendered",
                    help="R2 key prefix for rendered HTML (default: rendered)")
     args = p.parse_args(argv)
@@ -226,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     failed = 0
     for i, sid in enumerate(targets, 1):
         _stderr(f"[{i}/{len(targets)}] {sid}")
-        success, detail = _render_one(sid, args.key_prefix)
+        success, detail = _render_one(sid, args.key_prefix, args.overwrite)
         if success:
             ok += 1
             _stderr(f"  OK · {detail}")
