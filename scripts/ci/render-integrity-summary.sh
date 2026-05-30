@@ -72,8 +72,8 @@ node -e '
 
   lines.push("---");
   lines.push("");
-  lines.push("Workflow: `.github/workflows/bootstrap-regression.yml`. " +
-             "Re-run by pushing to this PR or using the workflow_dispatch trigger. " +
+  lines.push("CI definition: `bootstrap-regression`. " +
+             "Re-run by pushing to this PR or via the GitHub Actions UI. " +
              "Tracked at coo-labs/coo-harness#86.");
 
   fs.writeFileSync(outPath, lines.join("\n") + "\n");

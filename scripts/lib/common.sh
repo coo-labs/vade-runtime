@@ -380,7 +380,7 @@ install_deps() {
 }
 
 # Mirror the committed .claude/ directory into Claude Code's user-scope
-# config dir. Subdirs (skills/, agents/, commands/, hooks/) are
+# config dir. Subdirs (skills/, agents/, commands/, hooks/, output-styles/) are
 # symlinked so edits in the repo are live next SessionStart.
 # settings.json is copied so coo-bootstrap can mutate the env block
 # without dirtying the git working tree. Plans/, projects/, todos/,
@@ -408,7 +408,7 @@ sync_claude_config() {
     return 0
   fi
   mkdir -p "$dst"
-  for sub in skills agents commands hooks; do
+  for sub in skills agents commands hooks output-styles; do
     [ -d "$src/$sub" ] || continue
     _sync_claude_subdir "$src/$sub" "$dst/$sub"
   done
@@ -496,7 +496,7 @@ load_aggregator_repos() {
   printf '%s\n' "$repos"
 }
 
-# Aggregate per-repo .claude/{commands,agents,skills,hooks} into the
+# Aggregate per-repo .claude/{commands,agents,skills,hooks,output-styles} into the
 # workspace .claude/ via per-file symlinks.
 #
 # Why: under the data-ownership rule (MEMO 2026-04-25-02), slash
@@ -527,7 +527,7 @@ aggregate_workspace_claude_config() {
   local dst_root="$1"; shift
   mkdir -p "$dst_root"
   local sub
-  for sub in commands agents skills hooks; do
+  for sub in commands agents skills hooks output-styles; do
     local dst_sub="$dst_root/$sub"
     # If dst is a symlink (legacy single-source layout), materialize it
     # into a real directory so we can union multiple sources into it.

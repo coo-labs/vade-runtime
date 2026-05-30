@@ -1,6 +1,9 @@
 ---
 name: tagging-taxonomy
 description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across coo-labs repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer; operational reference: `coo/operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
+metadata:
+  type: procedural
+  vendoring: custom
 ---
 
 # VADE issue tagging taxonomy

@@ -3,6 +3,8 @@
   "effortLevel": "high",
   "showThinkingSummaries": true,
   "alwaysThinkingEnabled": true,
+  "outputStyle": "coo",
+  "includeGitInstructions": false,
   "hooks": {
     "SessionStart": [
       {
@@ -56,6 +58,10 @@
           },
           {
             "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-end-transcript-render.sh\""
+          },
+          {
+            "type": "command",
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/lifecycle/session-lifecycle.sh\" --end"
           },
           {
@@ -91,6 +97,15 @@
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/agent-model-guard.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-yaml-guard.sh\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -107,7 +122,8 @@
   },
   "env": {
     "CLAUDE_STREAM_IDLE_TIMEOUT_MS": "600000",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS": "1"
   },
   "permissions": {
     "allow": [

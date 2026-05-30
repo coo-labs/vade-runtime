@@ -176,6 +176,7 @@ def main() -> int:
         # Shape assertions.
         for key in (
             "schema_version", "parser_version", "session_id",
+            "claude_code_remote_session_id",
             "exported_at", "events_processed",
             "bytes_pre_redaction", "bytes_post_redaction",
             "bytes_post_gzip", "bytes_ciphertext", "ciphertext_sha256",
@@ -191,8 +192,15 @@ def main() -> int:
 
         if meta["session_id"] != sid:
             fail(f"session_id mismatch: {meta['session_id']!r} != {sid!r}")
-        if meta["schema_version"] != 2:
-            fail(f"schema_version != 2: {meta['schema_version']}")
+        if meta["schema_version"] != 3:
+            fail(f"schema_version != 3: {meta['schema_version']}")
+        # Schema v3 adds claude_code_remote_session_id; the CI env doesn't
+        # set CLAUDE_CODE_REMOTE_SESSION_ID, so the field should be present
+        # but empty. (Stop-hook context populates it; absence in CI is
+        # expected.)
+        if not isinstance(meta["claude_code_remote_session_id"], str):
+            fail(f"claude_code_remote_session_id not a string: "
+                 f"{meta['claude_code_remote_session_id']!r}")
         if meta["events_processed"] != 4:
             fail(f"events_processed != 4: {meta['events_processed']}")
         if meta["r2"].get("uploaded") is not False:
@@ -221,7 +229,8 @@ def main() -> int:
     print(textwrap.dedent("""\
         OK: transcript-export-hook smoke
           - sidecar shape: 12+ keys
-          - schema_version: 2
+          - schema_version: 3
+          - claude_code_remote_session_id present (empty in CI env)
           - r2.meta_key set (flat-by-id; #207 fix shape (b))
           - events_processed: 4
           - thinking-block redacted

@@ -280,6 +280,31 @@ fi
 
 echo "───────────────────────────────────────────────────────────────"
 
+# Open briefings — strictly "needs pickup" subset (status=open AND
+# claimed_by_session=null). Claimed briefings are already in flight and
+# don't need recall on every boot. Silent (no header) when zero open or
+# index missing — keeps the digest lean on a clean board and survives a
+# partial-deploy boot where coo-memory has the index but coo-harness
+# hasn't been updated to read it yet. Schema + claim lifecycle in
+# .claude/skills/briefing/reference.md. (coo-memory#1092 / #1097.)
+BRIEFING_INDEX="$MEM_REPO/briefings/briefing_index.json"
+if [ -f "$BRIEFING_INDEX" ] && check_cmd jq; then
+  open_briefings=$(jq -r '
+    map(select(.status == "open" and (.claimed_by_session == null))) |
+    sort_by(.nnn) | .[0:10] | .[] |
+    "  " + (.nnn | tostring | ("000"[0:3-length]) + .) + " " + .slug
+  ' "$BRIEFING_INDEX" 2>/dev/null)
+  if [ -n "$open_briefings" ]; then
+    echo ""
+    echo "───────────────────────────────────────────────────────────────"
+    echo "Open briefings (awaiting pickup; full list: briefings/)"
+    echo "───────────────────────────────────────────────────────────────"
+    printf '%s\n' "$open_briefings"
+    echo ""
+    echo "Pick up via: /briefing pickup"
+  fi
+fi
+
 # Bootstrap posture — loud surface of whether this session boots with
 # a full identity. Three signals:
 #   (a) last coo-bootstrap outcome (from the log)
@@ -492,15 +517,16 @@ if [ "$HOME" = "/home/user" ]; then
   echo "───────────────────────────────────────────────────────────────"
 fi
 
-# GitHub write surface — per MEMO 2026-04-23-02, the vade-coo
-# attribution invariant (MEMO -22-04) rides on the github-coo MCP when
-# healthy and on the gh CLI when the MCP streamable-HTTP transport
-# fails with a DNS-cache overflow (issue #36). This block reports
-# fallback readiness at turn zero so a new session doesn't have to
-# re-derive the protocol from memos when an MCP call hits the failure
-# mode mid-task. We deliberately don't probe MCP liveness from a bash
-# hook (same reason the MCP surface probe above sticks to filesystem
-# prerequisites).
+# GitHub write surface — canonical path is bare `gh`, routed through
+# scripts/gh-coo-wrap.sh, which selects the vade-coo PAT or the
+# vade-coo-app installation token per request shape (MEMO 2026-05-12-22m9,
+# extended by -05-21-4wgy). An explicit GH_TOKEN= prefix bypasses that
+# routing and must not be used. github-coo MCP is retired (Epic #112
+# Stream 1) and the harness github MCP write tools are deny-listed in
+# settings.json. This block reports readiness at turn zero so a new
+# session doesn't re-derive the protocol from memos. We deliberately
+# don't probe MCP liveness from a bash hook (same reason the MCP surface
+# probe above sticks to filesystem prerequisites).
 echo ""
 echo "───────────────────────────────────────────────────────────────"
 echo "GitHub write surface"
@@ -516,9 +542,10 @@ if [ -n "${GITHUB_MCP_PAT:-}" ]; then
 else
   printf "  %-25s %s\n" "gh auth token:" "GITHUB_MCP_PAT unset — /resume or check coo-bootstrap"
 fi
-echo "  gh write path:            GH_TOKEN=\$GITHUB_MCP_PAT gh <cmd>  (attributes as vade-coo)."
-echo "                            Sole GitHub write path. github-coo MCP retired by"
-echo "                            Epic #112 Stream 1; harness github MCP writes deny-listed."
+echo "  gh write path:            bare 'gh <cmd>' — routed by gh-coo-wrap.sh (vade-coo"
+echo "                            PAT or vade-coo-app install token per request shape)."
+echo "                            Do NOT add GH_TOKEN=\$GITHUB_MCP_PAT — it defeats the"
+echo "                            shim. harness github MCP writes deny-listed (#112 S1)."
 echo "───────────────────────────────────────────────────────────────"
 
 # Note: integrity-check.sh runs at the TOP of the digest now (see
