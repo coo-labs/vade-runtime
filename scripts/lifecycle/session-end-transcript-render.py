@@ -117,6 +117,43 @@ def _read_entries(jsonl_path: Path) -> list[dict]:
 SYSTEM_REMINDER_RE = re.compile(
     r"<system-reminder>(.*?)</system-reminder>", re.DOTALL
 )
+# Envelopes Claude Code injects into the user-message slot that aren't
+# typed by the operator: webhook events from MCP subscriptions, background
+# task completions, etc. When the user message contains only these and no
+# remaining text, it's an auto-notification, not a real user turn.
+AUTO_NOTIFICATION_RES = [
+    re.compile(r"<github-webhook-activity>.*?</github-webhook-activity>", re.DOTALL),
+    re.compile(r"<task-notification>.*?</task-notification>", re.DOTALL),
+]
+
+
+def _strip_auto_notifications(text: str) -> str:
+    """Strip system-reminders and known auto-notification envelopes.
+    Returns the residue (what the user actually typed, if anything)."""
+    out = SYSTEM_REMINDER_RE.sub("", text)
+    for r in AUTO_NOTIFICATION_RES:
+        out = r.sub("", out)
+    return out
+
+
+def _is_auto_notification_user_entry(entry: dict) -> bool:
+    """True iff a user-typed message slot carries only auto-notifications
+    (webhook activity, task completion) and no real operator content."""
+    msg = entry.get("message", {}) or {}
+    content = msg.get("content")
+    if isinstance(content, str):
+        return not _strip_auto_notifications(content).strip()
+    if isinstance(content, list):
+        any_text = False
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                any_text = True
+                if _strip_auto_notifications(block.get("text", "")).strip():
+                    return False
+        # All-text-blocks were auto-only → True; no text blocks at all → False
+        # (must be a tool_result message, which we classify elsewhere).
+        return any_text
+    return False
 
 
 def _classify(entry: dict) -> str:
@@ -794,21 +831,26 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
             last_ts = ts
 
         if kind == "user":
-            user_count += 1
-            if not first_user_preview:
-                msg = entry.get("message", {}) or {}
-                content = msg.get("content")
-                text = ""
-                if isinstance(content, str):
-                    text = content
-                elif isinstance(content, list):
-                    for block in content:
-                        if isinstance(block, dict) and block.get("type") == "text":
-                            text = block.get("text", "")
-                            break
-                text = SYSTEM_REMINDER_RE.sub("", text).strip()
-                if text:
-                    first_user_preview = _first_line(text, 140)
+            if _is_auto_notification_user_entry(entry):
+                # Webhook events / task notifications injected into the user
+                # slot aren't operator turns; don't count them.
+                pass
+            else:
+                user_count += 1
+                if not first_user_preview:
+                    msg = entry.get("message", {}) or {}
+                    content = msg.get("content")
+                    text = ""
+                    if isinstance(content, str):
+                        text = content
+                    elif isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                text = block.get("text", "")
+                                break
+                    text = _strip_auto_notifications(text).strip()
+                    if text:
+                        first_user_preview = _first_line(text, 140)
         elif kind in ("assistant", "tool_use", "thinking"):
             assistant_count += 1
             msg = entry.get("message", {}) or {}
@@ -872,15 +914,16 @@ def render_html(session_id: str, entries: list[dict]) -> str:
             prev_ts = now_ts
 
         preview = ""
-        if kind == "user":
+        is_auto_user = kind == "user" and _is_auto_notification_user_entry(entry)
+        if kind == "user" and not is_auto_user:
             msg = entry.get("message", {}) or {}
             content = msg.get("content")
             if isinstance(content, str):
-                preview = _first_line(SYSTEM_REMINDER_RE.sub("", content), 60)
+                preview = _first_line(_strip_auto_notifications(content), 60)
             elif isinstance(content, list):
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "text":
-                        preview = _first_line(SYSTEM_REMINDER_RE.sub("", block.get("text", "")), 60)
+                        preview = _first_line(_strip_auto_notifications(block.get("text", "")), 60)
                         break
 
         if kind == "user":
@@ -904,7 +947,9 @@ def render_html(session_id: str, entries: list[dict]) -> str:
             error_count += 1
 
         rendered.append(html_chunk)
-        toc_entries.append((i, kind, preview))
+        # Auto-notification user entries don't get a TOC slot — but they
+        # still render as entries (raw form remains scrollable / Find-able).
+        toc_entries.append((i, "auto_user" if is_auto_user else kind, preview))
 
     toc = _build_toc(toc_entries)
     duration = _format_elapsed(first_ts, last_ts) or "—"
