@@ -91,6 +91,15 @@
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/agent-model-guard.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-yaml-guard.sh\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
