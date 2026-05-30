@@ -3,6 +3,8 @@
   "effortLevel": "high",
   "showThinkingSummaries": true,
   "alwaysThinkingEnabled": true,
+  "outputStyle": "coo",
+  "includeGitInstructions": false,
   "hooks": {
     "SessionStart": [
       {
