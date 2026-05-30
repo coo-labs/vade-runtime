@@ -756,9 +756,11 @@ def main() -> int:
                 }
 
             sidecar = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "parser_version": PARSER_VERSION,
                 "session_id": session_id,
+                "claude_code_remote_session_id":
+                    os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID", "").strip(),
                 "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "source_jsonl": str(jsonl_path),
                 "events_processed": redaction_summary.get("events_processed", 0),

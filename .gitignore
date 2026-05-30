@@ -3,4 +3,4 @@
 *.log
 # Docker build cruft
 .buildx-cache/
-settings.local.json
+settings.local.json__pycache__/
