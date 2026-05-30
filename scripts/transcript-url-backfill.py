@@ -20,6 +20,13 @@ Algorithm (per the 2026-05-30 comment on coo-console#23):
   3. List R2 `<key-prefix>/*.meta.json` sidecars; for each missing
      `session_url`, look the sid up in the map; on hit, fetch,
      patch in place, PUT back.
+  4. Optional (`--rerender`): also re-run the renderer for each hit
+     with `CLAUDE_CODE_SESSION_ID` + `CLAUDE_CODE_REMOTE_SESSION_ID`
+     env injected so the renderer's path-1 env-recovery fires. This
+     uploads a fresh HTML body whose template includes the
+     `Open in Claude Code` link. Best-effort: sids whose ciphertext
+     is no longer in the R2 archive log a FAIL and the sidecar
+     patch still stands.
 
 Coverage caveat: only sids landed by per-session auto-meta-PRs are
 in scope. Sids landed by bulk PRs, or never auto-PR'd at all
@@ -32,7 +39,7 @@ in-scope slice (see #23 comment thread for the cohort breakdown).
 
 Usage:
   transcript-url-backfill.py [--limit N] [--dry-run] [--include-populated]
-                             [--key-prefix rendered]
+                             [--rerender] [--key-prefix rendered]
 
 Env:
   R2_TRANSCRIPTS_ACCESS_KEY_ID      — R2 access key
@@ -57,6 +64,12 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+FETCH_SH = SCRIPT_DIR / "lib" / "transcript-fetch.sh"
+RENDER_PY = SCRIPT_DIR / "lifecycle" / "session-end-transcript-render.py"
+SESSION_URL_PREFIX = "https://claude.ai/code/session_"
 
 SESSION_ID_RE = re.compile(
     r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
@@ -178,6 +191,62 @@ def _list_candidate_sidecars(
     return cands
 
 
+def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[bool, str]:
+    """Decrypt ciphertext via transcript-fetch.sh and re-run the renderer
+    with env-injected CLAUDE_CODE_SESSION_ID/REMOTE_SESSION_ID so the
+    renderer's path-1 env recovery fires. Uploads fresh HTML + sidecar
+    to R2 via the renderer's own put pipeline."""
+    if not FETCH_SH.is_file():
+        return False, f"fetch wrapper missing: {FETCH_SH}"
+    if not RENDER_PY.is_file():
+        return False, f"render script missing: {RENDER_PY}"
+    remote = session_url.removeprefix(SESSION_URL_PREFIX).strip()
+    if not remote:
+        return False, f"could not parse remote sid from {session_url!r}"
+
+    try:
+        fetch = subprocess.run(
+            ["bash", str(FETCH_SH), session_id],
+            check=True, capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"fetch failed: rc={e.returncode} stderr={e.stderr.strip()[:200]}"
+    except subprocess.TimeoutExpired:
+        return False, "fetch timed out after 120s"
+    jsonl_path = fetch.stdout.strip()
+    if not jsonl_path or not Path(jsonl_path).is_file():
+        return False, f"fetch returned no usable path ({jsonl_path!r})"
+
+    env = os.environ.copy()
+    env["CLAUDE_CODE_SESSION_ID"] = session_id
+    env["CLAUDE_CODE_REMOTE_SESSION_ID"] = remote
+
+    try:
+        render = subprocess.run(
+            [str(RENDER_PY),
+             "--session-id", session_id,
+             "--input", jsonl_path,
+             "--key-prefix", key_prefix,
+             "--overwrite"],
+            check=True, capture_output=True, text=True, timeout=120, env=env,
+        )
+    except subprocess.CalledProcessError as e:
+        return False, f"render failed: rc={e.returncode} stderr={e.stderr.strip()[:200]}"
+    except subprocess.TimeoutExpired:
+        return False, "render timed out after 120s"
+    finally:
+        try:
+            subprocess.run(
+                ["bash", str(FETCH_SH), "--cleanup", jsonl_path],
+                check=False, capture_output=True, timeout=10,
+            )
+        except subprocess.TimeoutExpired:
+            pass
+
+    last = render.stderr.strip().splitlines()[-1] if render.stderr.strip() else ""
+    return True, f"re-rendered ({last})"
+
+
 def _patch_one(s3, bucket: str, key: str, session_url: str) -> tuple[bool, str]:
     try:
         body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
@@ -209,6 +278,10 @@ def main(argv: list[str] | None = None) -> int:
                    help="print sid<TAB>session_url assignments without patching")
     p.add_argument("--include-populated", action="store_true",
                    help="also consider sidecars whose session_url is already set")
+    p.add_argument("--rerender", action="store_true",
+                   help="after patching the sidecar, also re-run the renderer "
+                        "with env-injected CLAUDE_CODE_SESSION_ID/REMOTE_SESSION_ID "
+                        "so the HTML body includes the 'Open in Claude Code' link")
     p.add_argument("--key-prefix", default="rendered",
                    help="R2 key prefix for rendered HTML/meta (default: rendered)")
     args = p.parse_args(argv)
@@ -253,18 +326,36 @@ def main(argv: list[str] | None = None) -> int:
 
     ok = 0
     failed = 0
+    rerender_ok = 0
+    rerender_fail = 0
     for i, (sid, key, url) in enumerate(hits, 1):
         _stderr(f"[{i}/{len(hits)}] {sid}")
         success, detail = _patch_one(s3, bucket, key, url)
         if success:
             ok += 1
-            _stderr(f"  OK · {detail}")
+            _stderr(f"  patch OK · {detail}")
         else:
             failed += 1
-            _stderr(f"  FAIL · {detail}")
+            _stderr(f"  patch FAIL · {detail}")
+            continue
+        if args.rerender:
+            r_success, r_detail = _rerender_one(sid, key_prefix, url)
+            if r_success:
+                rerender_ok += 1
+                _stderr(f"  rerender OK · {r_detail}")
+            else:
+                rerender_fail += 1
+                _stderr(f"  rerender FAIL · {r_detail}")
 
-    _stderr(f"done: ok={ok} fail={failed} total={len(hits)}")
-    return 0 if failed == 0 else 2
+    summary = f"done: patch ok={ok} fail={failed} total={len(hits)}"
+    if args.rerender:
+        summary += f" | rerender ok={rerender_ok} fail={rerender_fail}"
+    _stderr(summary)
+    if failed:
+        return 2
+    if args.rerender and rerender_fail:
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
