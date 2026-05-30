@@ -705,6 +705,23 @@ def _build_toc(rendered_entries: list[tuple[int, str, str]]) -> str:
     return f'<nav class="toc"><h2>User turns</h2><ol>{"".join(items)}</ol></nav>'
 
 
+def _compute_session_url(session_id: str) -> str:
+    """Derive the claude.ai/code session URL from env. Only safe when
+    CLAUDE_CODE_SESSION_ID matches the session being rendered — the
+    SessionEnd-hook path satisfies this by construction; manual
+    renders satisfy it iff the operator targets the current session;
+    backfill never satisfies it (returns "")."""
+    env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    if not env_sid or env_sid != session_id:
+        return ""
+    remote_sid = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID", "").strip()
+    if not remote_sid:
+        return ""
+    if remote_sid.startswith("cse_"):
+        remote_sid = remote_sid[4:]
+    return f"https://claude.ai/code/session_{remote_sid}"
+
+
 def compute_metadata(session_id: str, entries: list[dict]) -> dict:
     """Walk entries once; return the metadata blob for the list-page sidecar.
 
@@ -783,11 +800,13 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
         "tool_call_count": tool_call_count,
         "error_count": error_count,
         "first_user_preview": first_user_preview,
+        "session_url": _compute_session_url(session_id),
         "renderer_version": PARSER_VERSION,
     }
 
 
 def render_html(session_id: str, entries: list[dict]) -> str:
+    session_url = _compute_session_url(session_id)
     rendered: list[str] = []
     toc_entries: list[tuple[int, str, str]] = []
     prev_ts: datetime.datetime | None = None
@@ -859,7 +878,7 @@ def render_html(session_id: str, entries: list[dict]) -> str:
 <body>
 {toc}
 <main>
-  <p class="back"><a href="/transcripts/">← All transcripts</a></p>
+  <p class="back"><a href="/transcripts/">← All transcripts</a>{(' &nbsp;·&nbsp; <a href="' + _esc(session_url) + '" target="_blank" rel="noopener">Open in Claude Code ↗</a>') if session_url else ''}</p>
   <header class="session">
     <h1>{_esc(session_id)}</h1>
     <div class="meta">
