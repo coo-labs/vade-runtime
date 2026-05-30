@@ -54,7 +54,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PARSER_VERSION = 1
+PARSER_VERSION = 2
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
@@ -821,6 +821,7 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
     tool_call_count = 0
     error_count = 0
     first_user_preview = ""
+    first_user_uuid: str | None = None
 
     for entry in entries:
         kind = _classify(entry)
@@ -851,6 +852,14 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
                     text = _strip_auto_notifications(text).strip()
                     if text:
                         first_user_preview = _first_line(text, 140)
+                        # Capture the UUID of the FIRST real user message.
+                        # Invariant across jsonl rotations — Claude Code
+                        # preserves message UUIDs in the replayed history,
+                        # verified empirically on 4 known rotations of the
+                        # same conversation. Perfect group key when present.
+                        uid = entry.get("uuid")
+                        if isinstance(uid, str):
+                            first_user_uuid = uid
         elif kind in ("assistant", "tool_use", "thinking"):
             assistant_count += 1
             msg = entry.get("message", {}) or {}
@@ -888,6 +897,7 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
         "tool_call_count": tool_call_count,
         "error_count": error_count,
         "first_user_preview": first_user_preview,
+        "first_user_uuid": first_user_uuid,
         "session_url": _compute_session_url(session_id),
         "renderer_version": PARSER_VERSION,
     }
