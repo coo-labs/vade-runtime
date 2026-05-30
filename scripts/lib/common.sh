@@ -380,7 +380,7 @@ install_deps() {
 }
 
 # Mirror the committed .claude/ directory into Claude Code's user-scope
-# config dir. Subdirs (skills/, agents/, commands/, hooks/) are
+# config dir. Subdirs (skills/, agents/, commands/, hooks/, output-styles/) are
 # symlinked so edits in the repo are live next SessionStart.
 # settings.json is copied so coo-bootstrap can mutate the env block
 # without dirtying the git working tree. Plans/, projects/, todos/,
@@ -496,7 +496,7 @@ load_aggregator_repos() {
   printf '%s\n' "$repos"
 }
 
-# Aggregate per-repo .claude/{commands,agents,skills,hooks} into the
+# Aggregate per-repo .claude/{commands,agents,skills,hooks,output-styles} into the
 # workspace .claude/ via per-file symlinks.
 #
 # Why: under the data-ownership rule (MEMO 2026-04-25-02), slash
