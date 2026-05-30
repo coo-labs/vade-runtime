@@ -492,15 +492,16 @@ if [ "$HOME" = "/home/user" ]; then
   echo "───────────────────────────────────────────────────────────────"
 fi
 
-# GitHub write surface — per MEMO 2026-04-23-02, the vade-coo
-# attribution invariant (MEMO -22-04) rides on the github-coo MCP when
-# healthy and on the gh CLI when the MCP streamable-HTTP transport
-# fails with a DNS-cache overflow (issue #36). This block reports
-# fallback readiness at turn zero so a new session doesn't have to
-# re-derive the protocol from memos when an MCP call hits the failure
-# mode mid-task. We deliberately don't probe MCP liveness from a bash
-# hook (same reason the MCP surface probe above sticks to filesystem
-# prerequisites).
+# GitHub write surface — canonical path is bare `gh`, routed through
+# scripts/gh-coo-wrap.sh, which selects the vade-coo PAT or the
+# vade-coo-app installation token per request shape (MEMO 2026-05-12-22m9,
+# extended by -05-21-4wgy). An explicit GH_TOKEN= prefix bypasses that
+# routing and must not be used. github-coo MCP is retired (Epic #112
+# Stream 1) and the harness github MCP write tools are deny-listed in
+# settings.json. This block reports readiness at turn zero so a new
+# session doesn't re-derive the protocol from memos. We deliberately
+# don't probe MCP liveness from a bash hook (same reason the MCP surface
+# probe above sticks to filesystem prerequisites).
 echo ""
 echo "───────────────────────────────────────────────────────────────"
 echo "GitHub write surface"
@@ -516,9 +517,10 @@ if [ -n "${GITHUB_MCP_PAT:-}" ]; then
 else
   printf "  %-25s %s\n" "gh auth token:" "GITHUB_MCP_PAT unset — /resume or check coo-bootstrap"
 fi
-echo "  gh write path:            GH_TOKEN=\$GITHUB_MCP_PAT gh <cmd>  (attributes as vade-coo)."
-echo "                            Sole GitHub write path. github-coo MCP retired by"
-echo "                            Epic #112 Stream 1; harness github MCP writes deny-listed."
+echo "  gh write path:            bare 'gh <cmd>' — routed by gh-coo-wrap.sh (vade-coo"
+echo "                            PAT or vade-coo-app install token per request shape)."
+echo "                            Do NOT add GH_TOKEN=\$GITHUB_MCP_PAT — it defeats the"
+echo "                            shim. harness github MCP writes deny-listed (#112 S1)."
 echo "───────────────────────────────────────────────────────────────"
 
 # Note: integrity-check.sh runs at the TOP of the digest now (see
