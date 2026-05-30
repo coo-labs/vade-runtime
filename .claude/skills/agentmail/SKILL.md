@@ -1,6 +1,9 @@
 ---
 name: agentmail
 description: Give AI agents their own email inboxes using the AgentMail API. Use when building email agents, sending/receiving emails programmatically, managing inboxes, handling attachments, organizing with labels, creating drafts for human approval, or setting up real-time notifications via webhooks/websockets. Supports multi-tenant isolation with pods.
+metadata:
+  type: api-service
+  vendoring: custom
 ---
 
 # AgentMail SDK

@@ -1,7 +1,10 @@
 ---
 name: trace-timeline
-description: Render an interactive HTML timeline from a bootstrap-trace run. Use when the user wants to view, visualize, inspect, or "see" what happened during a traced boot — process spans, write/read interleavings, snapshot states, the D-group invariant decisions. Triggers on phrases like "show me the trace", "visualize the boot", "timeline of the trace", "interactive diagram of the trace", "render the trace", or when investigating a `~/.vade/traces/<run-id>/` directory and a chart would be clearer than text. Reads `xtrace.log` + `snapshots/*/content/settings.json` + `meta.json`, writes a self-contained HTML file that opens in any browser. Read-only over the trace data. Don't invoke for: running a fresh trace (that's the `bootstrap-trace-init.sh` harness via container UI), proposing fixes to the boot pipeline (the audit pause forbids it), or operating on traces from other tools.
+description: "Render an interactive HTML timeline from a bootstrap-trace run. Use when the user wants to view, visualize, inspect, or \"see\" what happened during a traced boot — process spans, write/read interleavings, snapshot states, the D-group invariant decisions. Triggers on phrases like \"show me the trace\", \"visualize the boot\", \"timeline of the trace\", \"interactive diagram of the trace\", \"render the trace\", or when investigating a `~/.vade/traces/<run-id>/` directory and a chart would be clearer than text. Reads `xtrace.log` + `snapshots/*/content/settings.json` + `meta.json`, writes a self-contained HTML file that opens in any browser. Read-only over the trace data. Don't invoke for: running a fresh trace (that's the `bootstrap-trace-init.sh` harness via container UI), proposing fixes to the boot pipeline (the audit pause forbids it), or operating on traces from other tools."
 allowed-tools: Bash, Read, SendUserFile
+metadata:
+  type: procedural
+  vendoring: custom
 ---
 
 # trace-timeline — interactive bootstrap-trace viewer
