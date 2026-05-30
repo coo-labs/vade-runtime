@@ -20,6 +20,11 @@ trap '_rc=$?; boot_log_record project-board-digest end $([ $_rc -eq 0 ] && echo 
 
 wait_for_coo_bootstrap 60
 
+# TEMPORARILY DISABLED — GitHub project / API quota investigation in flight.
+# Remove this guard to restore the digest fetch.
+echo "Boot: VADE project digest — TEMPORARILY DISABLED (GitHub project fetch / API quota investigation in flight). Do not query the project board this session unless explicitly asked."
+exit 0
+
 TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-${GITHUB_MCP_PAT:-}}}"
 if [ -z "$TOKEN" ]; then
   log "GH_TOKEN unset; skipping project-board digest."
