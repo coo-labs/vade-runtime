@@ -126,3 +126,6 @@ jobs:
 
       - name: Identity digest — gap-warning contract (coo-memory#1069)
         run: bash "$GITHUB_WORKSPACE/scripts/ci/test-digest-gap-warnings.sh"
+
+      - name: Auto-subscribe PR hook — matcher contract (wrapper + raw)
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/test-auto-subscribe-pr.sh"
