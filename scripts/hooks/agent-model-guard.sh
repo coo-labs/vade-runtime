@@ -35,7 +35,7 @@
 # in the call site.
 #
 # Reference: MEMO-2026-05-25-<suffix>; coo-memory#781;
-# coo/parallel_instance_protocol.md §8.6.
+# operations/parallel_instance_protocol.md §8.6.
 
 set -uo pipefail
 
@@ -55,7 +55,7 @@ if [ -n "$model" ]; then
   exit 0
 fi
 
-reason="[agent-model-guard] Built-in subagent '${subagent_type}' defaults to Haiku per code.claude.com/docs/en/sub-agents.md. Pass an explicit \`model:\` argument so the choice is calibrated: \`\"sonnet\"\` (or higher) for any result the parent will act on; \`\"haiku\"\` only when the result will be independently verified by the caller (e.g. a narrow file-existence check, a one-line lookup). Silent omission is refused because the failure profile of Haiku on load-bearing work — high-confidence shallow heuristics, uncalibrated assertions, plausible hallucinations — propagates errors that the parent then has to disambiguate. See coo/parallel_instance_protocol.md §8.6 and MEMO references in coo-memory#781."
+reason="[agent-model-guard] Built-in subagent '${subagent_type}' defaults to Haiku per code.claude.com/docs/en/sub-agents.md. Pass an explicit \`model:\` argument so the choice is calibrated: \`\"sonnet\"\` (or higher) for any result the parent will act on; \`\"haiku\"\` only when the result will be independently verified by the caller (e.g. a narrow file-existence check, a one-line lookup). Silent omission is refused because the failure profile of Haiku on load-bearing work — high-confidence shallow heuristics, uncalibrated assertions, plausible hallucinations — propagates errors that the parent then has to disambiguate. See operations/parallel_instance_protocol.md §8.6 and MEMO references in coo-memory#781."
 
 jq -n --arg reason "$reason" '{
   decision: "block",
