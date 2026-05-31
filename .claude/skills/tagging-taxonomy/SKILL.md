@@ -1,6 +1,6 @@
 ---
 name: tagging-taxonomy
-description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across coo-labs repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer; operational reference: `coo/operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
+description: "Apply or look up VADE issue metadata. Use when filing, triaging, or searching issues across coo-labs repos by dimension (issue type, area, Readiness field, Priority field, needs/blocked). Native types + Issue fields are the primary metadata layer; operational reference: `operations/issue-fields-and-types.md` (field list, pinning matrix, API surface). `area:*` and qualifier labels are what remains label-encoded."
 metadata:
   type: procedural
   vendoring: custom
@@ -20,7 +20,7 @@ The coo-labs repos share metadata across two layers:
    `external-code`, `publish`, `permanently-open`), and
    discussion-specific labels.
 
-Canonical reference: `coo-labs/coo-memory/coo/operations/issue-fields-and-types.md` —
+Canonical reference: `coo-labs/coo-memory/operations/issue-fields-and-types.md` —
 field list, pinning matrix, API surface, label vocabulary.
 
 Read the canonical when the digest below looks stale.
@@ -37,7 +37,7 @@ Invoke when you need to:
 
 Don't invoke for: PR-level review labels (none defined), project-board
 `Status` / `Owner` fields (those live on the project, not on labels —
-see `coo/operations/project-board.md`), or commit-message conventions
+see `operations/project-board.md`), or commit-message conventions
 (handled elsewhere).
 
 ## The dimensions
@@ -157,7 +157,7 @@ When asked to tag a new issue, run this in order:
 
 ## Search recipes — "what should I work on?"
 
-**Layer rule** (canonical: [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface"): issue fields live on a dedicated API surface — REST `/repos/<o>/<r>/issues/<n>/issue-field-values` per-issue, or GraphQL `issueFieldValues` connection on the `Issue` type. GitHub issue-search qualifiers (`gh issue list --search`) honor `type:<Type>` but **do not** honor `readiness:*` / `priority:*` / `effort:*` — those silently fall back to text matching and return wrong results. The VADE project board does not expose issue fields on `gh project item-list` JSON either (Status / Owner / Milestone are project-item fields, a different layer). Filter on issue-field values via GraphQL or per-issue REST, not via `--search` or `gh project`.
+**Layer rule** (canonical: [`operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/operations/issue-fields-and-types.md) §"API surface"): issue fields live on a dedicated API surface — REST `/repos/<o>/<r>/issues/<n>/issue-field-values` per-issue, or GraphQL `issueFieldValues` connection on the `Issue` type. GitHub issue-search qualifiers (`gh issue list --search`) honor `type:<Type>` but **do not** honor `readiness:*` / `priority:*` / `effort:*` — those silently fall back to text matching and return wrong results. The VADE project board does not expose issue fields on `gh project item-list` JSON either (Status / Owner / Milestone are project-item fields, a different layer). Filter on issue-field values via GraphQL or per-issue REST, not via `--search` or `gh project`.
 
 What works on `--search`:
 - `type:<Type>` — native issue type (works since 2026-03)
@@ -209,7 +209,7 @@ for n in $(gh issue list --repo $REPO --state open --limit 500 --json number --j
 done
 ```
 
-Field IDs (from canonical ops doc): Priority `41357630`, Effort `41357633`, Readiness `42387399`. See [`coo/operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/coo/operations/issue-fields-and-types.md) §"API surface" for the full table + REST shape gotchas.
+Field IDs (from canonical ops doc): Priority `41357630`, Effort `41357633`, Readiness `42387399`. See [`operations/issue-fields-and-types.md`](https://github.com/coo-labs/coo-memory/blob/main/operations/issue-fields-and-types.md) §"API surface" for the full table + REST shape gotchas.
 
 ### Find the research queue (Readiness="Needs research")
 
@@ -278,8 +278,8 @@ cross-repo invariant.
 ## Canonical sources
 
 ```text
-coo-labs/coo-memory/coo/operations/issue-fields-and-types.md
-coo-labs/coo-memory/coo/memos/2026-05-21-xfqh.md
+coo-labs/coo-memory/operations/issue-fields-and-types.md
+coo-labs/coo-memory/memos/2026-05-21-xfqh.md
 ```
 
 When this digest and the canonical docs disagree, the canonical

@@ -1262,7 +1262,7 @@ ensure_mem0_mcp_server() {
 # the snapshot-persistent tree so the bundle survives resume.
 #
 # Rationale: introduced for the 2026-shiffrin-conference deck
-# (coo-memory/coo/_drafts/2026-shiffrin-conference/), kept as a
+# (coo-memory/_drafts/2026-shiffrin-conference/), kept as a
 # standing tool for future markdown-to-{revealjs,pptx,pdf} workflows.
 # Best-effort at build time; cloud-setup logs a warning on failure and
 # the first session that needs Quarto fetches on demand.
