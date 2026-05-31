@@ -106,6 +106,15 @@
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-yaml-guard.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/read-boot-inlined-guard.sh\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
