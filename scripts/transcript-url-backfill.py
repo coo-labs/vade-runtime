@@ -654,11 +654,20 @@ def _resolve_via_scan(
     return url, detail, source
 
 
-def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[bool, str]:
+def _rerender_one(
+    s3, bucket: str, session_id: str, key_prefix: str, session_url: str,
+) -> tuple[bool, str]:
     """Decrypt ciphertext via transcript-fetch.sh and re-run the renderer
     with env-injected CLAUDE_CODE_SESSION_ID/REMOTE_SESSION_ID so the
     renderer's path-1 env recovery fires. Uploads fresh HTML + sidecar
-    to R2 via the renderer's own put pipeline."""
+    to R2 via the renderer's own put pipeline.
+
+    Preserves the pre-existing `url_source` on the sidecar when it was
+    AUTHORITATIVE and not already ``env-recovery``. The renderer's
+    env-injection tags every URL ``env-recovery`` by construction, which
+    is correct for first-time renders but erases historical provenance
+    (e.g. ``html-extract``, ``title-fast-path``, ``export-meta-fallback``)
+    on subsequent rerenders. Briefing 039 *Critical* — must-preserve."""
     if not FETCH_SH.is_file():
         return False, f"fetch wrapper missing: {FETCH_SH}"
     if not RENDER_PY.is_file():
@@ -666,6 +675,25 @@ def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[b
     remote = session_url.removeprefix(SESSION_URL_PREFIX).strip()
     if not remote:
         return False, f"could not parse remote sid from {session_url!r}"
+
+    # Capture pre-existing authoritative url_source so we can restore it
+    # after the renderer overwrites the sidecar with env-recovery.
+    meta_key = f"{key_prefix}/{session_id}.meta.json"
+    preserved_url_source: str | None = None
+    try:
+        body = s3.get_object(Bucket=bucket, Key=meta_key)["Body"].read()
+        existing = json.loads(body)
+        existing_src = existing.get("url_source")
+        if (
+            existing_src in AUTHORITATIVE_URL_SOURCES
+            and existing_src != "env-recovery"
+        ):
+            preserved_url_source = existing_src
+    except Exception:
+        # No pre-existing sidecar or unreadable — fail-soft; the renderer
+        # will write a fresh env-recovery tag, which is correct first-run
+        # behavior.
+        pass
 
     try:
         fetch = subprocess.run(
@@ -707,7 +735,31 @@ def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[b
             pass
 
     last = render.stderr.strip().splitlines()[-1] if render.stderr.strip() else ""
-    return True, f"re-rendered ({last})"
+
+    if preserved_url_source is None:
+        return True, f"re-rendered ({last})"
+
+    # Restore the pre-existing authoritative url_source. Unconditional
+    # write here — the rerender-restore is a known-correct override of
+    # the env-recovery tag the renderer just wrote. _patch_one's
+    # preservation check would refuse this write because env-recovery
+    # is itself authoritative; the restore is the one place that
+    # legitimately replaces one authoritative tag with another.
+    try:
+        body = s3.get_object(Bucket=bucket, Key=meta_key)["Body"].read()
+        meta = json.loads(body)
+        meta["url_source"] = preserved_url_source
+        new_body = json.dumps(meta, separators=(",", ":")).encode("utf-8")
+        s3.put_object(
+            Bucket=bucket, Key=meta_key, Body=new_body,
+            ContentType="application/json; charset=utf-8",
+        )
+        return True, f"re-rendered ({last}) · url_source restored: {preserved_url_source}"
+    except Exception as e:
+        return True, (
+            f"re-rendered ({last}) · WARN: url_source restore failed: {e} "
+            f"(was {preserved_url_source}, now env-recovery)"
+        )
 
 
 def _patch_one(
@@ -854,7 +906,7 @@ def main(argv: list[str] | None = None) -> int:
             _stderr(f"  patch FAIL · {detail}")
             continue
         if args.rerender:
-            r_success, r_detail = _rerender_one(sid, key_prefix, url)
+            r_success, r_detail = _rerender_one(s3, bucket, sid, key_prefix, url)
             if r_success:
                 rerender_ok += 1
                 _stderr(f"  rerender OK · {r_detail}")
