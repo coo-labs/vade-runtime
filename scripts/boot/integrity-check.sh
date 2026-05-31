@@ -901,7 +901,7 @@ F_CUTOFF_GIT="2026-04-26 00:30:00 +0000"  # timestamp form — used for F1/F4 gi
 # macOS legacy fallback, cloud legacy fallback.
 F_REPO="${COO_MEMORY_DIR:-$VADE_COO_MEMORY_DIR}"
 
-# ── F1 — PR citation invariant ───────────────────────────────
+# ── F1 — memo-or-issue citation invariant ───────────────────
 # Every commit since F_CUTOFF touching identity/, operations/,
 # memos/, briefings/, plans/, projects/, instruments/, quorums/,
 # foundations/, lineage/, site/, personas/, funding/, or CLAUDE.md
@@ -933,7 +933,7 @@ if [ -d "$F_REPO/.git" ] && check_cmd git; then
   elif [ "${#f1_bad[@]}" -eq 0 ]; then
     _add F1 true "$f1_total/$f1_total decision-bearing commits since $F_CUTOFF_GIT cite memo or issue"
   else
-    _add F1 false "${#f1_bad[@]}/$f1_total commits missing citation: $(IFS=,; echo "${f1_bad[*]}")"
+    _add F1 false "${#f1_bad[@]}/$f1_total commits missing memo-or-issue citation (MEMO-YYYY-MM-DD-suffix or #NNN): $(IFS=,; echo "${f1_bad[*]}")"
   fi
 else
   _add F1 skip "requires coo-memory repo at $F_REPO with .git"
@@ -1102,8 +1102,8 @@ fi
 # (default 6.0 carriers/1000 from the auto-detectable subset; baseline
 # observed min 6.92 per instruments/voice-density.md §4).
 #
-# Numbering note: integrity-check.sh F1-F4 are PR-citation, memo-retirement,
-# essay-companion, attribution-coverage. F5 extends the script's F-series
+# Numbering note: integrity-check.sh F1-F4 are memo-or-issue-citation,
+# memo-retirement, essay-companion, attribution-coverage. F5 extends the script's F-series
 # numerically; the disposition-proposal F1-F7 audit poles are a SEPARATE
 # numbering axis. F5 here implements pole F4's sub-condition 1. Stages 2-4
 # of coo-memory#429 will add further slots covering the remaining
@@ -1215,8 +1215,8 @@ fi
 # when the count of artifacts with strong (non-borderline) framed-as-
 # caution findings rises above the calibrated threshold.
 #
-# Numbering note: integrity-check.sh F1-F4 are PR-citation, memo-
-# retirement, essay-companion, attribution-coverage. F5-F8 extend the
+# Numbering note: integrity-check.sh F1-F4 are memo-or-issue-citation,
+# memo-retirement, essay-companion, attribution-coverage. F5-F8 extend the
 # script's F-series numerically; the disposition-proposal F1-F7 audit
 # poles are a SEPARATE numbering axis. F8 here implements disposition-
 # proposal F5 sub-condition 3 (where F5 here implemented disposition-
