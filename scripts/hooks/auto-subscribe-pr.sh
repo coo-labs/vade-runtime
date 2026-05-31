@@ -17,8 +17,12 @@ input="$(cat 2>/dev/null || true)"
 [ -z "$input" ] && exit 0
 
 cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // ""' 2>/dev/null || true)"
+# Match both invocation forms: raw `gh pr create` AND the canonical
+# `gh-pr-create.sh` wrapper (coo-memory/CLAUDE.md §"GitHub writes").
+# PostToolUse sees the OUTER bash command, not the wrapper's exec'd
+# child, so the wrapper invocation must be detected by its own name.
 case "$cmd" in
-  *"gh pr create"*) ;;
+  *"gh pr create"*|*"gh-pr-create"*) ;;
   *) exit 0 ;;
 esac
 
