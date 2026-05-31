@@ -71,10 +71,12 @@ quarto              1.9.37    # Slide-deck and document rendering
 # tarball as published; cloud-setup.sh sha256-verifies before untar.
 # Without a pin the fetch path is a no-op (verification fails closed),
 # leaving the per-binary direct-fetch fallback to handle install.
-# Empty until the first publish-binary-vendor workflow run lands a
-# bundle; bump on each Dockerfile/versions.lock change that
-# regenerates the bundle.
-binary_vendor_bundle  bb9cf2c35a86f7d558f6f3dd3a8da3e0b5d7dd30880a33d80e4320c28036f0c3  # SHA256 of binary-vendor.tar.gz published as binary-vendor-3c08804 from merge of #128.
+# Auto-bumped by .github/workflows/publish-binary-vendor.yml: each
+# successful publish opens a PR updating the SHA on this line. The
+# workflow also skips publishing when binary versions are unchanged
+# since the previous bundle, so this row converges on the current
+# binary-vendor-latest sha without an infinite republish loop.
+binary_vendor_bundle  47130b3af9666275f44b009e1b3d3863db4e1e06743ecab9f50bfbaa5e114e77  # SHA256 of binary-vendor.tar.gz published as binary-vendor-0be1f51 (2026-05-27). Auto-bumped by publish-binary-vendor.yml after each successful publish.
 
 # Globally installed via npm
 @anthropic-ai/claude-code 1.0.120  # Claude Code CLI. Pinned to the
