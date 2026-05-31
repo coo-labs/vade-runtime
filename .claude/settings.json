@@ -317,5 +317,10 @@
       "mcp__github__enable_pr_auto_merge",
       "mcp__github__disable_pr_auto_merge"
     ]
-  }
+  },
+  "deniedMcpServers": [
+    { "serverName": "2512c95b-4f21-45f0-9cfe-4bbb781d5d96" },
+    { "serverName": "67828e51-7e81-47d2-af54-52c28c902662" },
+    { "serverName": "90cea781-9b8c-43e1-9536-8a68c9936159" }
+  ]
 }
