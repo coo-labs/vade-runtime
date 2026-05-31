@@ -55,7 +55,7 @@ import sys
 import time
 from pathlib import Path
 
-PARSER_VERSION = 1
+PARSER_VERSION = 3
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
@@ -809,11 +809,14 @@ def _compute_session_url(session_id: str) -> str:
 def compute_metadata(session_id: str, entries: list[dict]) -> dict:
     """Walk entries once; return the metadata blob for the list-page sidecar.
 
-    Schema (renderer_version=1):
+    Schema (renderer_version=3):
       session_id, started_at, ended_at, duration_seconds,
       entry_count, user_turn_count, assistant_turn_count,
       tool_call_count, error_count, first_user_preview,
-      renderer_version.
+      first_user_uuid, session_url, renderer_version,
+      models (list of distinct model strings from assistant messages),
+      cwds (list of distinct cwd strings),
+      cc_version (last seen Claude Code client version).
     """
     first_ts: datetime.datetime | None = None
     last_ts: datetime.datetime | None = None
@@ -822,6 +825,14 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
     tool_call_count = 0
     error_count = 0
     first_user_preview = ""
+    first_user_uuid = ""
+    models: list[str] = []
+    cwds: list[str] = []
+    cc_version = ""
+
+    def _add_unique(lst: list[str], val: str) -> None:
+        if val and val not in lst:
+            lst.append(val)
 
     for entry in entries:
         kind = _classify(entry)
@@ -830,6 +841,12 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
             if first_ts is None:
                 first_ts = ts
             last_ts = ts
+        v = entry.get("version")
+        if isinstance(v, str) and v:
+            cc_version = v
+        cwd = entry.get("cwd")
+        if isinstance(cwd, str):
+            _add_unique(cwds, cwd)
 
         if kind == "user":
             if _is_auto_notification_user_entry(entry):
@@ -838,6 +855,10 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
                 pass
             else:
                 user_count += 1
+                if not first_user_uuid:
+                    uuid = entry.get("uuid")
+                    if isinstance(uuid, str) and uuid:
+                        first_user_uuid = uuid
                 if not first_user_preview:
                     msg = entry.get("message", {}) or {}
                     content = msg.get("content")
@@ -855,6 +876,9 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
         elif kind in ("assistant", "tool_use", "thinking"):
             assistant_count += 1
             msg = entry.get("message", {}) or {}
+            model = msg.get("model")
+            if isinstance(model, str):
+                _add_unique(models, model)
             content = msg.get("content")
             if isinstance(content, list):
                 for block in content:
@@ -889,6 +913,10 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
         "tool_call_count": tool_call_count,
         "error_count": error_count,
         "first_user_preview": first_user_preview,
+        "first_user_uuid": first_user_uuid,
+        "models": models,
+        "cwds": cwds,
+        "cc_version": cc_version,
         "session_url": _compute_session_url(session_id),
         "renderer_version": PARSER_VERSION,
     }
