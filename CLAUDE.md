@@ -26,7 +26,7 @@ export, end-session helpers), the boot-time skill aggregator.
 - Update boot scripts under `scripts/`.
 - Revise `.mcp.json` / `.claude/settings.json` for new MCP servers
   or hook chains (boot-impact PR convention: handoff prompt
-  required, see `coo/operations/handoff-prompts.md` in coo-memory).
+  required, see `operations/handoff-prompts.md` in coo-memory).
 - Update pinned tool versions in `versions.lock` with rationale.
 - Open PRs for review.
 
