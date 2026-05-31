@@ -45,17 +45,97 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: publish-binary-vendor
   cancel-in-progress: false
 
 jobs:
+  # Gate the rebuild on actual change in pinned binary versions vs the
+  # last published bundle. Without this, every push that touches the
+  # paths filter (e.g. unrelated workflow edits, Dockerfile tweaks)
+  # republished an identical bundle with a fresh tar mtime, producing a
+  # new sha that drifted from the versions.lock pin. The pin then
+  # silently fell behind and cloud-setup.sh's sha verification failed
+  # closed for weeks until somebody noticed
+  # ([coo-harness#358](../../issues/358)).
+  #
+  # Manual dispatch always publishes; the operator chose to.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Compare versions.lock binaries to last published manifest
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=workflow_dispatch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          read_pin() {
+            awk -v k="$1" '$1 == k { print $2; exit }' versions.lock
+          }
+          OP=$(read_pin op)
+          GH=$(read_pin gh)
+          UV=$(read_pin uv)
+          MEM0=$(read_pin mem0-mcp-server)
+          rel="$(gh api "repos/$REPO/releases/tags/binary-vendor-latest" 2>/dev/null || true)"
+          if [ -z "$rel" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no prior binary-vendor-latest release" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          manifest_url="$(printf '%s' "$rel" | jq -r '.assets[] | select(.name=="binary-vendor-manifest.json") | .url')"
+          if [ -z "$manifest_url" ] || [ "$manifest_url" = "null" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=prior release has no manifest asset" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          manifest="$(gh api -H 'Accept: application/octet-stream' "$manifest_url")"
+          LAST_OP="$(printf '%s' "$manifest" | jq -r '.binaries.op')"
+          LAST_GH="$(printf '%s' "$manifest" | jq -r '.binaries.gh')"
+          LAST_UV="$(printf '%s' "$manifest" | jq -r '.binaries.uv')"
+          LAST_MEM0="$(printf '%s' "$manifest" | jq -r '.binaries["mem0-mcp-server"]')"
+          if [ "$OP" = "$LAST_OP" ] && [ "$GH" = "$LAST_GH" ] \
+             && [ "$UV" = "$LAST_UV" ] && [ "$MEM0" = "$LAST_MEM0" ]; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "reason=binary versions unchanged (op=$OP gh=$GH uv=$UV mem0=$MEM0)" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=binary versions changed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "## Publish gate"
+            echo ""
+            echo "- should_publish: \`${{ steps.check.outputs.should_publish }}\`"
+            echo "- reason: ${{ steps.check.outputs.reason }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build-and-publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     container:
       image: ubuntu:24.04
     timeout-minutes: 20
+    outputs:
+      bundle_sha: ${{ steps.tar.outputs.sha256 }}
+      tag: ${{ steps.tag.outputs.name }}
 
     steps:
       - name: Install build prereqs
@@ -273,4 +353,92 @@ jobs:
             echo "Update \`versions.lock\` with:"
             echo ""
             echo "    binary_vendor_bundle ${{ steps.tar.outputs.sha256 }}"
+            echo ""
+            echo "The \`bump-pin\` job opens this PR automatically on push events."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Close the loop on the pin discipline: every publish opens a PR
+  # bumping the `binary_vendor_bundle` row in versions.lock to the
+  # freshly-published sha. Without this, the moving `binary-vendor-latest`
+  # tag drifts away from the pin on every publish, cloud-setup.sh's
+  # ensure_binaries_from_vendor sha-verify fails closed, and the
+  # per-binary direct-fetch fallback runs for every snapshot rebuild —
+  # the slow, multi-CDN path briefing 004 / B1 was designed to retire
+  # ([coo-harness#358](../../issues/358)).
+  #
+  # Loop safety: the `check` job above skips publishing when binary
+  # versions in versions.lock match the manifest of the last published
+  # bundle. The merge of this auto-bump PR re-fires the workflow on
+  # push:main; check sees binary versions unchanged → should_publish=false
+  # → build-and-publish and bump-pin both skip. Converges in one cycle.
+  #
+  # Skipped on workflow_dispatch: a manual operator can update the pin
+  # themselves and we don't want a runaway PR per ad-hoc test publish.
+  bump-pin:
+    needs: build-and-publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Rewrite binary_vendor_bundle row in versions.lock
+        env:
+          BUNDLE_SHA: ${{ needs.build-and-publish.outputs.bundle_sha }}
+          TAG: ${{ needs.build-and-publish.outputs.tag }}
+        run: |
+          set -eux
+          today="$(date -u +%Y-%m-%d)"
+          awk -v sha="$BUNDLE_SHA" -v tag="$TAG" -v today="$today" '
+            $1 == "binary_vendor_bundle" {
+              print "binary_vendor_bundle  " sha "  # SHA256 of binary-vendor.tar.gz published as " tag " (" today "). Auto-bumped by publish-binary-vendor.yml after each successful publish."
+              next
+            }
+            { print }
+          ' versions.lock > versions.lock.new
+          mv versions.lock.new versions.lock
+          git --no-pager diff -- versions.lock
+
+      - name: Branch, commit, open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE_SHA: ${{ needs.build-and-publish.outputs.bundle_sha }}
+          TAG: ${{ needs.build-and-publish.outputs.tag }}
+          REPO: ${{ github.repository }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -eux
+          if git diff --quiet -- versions.lock; then
+            echo "versions.lock pin already matches ${BUNDLE_SHA}; no PR needed"
+            exit 0
+          fi
+          short_sha="$(printf '%s' "$GIT_SHA" | cut -c1-7)"
+          branch="auto/bump-binary-vendor-pin-${short_sha}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add versions.lock
+          git commit -m "chore(versions.lock): bump binary_vendor_bundle to ${TAG}
+
+          SHA256: ${BUNDLE_SHA}
+
+          Published by .github/workflows/publish-binary-vendor.yml on ${GIT_SHA}.
+          Auto-opened by the bump-pin job to keep the pin in lockstep with
+          binary-vendor-latest."
+          git push -u origin "$branch"
+          gh pr create \
+            --repo "$REPO" \
+            --base main \
+            --head "$branch" \
+            --title "chore(versions.lock): bump binary_vendor_bundle to ${TAG}" \
+            --body "Auto-bump of \`binary_vendor_bundle\` to match the bundle published by [\`${TAG}\`](../../releases/tag/${TAG}) (also tagged \`binary-vendor-latest\`).
+
+          SHA256: \`${BUNDLE_SHA}\`
+
+          Published from ${GIT_SHA}. Merging this restores \`ensure_binaries_from_vendor\`'s sha-verify fast path; the next publish's check job will short-circuit on unchanged binary versions, so this won't loop."
