@@ -70,6 +70,7 @@ and continue — fail-soft.
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import os
 import re
@@ -102,6 +103,9 @@ TRANSCRIPT_PR_URL_RE = re.compile(
 )
 TRANSCRIPT_PR_AUTOLINK_RE = re.compile(
     r"\b((?:coo-labs|vade-app)/[\w.-]+)#(\d+)\b"
+)
+TOOL_RESULT_EXACT_PR_URL_RE = re.compile(
+    r"^https://github\.com/((?:coo-labs|vade-app)/[\w.-]+)/(?:pull|issues)/(\d+)/?$"
 )
 # vade-app/* repos were renamed under coo-labs/* during the 2026-05 org cutover.
 # Normalize before reverse-lookup in session_artifacts.json (built against
@@ -250,6 +254,25 @@ def _build_pr_to_url_map(index: dict) -> dict[tuple[str, str], tuple[str, str]]:
     return out
 
 
+def _build_session_last_seen(index: dict) -> dict[str, _dt.datetime]:
+    """Map session_url -> last_seen_at datetime (UTC). Used to prune
+    vote candidates whose active window predates the transcript — sessions
+    that boot a fresh container and observe-only still reference PRs from
+    the boot digest, which would otherwise vote for long-completed sessions
+    and skew the mode."""
+    out: dict[str, _dt.datetime] = {}
+    for s in index.get("sessions", []):
+        url = (s.get("session_url") or "").strip()
+        last = (s.get("last_seen_at") or "").strip()
+        if not url or not last:
+            continue
+        try:
+            out[url] = _dt.datetime.fromisoformat(last.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+    return out
+
+
 def _yield_text(entry: dict, root_type: str):
     msg = entry.get("message") or {}
     content = msg.get("content")
@@ -300,14 +323,52 @@ def _normalize_repo(repo: str) -> str:
 
 SCAN_WEIGHTS = {
     "pr_link": 10,
+    "tool_result_exact": 10,
     "pattern_a": 5,
     "prose_pr": 3,
     "prose_issue": 1,
 }
 
 
+def _yield_tool_result_exact_prs(entry: dict):
+    """Yield (repo, number) for tool_result blocks whose content is
+    exactly a single coo-labs/vade-app PR/issue URL — the shape `gh pr
+    create` etc. emits. Direct authorship signal: this session ran the
+    create call. Also checks top-level toolUseResult.stdout for the same
+    shape."""
+    msg = entry.get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, list):
+        for block in content:
+            if not isinstance(block, dict) or block.get("type") != "tool_result":
+                continue
+            tc = block.get("content")
+            if isinstance(tc, str):
+                m = TOOL_RESULT_EXACT_PR_URL_RE.match(tc.strip())
+                if m:
+                    yield m.group(1), m.group(2)
+            elif isinstance(tc, list):
+                for sub in tc:
+                    if isinstance(sub, dict) and sub.get("type") == "text":
+                        m = TOOL_RESULT_EXACT_PR_URL_RE.match(
+                            (sub.get("text", "") or "").strip()
+                        )
+                        if m:
+                            yield m.group(1), m.group(2)
+    tur = entry.get("toolUseResult")
+    if isinstance(tur, dict):
+        stdout = tur.get("stdout")
+        if isinstance(stdout, str):
+            m = TOOL_RESULT_EXACT_PR_URL_RE.match(stdout.strip())
+            if m:
+                yield m.group(1), m.group(2)
+
+
 def _scan_jsonl_for_url(
-    jsonl_path: Path, pr_map: dict[tuple[str, str], tuple[str, str]]
+    jsonl_path: Path,
+    pr_map: dict[tuple[str, str], tuple[str, str]],
+    session_last_seen: dict[str, _dt.datetime] | None = None,
+    prune_window_hours: int = 24,
 ) -> tuple[Optional[str], str]:
     """Scan a decrypted jsonl. Returns (session_url, detail).
 
@@ -323,13 +384,22 @@ def _scan_jsonl_for_url(
         and they strongly indicate authorship), issues weight 1 each
         (sessions reference many issues they didn't open).
 
-    Accept if the top candidate has >= 2x the second-place votes
-    (unanimous when there's no second place). Reject as conflict
+    After scoring, prune candidates whose `last_seen_at` predates the
+    transcript's first timestamp by more than `prune_window_hours`. This
+    drops false candidates that arise when an observe-only session
+    references PRs surfaced by the boot digest (those PRs were authored
+    by long-completed sessions). pr_link and pattern_a contributions
+    bypass the prune since they are direct-authorship markers.
+
+    Accept if the top remaining candidate has >= 2x the second-place
+    votes (unanimous when there's no second place). Reject as conflict
     otherwise.
     """
     pr_link_prs: set[tuple[str, str]] = set()
+    tool_result_exact_prs: set[tuple[str, str]] = set()
     a_votes: Counter = Counter()
     prose_prs: set[tuple[str, str]] = set()
+    first_ts: _dt.datetime | None = None
     try:
         f = open(jsonl_path)
     except OSError as e:
@@ -343,12 +413,21 @@ def _scan_jsonl_for_url(
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if first_ts is None:
+                ts = entry.get("timestamp")
+                if isinstance(ts, str):
+                    try:
+                        first_ts = _dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    except ValueError:
+                        pass
             if entry.get("type") == "pr-link":
                 repo = (entry.get("prRepository") or "").strip()
                 num = entry.get("prNumber")
                 if repo and num is not None:
                     pr_link_prs.add((repo, str(num)))
                 continue
+            for repo, num in _yield_tool_result_exact_prs(entry):
+                tool_result_exact_prs.add((repo, num))
             for txt in _yield_text(entry, entry.get("type", "?")):
                 for m in TRANSCRIPT_SESSION_URL_RE.findall(txt):
                     a_votes[f"{SESSION_URL_PREFIX}{m}"] += 1
@@ -356,6 +435,9 @@ def _scan_jsonl_for_url(
                     prose_prs.add(m)
                 for m in TRANSCRIPT_PR_AUTOLINK_RE.findall(txt):
                     prose_prs.add(m)
+    # Dedupe — tool_result_exact gets the strong weight; prose shouldn't
+    # also score these same PRs.
+    prose_prs -= tool_result_exact_prs
 
     votes: Counter = Counter()
     breakdown: dict[str, dict[str, int]] = {}
@@ -370,6 +452,11 @@ def _scan_jsonl_for_url(
         if key in pr_map:
             url, _ = pr_map[key]
             _add(url, "pr_link")
+    for repo, num in tool_result_exact_prs:
+        key = (_normalize_repo(repo), str(num))
+        if key in pr_map:
+            url, _ = pr_map[key]
+            _add(url, "tool_result_exact")
     for url, c in a_votes.items():
         _add(url, "pattern_a", c)
     for repo, num in prose_prs:
@@ -384,29 +471,94 @@ def _scan_jsonl_for_url(
             f"prose-PRs={len(prose_prs)}, A-literal={sum(a_votes.values())}, "
             f"none in index)"
         )
+
+    pruned_count = 0
+    if first_ts is not None and session_last_seen:
+        cutoff = first_ts - _dt.timedelta(hours=prune_window_hours)
+        kept_votes: Counter = Counter()
+        kept_breakdown: dict[str, dict[str, int]] = {}
+        for url, score in votes.items():
+            url_parts = breakdown.get(url, {})
+            url_has_direct = (
+                url_parts.get("pr_link", 0) > 0
+                or url_parts.get("tool_result_exact", 0) > 0
+                or url_parts.get("pattern_a", 0) > 0
+            )
+            if url_has_direct:
+                kept_votes[url] = score
+                kept_breakdown[url] = url_parts
+                continue
+            last_seen = session_last_seen.get(url)
+            if last_seen is not None and last_seen >= cutoff:
+                kept_votes[url] = score
+                kept_breakdown[url] = url_parts
+            else:
+                pruned_count += 1
+        if not kept_votes:
+            return None, (
+                f"all {pruned_count} candidates predate transcript "
+                f"(first_ts={first_ts.isoformat()}, cutoff={cutoff.isoformat()})"
+            )
+        votes = kept_votes
+        breakdown = kept_breakdown
+
+    prune_note = f" [{pruned_count} pruned by date]" if pruned_count else ""
+
+    def _direct_score(p: dict[str, int]) -> int:
+        return (p.get("pr_link", 0) * SCAN_WEIGHTS["pr_link"]
+                + p.get("tool_result_exact", 0) * SCAN_WEIGHTS["tool_result_exact"]
+                + p.get("pattern_a", 0) * SCAN_WEIGHTS["pattern_a"])
+
+    # Direct-authorship early accept: a candidate with pr_link or
+    # tool_result_exact entries (≥10pt direct signal) is the session that
+    # actually opened those PRs. Accept it regardless of prose-only
+    # competitors, which are necessarily cross-references rather than
+    # authorship.
+    direct_scored = sorted(
+        ((u, _direct_score(breakdown[u]), votes[u]) for u in votes),
+        key=lambda r: (r[1], r[2]),
+        reverse=True,
+    )
+    if direct_scored and direct_scored[0][1] >= 10:
+        url, dscore, tscore = direct_scored[0]
+        runner_d = direct_scored[1][1] if len(direct_scored) > 1 else 0
+        parts = breakdown.get(url, {})
+        parts_str = "+".join(f"{n}{k[0]}" for k, n in parts.items())
+        return url, (
+            f"direct authorship ({dscore}pt direct / {tscore}pt total; "
+            f"{parts_str}; runner-up direct={runner_d}pt){prune_note}"
+        )
+
     top = votes.most_common(2)
     top_url, top_score = top[0]
     runner_score = top[1][1] if len(top) > 1 else 0
     parts = breakdown.get(top_url, {})
     parts_str = "+".join(f"{n}{k[0]}" for k, n in parts.items())
-    # Reject weak signal: 1-2pt = single issue reference with no PR/pr-link
-    # backing. Too easy to be a passing reference rather than authorship.
-    if top_score < 3:
-        return None, f"too weak ({top_score}pt: {parts_str})"
+    # Floor: 5pt for any direct signal (e.g. 1 pattern-a literal URL); 6pt
+    # for prose-only candidates so a single cross-referenced PR (3pt) isn't
+    # enough by itself — a real authoring session typically opens 2+
+    # artifacts. After the date prune, observe-only sessions can otherwise
+    # win unanimously on a single in-window prose reference, which is wrong.
+    has_direct = _direct_score(parts) > 0
+    floor = 5 if has_direct else 6
+    if top_score < floor:
+        return None, f"too weak ({top_score}pt vs floor {floor}; {parts_str}){prune_note}"
     if runner_score == 0:
-        return top_url, f"unanimous ({top_score}pt: {parts_str})"
+        return top_url, f"unanimous ({top_score}pt: {parts_str}){prune_note}"
     if top_score >= 2 * runner_score:
         return top_url, (
-            f"strong mode ({top_score}pt vs {runner_score}pt 2nd; {parts_str})"
+            f"strong mode ({top_score}pt vs {runner_score}pt 2nd; {parts_str}){prune_note}"
         )
     return None, (
         f"conflict (top {top_score}pt vs 2nd {runner_score}pt; "
-        f"top3={votes.most_common(3)})"
+        f"top3={votes.most_common(3)}){prune_note}"
     )
 
 
 def _resolve_via_scan(
-    session_id: str, pr_map: dict[tuple[str, str], str]
+    session_id: str,
+    pr_map: dict[tuple[str, str], tuple[str, str]],
+    session_last_seen: dict[str, _dt.datetime] | None = None,
 ) -> tuple[Optional[str], str]:
     """Decrypt + scan + cleanup. Returns (url, detail)."""
     if not FETCH_SH.is_file():
@@ -424,7 +576,9 @@ def _resolve_via_scan(
     if not jsonl_path or not Path(jsonl_path).is_file():
         return None, f"fetch returned no usable path ({jsonl_path!r})"
     try:
-        url, detail = _scan_jsonl_for_url(Path(jsonl_path), pr_map)
+        url, detail = _scan_jsonl_for_url(
+            Path(jsonl_path), pr_map, session_last_seen=session_last_seen,
+        )
     finally:
         try:
             subprocess.run(
@@ -572,10 +726,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.scan_transcript and misses:
         _stderr(f"scan-transcript: probing {len(misses)} title-miss sids…")
         pr_to_url = _build_pr_to_url_map(index)
-        _stderr(f"  pr/issue reverse-index has {len(pr_to_url)} entries")
+        session_last_seen = _build_session_last_seen(index)
+        _stderr(
+            f"  pr/issue reverse-index has {len(pr_to_url)} entries; "
+            f"session_last_seen has {len(session_last_seen)} entries"
+        )
         for i, (sid, key) in enumerate(misses, 1):
             _stderr(f"[scan {i}/{len(misses)}] {sid}")
-            url, detail = _resolve_via_scan(sid, pr_to_url)
+            url, detail = _resolve_via_scan(sid, pr_to_url, session_last_seen)
             if url:
                 scan_resolved.append((sid, key, url, f"scan:{detail}"))
                 _stderr(f"  scan OK · {detail} -> {url}")
