@@ -788,22 +788,32 @@ def _fetch_remote_sid_from_export_meta(session_id: str) -> str:
         return ""
 
 
-def _compute_session_url(session_id: str) -> str:
+def _compute_session_url(session_id: str) -> tuple[str, str]:
     """Derive the claude.ai/code session URL for `session_id`.
 
     Lookup order:
       1. Env (CLAUDE_CODE_SESSION_ID matches target → use
          CLAUDE_CODE_REMOTE_SESSION_ID). Stop-hook path is here.
+         Source tag: "env-recovery".
       2. Export meta.json sidecar in R2 (schema v3+ carries the
-         remote-session-id). Backfill path is here.
-    Returns "" when neither source has it."""
+         remote-session-id). Backfill `_rerender_one` path is here.
+         Source tag: "export-meta-fallback".
+
+    Returns ``(url, source)``. ``("", "")`` when neither source has it.
+    Both source tags name authoritative provenance — sidecars carrying
+    them are immutable from any future reconcile pass; only ``scan-*``
+    sources are reconcile-eligible. See the briefing-039 url_source
+    enum for the full source taxonomy."""
     env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
     if env_sid and env_sid == session_id:
         remote = os.environ.get("CLAUDE_CODE_REMOTE_SESSION_ID", "").strip()
         url = _format_session_url(remote)
         if url:
-            return url
-    return _format_session_url(_fetch_remote_sid_from_export_meta(session_id))
+            return url, "env-recovery"
+    url = _format_session_url(_fetch_remote_sid_from_export_meta(session_id))
+    if url:
+        return url, "export-meta-fallback"
+    return "", ""
 
 
 def compute_metadata(session_id: str, entries: list[dict]) -> dict:
@@ -902,7 +912,8 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
     if first_ts is not None and last_ts is not None:
         duration_seconds = max(0, int((last_ts - first_ts).total_seconds()))
 
-    return {
+    session_url, url_source = _compute_session_url(session_id)
+    metadata = {
         "session_id": session_id,
         "started_at": first_ts.isoformat() if first_ts else None,
         "ended_at": last_ts.isoformat() if last_ts else None,
@@ -917,13 +928,16 @@ def compute_metadata(session_id: str, entries: list[dict]) -> dict:
         "models": models,
         "cwds": cwds,
         "cc_version": cc_version,
-        "session_url": _compute_session_url(session_id),
+        "session_url": session_url,
         "renderer_version": PARSER_VERSION,
     }
+    if url_source:
+        metadata["url_source"] = url_source
+    return metadata
 
 
 def render_html(session_id: str, entries: list[dict]) -> str:
-    session_url = _compute_session_url(session_id)
+    session_url, _ = _compute_session_url(session_id)
     rendered: list[str] = []
     toc_entries: list[tuple[int, str, str]] = []
     prev_ts: datetime.datetime | None = None
