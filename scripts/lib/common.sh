@@ -675,7 +675,7 @@ print_versions() {
 # Used by scripts/coo-bootstrap.sh when OP_SERVICE_ACCOUNT_TOKEN is set.
 # Fetch COO identity material from a 1Password vault named "COO" via the
 # op CLI. Vault/item contract and the cloud-env boot flow are documented
-# in coo-memory/coo/cloud-env-bootstrap.md.
+# in coo-memory/operations/BOOT_TOPOLOGY.md.
 
 OP_VERSION_DEFAULT="2.31.0"
 GH_VERSION_DEFAULT="2.91.0"

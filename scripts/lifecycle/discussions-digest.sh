@@ -96,7 +96,7 @@ if (recent.length === 0) {
                 " (" + humanAgo(Date.parse(n.updatedAt)) + ", @" + author +
                 ", " + n.comments.totalCount + "c)");
   }
-  console.log("URLs: github.com/orgs/coo-labs/discussions/<num>; norms: coo/agent-boot-discussions-check.md");
+  console.log("URLs: github.com/orgs/coo-labs/discussions/<num>; norms: operations/agent-boot-discussions-check.md");
 }
 ' "$RESPONSE" "$CURSOR" && PARSE_OK=1
 

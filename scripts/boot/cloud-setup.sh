@@ -201,7 +201,7 @@ fi
 # COO identity bootstrap runs only when OP_SERVICE_ACCOUNT_TOKEN is set
 # in the cloud environment config. Non-fatal on failure — the base VADE
 # env should still come up even if 1Password is unreachable.
-# See coo-memory/coo/cloud-env-bootstrap.md for the contract.
+# See coo-memory/operations/BOOT_TOPOLOGY.md for the contract.
 # Anthropic cloud envs may scope custom env vars to the session process
 # only; the SessionStart hook in .claude/settings.json picks up the
 # slack in that case.
