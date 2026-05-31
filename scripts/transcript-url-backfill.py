@@ -122,6 +122,65 @@ REPO_RENAME = {
     "vade-app/vade-governance": "coo-labs/vade-governance",
 }
 
+# ---------------------------------------------------------------------------
+# url_source taxonomy — briefing 039 Phase 3.
+#
+# Every sidecar that carries a populated session_url also carries a
+# url_source tag that names which signal class produced it. The taxonomy
+# splits into two reconcile classes:
+#
+#   AUTHORITATIVE — the URL came from a strong-signal path that's
+#     considered ground-truth. A reconcile pass must never overwrite
+#     a sidecar whose existing url_source is in this set. Includes:
+#       title-fast-path     — coo-logs auto-meta-PR title carried the
+#                             remote-session-id
+#       html-extract        — operator extracted the URL out of the
+#                             rendered HTML body (manual recovery)
+#       env-recovery        — renderer's path-1 (env match) fired
+#       export-meta-fallback — renderer's path-2 (R2 export-meta) fired
+#
+#   RECONCILE_ELIGIBLE — the URL came from a scan-of-the-transcript
+#     signal. These can be overwritten by a stronger signal of the
+#     same or a different class. Includes:
+#       scan-pr-link        — top-level type='pr-link' entry hit
+#       scan-tool-result    — a tool_result body contained an exact
+#                             github.com/.../pull|issues/N URL
+#       scan-pattern-a      — a literal session URL was observed in
+#                             the transcript text
+#       scan-prose-vote     — only prose PR/issue mentions voted for
+#                             this URL (no direct signal)
+#
+# _patch_one enforces the AUTHORITATIVE preservation rule. Any new
+# mass-mutation script must respect the same boundary; see briefing
+# 039 *Constraints* §"Never automatically clear a session_url whose
+# url_source is …".
+AUTHORITATIVE_URL_SOURCES = frozenset({
+    "title-fast-path",
+    "html-extract",
+    "env-recovery",
+    "export-meta-fallback",
+})
+RECONCILE_ELIGIBLE_URL_SOURCES = frozenset({
+    "scan-pr-link",
+    "scan-tool-result",
+    "scan-pattern-a",
+    "scan-prose-vote",
+})
+VALID_URL_SOURCES = AUTHORITATIVE_URL_SOURCES | RECONCILE_ELIGIBLE_URL_SOURCES
+
+
+def _dominant_scan_source(parts: dict[str, int]) -> str:
+    """Pick the canonical scan-* source for a URL given its signal breakdown.
+
+    Priority: pr_link > tool_result_exact > pattern_a > prose_*."""
+    if parts.get("pr_link", 0) > 0:
+        return "scan-pr-link"
+    if parts.get("tool_result_exact", 0) > 0:
+        return "scan-tool-result"
+    if parts.get("pattern_a", 0) > 0:
+        return "scan-pattern-a"
+    return "scan-prose-vote"
+
 
 def _stderr(msg: str) -> None:
     sys.stderr.write(f"[transcript-url-backfill] {msg}\n")
@@ -370,7 +429,12 @@ def _scan_jsonl_for_url(
     session_last_seen: dict[str, _dt.datetime] | None = None,
     prune_window_hours: int = 24,
 ) -> tuple[Optional[str], str]:
-    """Scan a decrypted jsonl. Returns (session_url, detail).
+    """Scan a decrypted jsonl. Returns (session_url, detail, dominant_source).
+
+    `dominant_source` is the canonical scan-* tag of the winning signal
+    class (priority: pr-link > tool_result_exact > pattern_a > prose); it
+    is None on every failure return. See AUTHORITATIVE_URL_SOURCES /
+    RECONCILE_ELIGIBLE_URL_SOURCES at the top of this file.
 
     Single weighted vote across four signals, summed per candidate
     session_url:
@@ -403,7 +467,7 @@ def _scan_jsonl_for_url(
     try:
         f = open(jsonl_path)
     except OSError as e:
-        return None, f"jsonl unreadable: {e}"
+        return None, f"jsonl unreadable: {e}", None
     with f:
         for line in f:
             line = line.strip()
@@ -470,7 +534,7 @@ def _scan_jsonl_for_url(
             f"no signal (pr-link={len(pr_link_prs)}, "
             f"prose-PRs={len(prose_prs)}, A-literal={sum(a_votes.values())}, "
             f"none in index)"
-        )
+        ), None
 
     pruned_count = 0
     if first_ts is not None and session_last_seen:
@@ -498,7 +562,7 @@ def _scan_jsonl_for_url(
             return None, (
                 f"all {pruned_count} candidates predate transcript "
                 f"(first_ts={first_ts.isoformat()}, cutoff={cutoff.isoformat()})"
-            )
+            ), None
         votes = kept_votes
         breakdown = kept_breakdown
 
@@ -527,7 +591,7 @@ def _scan_jsonl_for_url(
         return url, (
             f"direct authorship ({dscore}pt direct / {tscore}pt total; "
             f"{parts_str}; runner-up direct={runner_d}pt){prune_note}"
-        )
+        ), _dominant_scan_source(parts)
 
     top = votes.most_common(2)
     top_url, top_score = top[0]
@@ -542,41 +606,41 @@ def _scan_jsonl_for_url(
     has_direct = _direct_score(parts) > 0
     floor = 5 if has_direct else 6
     if top_score < floor:
-        return None, f"too weak ({top_score}pt vs floor {floor}; {parts_str}){prune_note}"
+        return None, f"too weak ({top_score}pt vs floor {floor}; {parts_str}){prune_note}", None
     if runner_score == 0:
-        return top_url, f"unanimous ({top_score}pt: {parts_str}){prune_note}"
+        return top_url, f"unanimous ({top_score}pt: {parts_str}){prune_note}", _dominant_scan_source(parts)
     if top_score >= 2 * runner_score:
         return top_url, (
             f"strong mode ({top_score}pt vs {runner_score}pt 2nd; {parts_str}){prune_note}"
-        )
+        ), _dominant_scan_source(parts)
     return None, (
         f"conflict (top {top_score}pt vs 2nd {runner_score}pt; "
         f"top3={votes.most_common(3)}){prune_note}"
-    )
+    ), None
 
 
 def _resolve_via_scan(
     session_id: str,
     pr_map: dict[tuple[str, str], tuple[str, str]],
     session_last_seen: dict[str, _dt.datetime] | None = None,
-) -> tuple[Optional[str], str]:
-    """Decrypt + scan + cleanup. Returns (url, detail)."""
+) -> tuple[Optional[str], str, Optional[str]]:
+    """Decrypt + scan + cleanup. Returns (url, detail, dominant_source)."""
     if not FETCH_SH.is_file():
-        return None, f"fetch wrapper missing: {FETCH_SH}"
+        return None, f"fetch wrapper missing: {FETCH_SH}", None
     try:
         fetch = subprocess.run(
             ["bash", str(FETCH_SH), session_id],
             check=True, capture_output=True, text=True, timeout=120,
         )
     except subprocess.CalledProcessError as e:
-        return None, f"fetch failed: rc={e.returncode} {e.stderr.strip()[:200]}"
+        return None, f"fetch failed: rc={e.returncode} {e.stderr.strip()[:200]}", None
     except subprocess.TimeoutExpired:
-        return None, "fetch timed out after 120s"
+        return None, "fetch timed out after 120s", None
     jsonl_path = fetch.stdout.strip()
     if not jsonl_path or not Path(jsonl_path).is_file():
-        return None, f"fetch returned no usable path ({jsonl_path!r})"
+        return None, f"fetch returned no usable path ({jsonl_path!r})", None
     try:
-        url, detail = _scan_jsonl_for_url(
+        url, detail, source = _scan_jsonl_for_url(
             Path(jsonl_path), pr_map, session_last_seen=session_last_seen,
         )
     finally:
@@ -587,7 +651,7 @@ def _resolve_via_scan(
             )
         except subprocess.TimeoutExpired:
             pass
-    return url, detail
+    return url, detail, source
 
 
 def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[bool, str]:
@@ -646,16 +710,37 @@ def _rerender_one(session_id: str, key_prefix: str, session_url: str) -> tuple[b
     return True, f"re-rendered ({last})"
 
 
-def _patch_one(s3, bucket: str, key: str, session_url: str) -> tuple[bool, str]:
+def _patch_one(
+    s3, bucket: str, key: str, session_url: str, url_source: str,
+) -> tuple[bool, str]:
+    """Write (session_url, url_source) to a sidecar, respecting the
+    authoritative-preservation rule.
+
+    Refuses to overwrite a sidecar whose existing url_source is in
+    AUTHORITATIVE_URL_SOURCES (briefing 039 reconcile invariant).
+    Reconcile-eligible sources (scan-*) can be replaced by any signal.
+    No-op when both session_url and url_source already match."""
+    if url_source not in VALID_URL_SOURCES:
+        return False, f"refusing write: unknown url_source {url_source!r}"
     try:
         body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
         meta = json.loads(body)
     except Exception as e:
         return False, f"read failed: {e}"
-    prev = (meta.get("session_url") or "").strip()
-    if prev == session_url:
+    prev_url = (meta.get("session_url") or "").strip()
+    prev_src = meta.get("url_source")
+    if (
+        prev_src in AUTHORITATIVE_URL_SOURCES
+        and (prev_src, prev_url) != (url_source, session_url)
+    ):
+        return True, (
+            f"no-op (authoritative url_source={prev_src} present; "
+            f"refusing to overwrite)"
+        )
+    if prev_url == session_url and prev_src == url_source:
         return True, "no-op (already set)"
     meta["session_url"] = session_url
+    meta["url_source"] = url_source
     body_new = json.dumps(meta, separators=(",", ":")).encode("utf-8")
     try:
         s3.put_object(
@@ -664,7 +749,9 @@ def _patch_one(s3, bucket: str, key: str, session_url: str) -> tuple[bool, str]:
         )
     except Exception as e:
         return False, f"put failed: {e}"
-    return True, (f"{prev!r} -> {session_url}" if prev else f"set -> {session_url}")
+    prev_pair = (prev_url, prev_src) if prev_url else None
+    new_pair = (session_url, url_source)
+    return True, (f"{prev_pair} -> {new_pair}" if prev_pair else f"set -> {new_pair}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -714,7 +801,7 @@ def main(argv: list[str] | None = None) -> int:
         f"({'missing or populated' if args.include_populated else 'missing'} session_url)"
     )
 
-    hits = [(sid, key, sid_to_url[sid], "title") for sid, key in candidates if sid in sid_to_url]
+    hits = [(sid, key, sid_to_url[sid], "title-fast-path") for sid, key in candidates if sid in sid_to_url]
     misses = [(sid, key) for sid, key in candidates if sid not in sid_to_url]
     _stderr(
         f"  {len(hits)} resolvable via title-fast-path "
@@ -733,10 +820,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         for i, (sid, key) in enumerate(misses, 1):
             _stderr(f"[scan {i}/{len(misses)}] {sid}")
-            url, detail = _resolve_via_scan(sid, pr_to_url, session_last_seen)
-            if url:
-                scan_resolved.append((sid, key, url, f"scan:{detail}"))
-                _stderr(f"  scan OK · {detail} -> {url}")
+            url, detail, source = _resolve_via_scan(sid, pr_to_url, session_last_seen)
+            if url and source:
+                scan_resolved.append((sid, key, url, source))
+                _stderr(f"  scan OK · {source} · {detail} -> {url}")
             else:
                 scan_unresolved += 1
                 _stderr(f"  scan FAIL · {detail}")
@@ -758,7 +845,7 @@ def main(argv: list[str] | None = None) -> int:
     rerender_fail = 0
     for i, (sid, key, url, source) in enumerate(all_hits, 1):
         _stderr(f"[{i}/{len(all_hits)}] {sid} ({source})")
-        success, detail = _patch_one(s3, bucket, key, url)
+        success, detail = _patch_one(s3, bucket, key, url, source)
         if success:
             ok += 1
             _stderr(f"  patch OK · {detail}")
