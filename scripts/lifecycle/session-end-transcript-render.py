@@ -52,6 +52,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PARSER_VERSION = 1
@@ -1136,19 +1137,32 @@ def main(argv: list[str] | None = None) -> int:
 
     metadata = compute_metadata(session_id, entries)
     meta_bytes = json.dumps(metadata, separators=(",", ":")).encode("utf-8")
-    try:
-        meta_result = _r2_put_bytes(
-            meta_bytes, meta_key,
-            overwrite=args.overwrite,
-            content_type="application/json; charset=utf-8",
-        )
-    except Exception as e:
-        # HTML already landed; sidecar miss is non-fatal — list page tolerates absence.
-        _stderr(f"R2 upload (meta sidecar) failed: {e}")
-        return 0
-    _stderr(f"uploaded → {meta_result['endpoint']}/{meta_result['bucket']}/{meta_result['key']}"
-            + (" (ceded)" if meta_result.get("ceded") else ""))
-    return 0
+    # Retry the sidecar upload — without it the list page's union-find
+    # can't group rotation siblings (it joins on session_url /
+    # first_user_uuid from the sidecar), so the row falls out as an
+    # orphan "(no metadata)" entry. Boto3's max_attempts=3 covers
+    # transient TLS/socket errors at the layer below; the loop here
+    # covers errors that escape that (auth blips, brief endpoint
+    # outages). Surface exit 2 if all three attempts fail rather than
+    # silently absorbing — the Stop-hook caller logs the non-zero rc.
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            meta_result = _r2_put_bytes(
+                meta_bytes, meta_key,
+                overwrite=args.overwrite,
+                content_type="application/json; charset=utf-8",
+            )
+            _stderr(f"uploaded → {meta_result['endpoint']}/{meta_result['bucket']}/{meta_result['key']}"
+                    + (" (ceded)" if meta_result.get("ceded") else ""))
+            return 0
+        except Exception as e:
+            last_err = e
+            _stderr(f"R2 upload (meta sidecar) attempt {attempt + 1}/3 failed: {e}")
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    _stderr(f"R2 upload (meta sidecar) gave up after 3 attempts; last error: {last_err}")
+    return 2
 
 
 if __name__ == "__main__":
