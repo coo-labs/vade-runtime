@@ -20,7 +20,7 @@ import json
 import os
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -35,10 +35,15 @@ class R2Error(RuntimeError):
 
 @dataclass(frozen=True)
 class R2Coordinates:
-    """Resolved R2 access tuple — credentials + endpoint + bucket name."""
+    """Resolved R2 access tuple — credentials + endpoint + bucket name.
 
-    access_key: str
-    secret_key: str
+    access_key / secret_key are excluded from repr() so the credentials don't
+    leak via tracebacks, debug logs, or pytest assert-diff output. Equality
+    still uses all four fields so the test round-trip assertion holds.
+    """
+
+    access_key: str = field(repr=False)
+    secret_key: str = field(repr=False)
     endpoint: str
     bucket: str
 

@@ -146,6 +146,19 @@ class TestR2Coordinates:
             bucket="bkt",
         )
 
+    def test_repr_does_not_leak_credentials(self) -> None:
+        coords = R2Coordinates(
+            access_key="ak-LEAK",
+            secret_key="sk-LEAK",
+            endpoint="https://r2.example",
+            bucket="bkt",
+        )
+        rep = repr(coords)
+        assert "ak-LEAK" not in rep
+        assert "sk-LEAK" not in rep
+        assert "https://r2.example" in rep
+        assert "bkt" in rep
+
 
 class TestReadSidecar:
     def test_returns_none_on_missing(self) -> None:
