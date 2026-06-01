@@ -3,4 +3,11 @@
 *.log
 # Docker build cruft
 .buildx-cache/
-settings.local.json__pycache__/
+settings.local.json
+# Python build / test artifacts
+__pycache__/
+*.egg-info/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,46 @@
+name: lib/transcripts — lint, type, test
+
+on:
+  pull_request:
+    paths:
+      - "lib/transcripts/**"
+      - "pyproject.toml"
+      - ".github/workflows/lib-transcripts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/transcripts/**"
+      - "pyproject.toml"
+      - ".github/workflows/lib-transcripts.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package + dev extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check lib/transcripts
+
+      - name: ruff format check
+        run: ruff format --check lib/transcripts
+
+      - name: mypy strict
+        run: mypy lib/transcripts
+
+      - name: pytest with coverage
+        run: pytest
+
+      - name: parity check (lib vs scripts)
+        run: python3 scripts/ci/test-lib-transcripts-parity.py
