@@ -20,6 +20,7 @@ AUTHORITATIVE_URL_SOURCES: frozenset[str] = frozenset(
         "html-extract",
         "env-recovery",
         "export-meta-fallback",
+        "claudeai-events-uuid",
     }
 )
 

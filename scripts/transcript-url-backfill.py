@@ -159,6 +159,7 @@ AUTHORITATIVE_URL_SOURCES = frozenset({
     "html-extract",
     "env-recovery",
     "export-meta-fallback",
+    "claudeai-events-uuid",
 })
 RECONCILE_ELIGIBLE_URL_SOURCES = frozenset({
     "scan-pr-link",
