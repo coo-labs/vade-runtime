@@ -55,7 +55,7 @@ strict = true
 files = ["lib/transcripts"]
 
 [[tool.mypy.overrides]]
-module = "lib.transcripts.tests.*"
+module = "transcripts.tests.*"
 disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
