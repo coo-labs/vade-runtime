@@ -56,8 +56,8 @@ jq -n --arg owner "$owner" --arg repo "$repo" --argjson pn "$pn" '{
     hookEventName: "PostToolUse",
     additionalContext: (
       "[auto-subscribe-pr] A pull request was just created at " + $owner + "/" + $repo + "#" + ($pn|tostring) + ". In your next tool batch, set up two parallel subscriptions:\n" +
-      "  1. Call mcp__github__subscribe_pr_activity with owner=\"" + $owner + "\", repo=\"" + $repo + "\", pullNumber=" + ($pn|tostring) + " — streams CI failures, comments, and reviews into this session as github-webhook-activity events.\n" +
-      "  2. Start a Monitor on $VADE_RUNTIME_DIR/scripts/subscribe-pr-mergeable.sh " + $owner + "/" + $repo + " " + ($pn|tostring) + " — emits one stdout line per mergeable-state transition (clean to conflict and back) and a terminal line on merge/close. Closes the conflict-notification gap that subscribe_pr_activity does not cover (coo-harness#254)."
+      "  1. Call mcp__github__subscribe_pr_activity with owner=\"" + $owner + "\", repo=\"" + $repo + "\", pullNumber=" + ($pn|tostring) + " — streams CI failures and plain PR-level comments into this session as github-webhook-activity events. Note: review submissions and inline review comments are dropped at the delivery layer when the author is not the session''s connecting GitHub identity (upstream regression anthropics/claude-code#62096); the next subscription closes that gap by polling.\n" +
+      "  2. Start a Monitor on $VADE_RUNTIME_DIR/scripts/subscribe-pr-watch.sh " + $owner + "/" + $repo + " " + ($pn|tostring) + " — emits one stdout line per new review, inline review comment, mergeable-state transition (clean to conflict and back), and a terminal line on merge/close. Closes the review-event author-filter gap (coo-harness#286) and the mergeable-state webhook gap (coo-harness#254) in one Monitor per PR."
     )
   }
 }'
