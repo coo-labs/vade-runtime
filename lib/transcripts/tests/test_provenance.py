@@ -30,8 +30,11 @@ class TestAuthoritativeSet:
     def test_contains_export_meta_fallback(self) -> None:
         assert "export-meta-fallback" in AUTHORITATIVE_URL_SOURCES
 
+    def test_contains_claudeai_events_uuid(self) -> None:
+        assert "claudeai-events-uuid" in AUTHORITATIVE_URL_SOURCES
+
     def test_exact_size(self) -> None:
-        assert len(AUTHORITATIVE_URL_SOURCES) == 4
+        assert len(AUTHORITATIVE_URL_SOURCES) == 5
 
     def test_disjoint_from_reconcile_eligible(self) -> None:
         assert AUTHORITATIVE_URL_SOURCES.isdisjoint(RECONCILE_ELIGIBLE_URL_SOURCES)

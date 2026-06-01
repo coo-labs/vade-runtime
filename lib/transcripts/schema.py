@@ -36,6 +36,7 @@ class UrlSource(str, Enum):
     HTML_EXTRACT = "html-extract"
     ENV_RECOVERY = "env-recovery"
     EXPORT_META_FALLBACK = "export-meta-fallback"
+    CLAUDEAI_EVENTS_UUID = "claudeai-events-uuid"
     SCAN_PR_LINK = "scan-pr-link"
     SCAN_TOOL_RESULT = "scan-tool-result"
     SCAN_PATTERN_A = "scan-pattern-a"
