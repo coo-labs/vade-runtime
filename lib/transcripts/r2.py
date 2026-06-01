@@ -168,11 +168,32 @@ def read_sidecar(
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
     except Exception as e:
-        if "NoSuchKey" in type(e).__name__ or "404" in str(e):
+        if _is_no_such_key(e):
             return None
         raise
     body = obj["Body"].read()
-    return json.loads(body)  # type: ignore[no-any-return]
+    parsed = json.loads(body)
+    if not isinstance(parsed, dict):
+        raise R2Error(
+            f"malformed sidecar at {key}: expected JSON object, got {type(parsed).__name__}"
+        )
+    return parsed
+
+
+def _is_no_such_key(e: BaseException) -> bool:
+    """True if a boto3-raised exception means 'the key does not exist'.
+
+    botocore raises ClientError whose `response['Error']['Code']` is the
+    canonical surface ('NoSuchKey' for missing keys); boto3 also exposes typed
+    subclasses like s3.exceptions.NoSuchKey whose class name matches. Check
+    both. Duck-typed on `.response` so we don't have to import botocore here.
+    """
+    response = getattr(e, "response", None)
+    if isinstance(response, dict):
+        code = response.get("Error", {}).get("Code", "")
+        if code == "NoSuchKey" or code == "404":
+            return True
+    return type(e).__name__ == "NoSuchKey"
 
 
 def write_sidecar(

@@ -23,7 +23,7 @@ from transcripts.r2 import (
 )
 
 
-def _s3(client: FakeS3Client) -> Any:
+def _s3(client: object) -> Any:
     """Cast a duck-typed fake into the S3Client position for mypy."""
     return cast(Any, client)
 
@@ -46,7 +46,7 @@ class FakeS3Client:
     def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         self.gets.append({"Bucket": Bucket, "Key": Key})
         if Key not in self.objects:
-            raise FakeNoSuchKey(f"NoSuchKey: {Key}")
+            raise FakeClientError("NoSuchKey", f"The specified key does not exist: {Key}")
         return {"Body": io.BytesIO(self.objects[Key])}
 
     def put_object(
@@ -95,8 +95,13 @@ class _FakeDateTime:
         return "2026-06-01T00:00:00Z"
 
 
-class FakeNoSuchKey(Exception):
-    pass
+class FakeClientError(Exception):
+    """Models botocore.exceptions.ClientError's shape — a `.response` dict
+    carrying `Error.Code` is what production code is documented to inspect."""
+
+    def __init__(self, code: str, message: str = "") -> None:
+        super().__init__(f"An error occurred ({code}) when calling the operation: {message}")
+        self.response = {"Error": {"Code": code, "Message": message}}
 
 
 class TestR2Coordinates:
@@ -153,6 +158,27 @@ class TestReadSidecar:
         with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
             result = read_sidecar("abc", s3=_s3(client))
         assert result == payload
+
+    def test_raises_on_non_dict_payload(self) -> None:
+        client = FakeS3Client({"rendered/abc.meta.json": b"[1, 2, 3]"})
+        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
+            with pytest.raises(R2Error, match="malformed sidecar"):
+                read_sidecar("abc", s3=_s3(client))
+
+    def test_raises_on_null_payload(self) -> None:
+        client = FakeS3Client({"rendered/abc.meta.json": b"null"})
+        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
+            with pytest.raises(R2Error, match="malformed sidecar"):
+                read_sidecar("abc", s3=_s3(client))
+
+    def test_raises_on_unrelated_boto3_error(self) -> None:
+        class BoomClient:
+            def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:  # noqa: N803
+                raise FakeClientError("InternalError", "boom")
+
+        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
+            with pytest.raises(FakeClientError):
+                read_sidecar("abc", s3=_s3(BoomClient()))
 
     def test_respects_key_prefix(self) -> None:
         payload = {"session_id": "abc"}
