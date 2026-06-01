@@ -42,6 +42,19 @@ if [ -z "$owner" ] || [ -z "$repo" ] || [ -z "$pn" ]; then
 fi
 case "$pn" in *[!0-9]*|'') exit 0 ;; esac
 
+# Skip auto-subscribe for coo-logs PRs. Session-log PRs (sessions/) and
+# transcript-meta-sidecar PRs (transcripts/) authored by vade-coo auto-merge
+# within ~60s via .github/workflows/auto-merge-session-log.yml in coo-logs.
+# Subscribing produces a confusing "subscribed → merged → unsubscribed"
+# round trip with no review consumer. Incidents and structural changes in
+# coo-logs are BDFL-only paths; the agent can manually call
+# mcp__github__subscribe_pr_activity in those rare cases.
+# Authority: end-session SKILL.md §"Submit a session log" — "Do not
+# subscribe to the PR — it has no consumer."
+case "$owner/$repo" in
+  coo-labs/coo-logs) exit 0 ;;
+esac
+
 jq -n --arg owner "$owner" --arg repo "$repo" --argjson pn "$pn" '{
   hookSpecificOutput: {
     hookEventName: "PostToolUse",
