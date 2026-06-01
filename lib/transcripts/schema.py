@@ -46,12 +46,24 @@ class Sidecar(BaseModel):
     """Schema v3 sidecar — /transcripts/<sid>.meta.json on R2.
 
     Strict-by-default: extra fields raise (forces us to bump the schema rather
-    than accreting silent fields). url_source is optional because v1 sidecars
-    predate the taxonomy and the renderer omits it when _compute_session_url
-    returned no source.
+    than accreting silent fields).
+
+    Backward compatibility: v3-only fields (first_user_uuid, models, cwds,
+    cc_version) have defaults so the model can validate v1/v2 sidecars from
+    the historical R2 backlog (~20 of 240 measured as of 2026-06-01). A
+    reconcile pass that fetches every sidecar through read_sidecar and
+    validates with Sidecar must not abort on the first pre-v3 entry.
+    url_source is None when the renderer's _compute_session_url returned no
+    source.
+
+    Serialization: callers writing to R2 should use
+    `model_dump(exclude_none=True)` to match the renderer's omit-when-falsy
+    pattern (session-end-transcript-render.py:934 only sets url_source when
+    truthy). The default model_dump() emits explicit JSON null, which would
+    silently change the on-the-wire shape that downstream tools depend on.
     """
 
-    model_config = ConfigDict(extra="forbid", frozen=False, str_strip_whitespace=False)
+    model_config = ConfigDict(extra="forbid")
 
     session_id: str
     started_at: str | None
@@ -63,10 +75,10 @@ class Sidecar(BaseModel):
     tool_call_count: int = Field(ge=0)
     error_count: int = Field(ge=0)
     first_user_preview: str
-    first_user_uuid: str
-    models: list[str]
-    cwds: list[str]
-    cc_version: str
     session_url: str | None
     renderer_version: int = Field(ge=1)
+    first_user_uuid: str = ""
+    models: list[str] = Field(default_factory=list)
+    cwds: list[str] = Field(default_factory=list)
+    cc_version: str = ""
     url_source: UrlSource | None = None
