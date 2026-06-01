@@ -294,11 +294,122 @@ is_org_admin_api() {
   return 1
 }
 
+# is_app_only_read: returns 0 iff argv parses as `gh api <path>` where
+# <path> targets a Check-API, commit-status, or Actions surface AND the
+# request is GET-shaped (no -X POST/PATCH/PUT/DELETE, no -f/--field,
+# no --input). The fine-grained PAT cannot grant `Checks: Read` at all
+# (a permanent GitHub limitation — see coo-labs/coo-memory#1157 and
+# community#129512), and the substrate prefers to keep CI/check-state
+# reads on a single token route. Writes against these surfaces stay on
+# the user PAT to preserve the identity invariant — only reads auto-
+# route to the App.
+#
+# Matched patterns (read-only):
+#   repos/<o>/<r>/commits/<ref>/check-runs[/...]
+#   repos/<o>/<r>/commits/<ref>/check-suites[/...]
+#   repos/<o>/<r>/check-runs/<id>[/...]
+#   repos/<o>/<r>/check-suites/<id>[/...]
+#   repos/<o>/<r>/commits/<ref>/status
+#   repos/<o>/<r>/commits/<ref>/statuses
+#   repos/<o>/<r>/actions/runs[/...]
+#   repos/<o>/<r>/actions/jobs/<id>[/...]
+#   repos/<o>/<r>/actions/workflows/<id>/runs[/...]
+is_app_only_read() {
+  local sub=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --) shift ;;
+      --*=*) shift ;;
+      -R|--repo|--hostname) shift; [ $# -gt 0 ] && shift ;;
+      -*) shift ;;
+      *)
+        sub="$1"; shift; break ;;
+    esac
+  done
+  [ "$sub" = "api" ] || return 1
+
+  local method="GET" path=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -X|--method)
+        shift; [ $# -gt 0 ] && { method="$1"; shift; }
+        ;;
+      -X=*|--method=*)
+        method="${1#*=}"; shift
+        ;;
+      --input|-f|--field|-F|--raw-field)
+        # Non-GET shape: writes a body. Refuse auto-route.
+        return 1
+        ;;
+      --input=*|-f=*|--field=*|-F=*|--raw-field=*)
+        return 1
+        ;;
+      --*=*) shift ;;
+      --*|-*)
+        if __gh_valued_flag "$1"; then
+          shift; [ $# -gt 0 ] && shift
+        else
+          shift
+        fi
+        ;;
+      *)
+        path="${1#/}"
+        shift
+        ;;
+    esac
+  done
+
+  [ "$method" = "GET" ] || return 1
+  [ -n "$path" ] || return 1
+
+  case "$path" in
+    repos/*/*/commits/*/check-runs|repos/*/*/commits/*/check-runs/*) return 0 ;;
+    repos/*/*/commits/*/check-suites|repos/*/*/commits/*/check-suites/*) return 0 ;;
+    repos/*/*/check-runs/*) return 0 ;;
+    repos/*/*/check-suites/*) return 0 ;;
+    repos/*/*/commits/*/status|repos/*/*/commits/*/statuses) return 0 ;;
+    repos/*/*/actions/runs|repos/*/*/actions/runs/*) return 0 ;;
+    repos/*/*/actions/jobs/*) return 0 ;;
+    repos/*/*/actions/workflows/*/runs|repos/*/*/actions/workflows/*/runs/*) return 0 ;;
+  esac
+  return 1
+}
+
+# is_pr_checks: returns 0 iff argv parses as `gh pr checks ...`. The
+# subcommand calls the GraphQL `statusCheckRollup` field, which aggregates
+# both check-runs (App-only) and commit-statuses. Routing to the App
+# unblocks the rollup end-to-end; the App holds both `Checks: Read` and
+# `Commit statuses: Read`.
+is_pr_checks() {
+  local sub="" act=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --) shift ;;
+      --*=*) shift ;;
+      -R|--repo|--hostname) shift; [ $# -gt 0 ] && shift ;;
+      -*) shift ;;
+      *)
+        if [ -z "$sub" ]; then
+          sub="$1"; shift
+        else
+          act="$1"; break
+        fi
+        ;;
+    esac
+  done
+  [ "$sub" = "pr" ] && [ "$act" = "checks" ]
+}
+
 # Routing precedence:
 #   1. GH_USE_APP_TOKEN=1 → mint App token (explicit opt-in; for GraphQL).
-#   2. `gh api <org-admin-path>` → mint App token (auto).
-#   3. owner != coo-labs + GITHUB_PUBLIC_PAT → public PAT (cross-org).
-#   4. default → $GITHUB_MCP_PAT via gh's auth context (no override here).
+#   2. `gh api <org-admin-path>` → mint App token (auto, write).
+#   3. `gh api <check/status/actions read path>` → mint App token (auto,
+#      read-only; GET-shape only, see is_app_only_read). Closes the
+#      PAT-lacks-Checks-permission gap (coo-memory#1157).
+#   4. `gh pr checks ...` → mint App token (the GraphQL statusCheckRollup
+#      field aggregates both check-runs (App-only) and statuses).
+#   5. owner != coo-labs + GITHUB_PUBLIC_PAT → public PAT (cross-org).
+#   6. default → $GITHUB_MCP_PAT via gh's auth context (no override here).
 #
 # App-token routing is attempted only when GITHUB_APP_ID is set in env
 # (the boot-time signal that Phase 1 of coo-memory#837 has been
@@ -306,7 +417,7 @@ is_org_admin_api() {
 # to the cross-org branch and the org-admin call lands on the PAT — which
 # 403s with the same error class the App fixes. Failure mode is symmetric
 # with the pre-App state, not silently wrong.
-if [ -n "${GITHUB_APP_ID:-}" ] && { [ "${GH_USE_APP_TOKEN:-0}" = "1" ] || is_org_admin_api "$@"; }; then
+if [ -n "${GITHUB_APP_ID:-}" ] && { [ "${GH_USE_APP_TOKEN:-0}" = "1" ] || is_org_admin_api "$@" || is_app_only_read "$@" || is_pr_checks "$@"; }; then
   # The minter lives in coo-harness/scripts/, not next to this wrapper.
   # ensure_gh_coo_wrap (lib/common.sh) installs *only* gh-coo-wrap.sh to
   # ~/.local/bin/gh — the minter stays canonical at its repo path. Locate
