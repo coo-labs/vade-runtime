@@ -92,7 +92,7 @@ jobs:
             //    template-literal preserves leading whitespace and YAML
             //    indent stripping would otherwise leak spaces into the
             //    prompt body.
-            //  - Readiness-field branch (3a/3b/3c) routes on the
+            //  - Readiness-field branch (3a/3b) routes on the
             //    native Readiness field so the instance doesn't
             //    re-derive scope per-issue.
             //  - No meta framing about async or assignment context —
