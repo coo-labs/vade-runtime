@@ -46,31 +46,14 @@ case "$response" in
   *) exit 0 ;;
 esac
 
-guidance="[git-push-workflow-scope-guard] \`git push\` was rejected because the session OAuth lacks \`workflow\` scope. This is structural; do NOT retry with --no-verify, --force, or by re-attempting the same push. The scope is fundamentally missing from the OAuth that authenticates git over HTTP in this environment.
+guidance="[git-push-workflow-scope-guard] Push rejected — OAuth lacks \`workflow\` scope. Don't retry. Use the App-token contents API:
 
-Use the \`vade-coo\` App install token via the REST contents API instead:
+  GH_USE_APP_TOKEN=1 gh api -X PUT repos/<o>/<r>/contents/<path> \\
+    -f branch=<branch> -f message=<msg> \\
+    -f content=\$(base64 -w0 <local>) \\
+    -f sha=\$(GH_USE_APP_TOKEN=1 gh api repos/<o>/<r>/contents/<path>?ref=<base> --jq .sha)
 
-  # 1. Identify the workflow files in your pending commits:
-  git diff --name-only origin/main..HEAD | grep '^\\.github/workflows/'
-
-  # 2. If the remote branch doesn't exist yet, create it at the
-  #    parent commit (the one that doesn't touch workflows):
-  GH_USE_APP_TOKEN=1 gh api -X POST repos/<owner>/<repo>/git/refs \\
-    -f ref=\"refs/heads/<branch>\" \\
-    -f sha=\"<base-sha>\"
-
-  # 3. For each workflow file, PUT contents via App-attributed commit:
-  CONTENT=\$(base64 -w0 <local-file>)
-  SHA=\$(GH_USE_APP_TOKEN=1 gh api repos/<owner>/<repo>/contents/<path>?ref=<base-ref> --jq .sha)
-  GH_USE_APP_TOKEN=1 gh api -X PUT repos/<owner>/<repo>/contents/<path> \\
-    -f branch=\"<branch>\" \\
-    -f message=\"<commit message>\" \\
-    -f content=\"\$CONTENT\" \\
-    -f sha=\"\$SHA\"
-
-The App installation has \`workflows: write\`; the OAuth does not. After the API commit lands, \`git fetch origin <branch>\` to resync local. For any future commit on this branch that also touches a workflow file, repeat the API path — do not retry \`git push\`.
-
-If your branch has BOTH workflow and non-workflow commits, split the work: \`git push\` the non-workflow commits first (they will succeed), then PUT each workflow file via the API on top. Full mechanics: coo-memory/CLAUDE.md §\"GitHub writes\"."
+If branch doesn't exist: POST repos/<o>/<r>/git/refs -f ref=refs/heads/<branch> -f sha=<base-sha> first. Then \`git fetch origin <branch>\` to resync local. Full mechanics: coo-memory/CLAUDE.md §\"GitHub writes\"."
 
 jq -n --arg msg "$guidance" '{
   hookSpecificOutput: {

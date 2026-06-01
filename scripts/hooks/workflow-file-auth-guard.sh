@@ -51,29 +51,14 @@ case "$file_path" in
   *) exit 0 ;;
 esac
 
-guidance="[workflow-file-auth-guard] You are about to ${tool_name} a GitHub Actions workflow file (${file_path}). When you commit and push this change, \`git push\` WILL be rejected with:
+guidance="[workflow-file-auth-guard] About to ${tool_name} a workflow file. \`git push\` will be rejected (OAuth lacks \`workflow\` scope). Use the App-token contents API:
 
-  refusing to allow an OAuth App to create or update workflow \`.github/workflows/<file>\` without \`workflow\` scope
+  GH_USE_APP_TOKEN=1 gh api -X PUT repos/<o>/<r>/contents/<path> \\
+    -f branch=<branch> -f message=<msg> \\
+    -f content=\$(base64 -w0 <local>) \\
+    -f sha=\$(GH_USE_APP_TOKEN=1 gh api repos/<o>/<r>/contents/<path>?ref=<base> --jq .sha)
 
-This is structural — the session's OAuth lacks the workflow scope. Do NOT retry with --no-verify or --force; the scope is fundamentally absent. The canonical workaround uses the \`vade-coo\` App install token via the REST contents API:
-
-  # 1. If the remote branch doesn't exist yet, create it at base HEAD:
-  GH_USE_APP_TOKEN=1 gh api -X POST repos/<owner>/<repo>/git/refs \\
-    -f ref=\"refs/heads/<branch>\" \\
-    -f sha=\"<base-sha>\"
-
-  # 2. PUT the workflow file via App-attributed commit:
-  CONTENT=\$(base64 -w0 <local-file>)
-  SHA=\$(GH_USE_APP_TOKEN=1 gh api repos/<owner>/<repo>/contents/<path>?ref=<base-ref> --jq .sha)
-  GH_USE_APP_TOKEN=1 gh api -X PUT repos/<owner>/<repo>/contents/<path> \\
-    -f branch=\"<branch>\" \\
-    -f message=\"<commit message>\" \\
-    -f content=\"\$CONTENT\" \\
-    -f sha=\"\$SHA\"
-
-The App installation has \`workflows: write\`; the OAuth that authenticates \`git push\` does not. The resulting commit is attributed to \`vade-coo-app[bot]\`. If your branch has multiple commits and only some touch workflows, push the non-workflow commits via \`git push\` first, then PUT the workflow file separately.
-
-Full mechanics: coo-memory/CLAUDE.md §\"GitHub writes\". Bypass for a deliberate diagnostic: set VADE_WORKFLOW_AUTH_GUARD_BYPASS=1."
+If branch doesn't exist: POST repos/<o>/<r>/git/refs first. Resulting commit: vade-coo-app[bot]. Bypass: VADE_WORKFLOW_AUTH_GUARD_BYPASS=1. Full mechanics: coo-memory/CLAUDE.md §\"GitHub writes\"."
 
 jq -n --arg msg "$guidance" '{
   hookSpecificOutput: {
