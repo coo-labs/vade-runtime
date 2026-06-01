@@ -42,6 +42,15 @@ if [ -z "$owner" ] || [ -z "$repo" ] || [ -z "$pn" ]; then
 fi
 case "$pn" in *[!0-9]*|'') exit 0 ;; esac
 
+# Skip session-log (`session:`) and meta-sidecar (`meta:`) PRs in
+# coo-logs — both auto-merge in ~60s; no review consumer.
+if [ "$owner/$repo" = "coo-labs/coo-logs" ]; then
+  title="$(gh api "repos/$owner/$repo/pulls/$pn" --jq .title 2>/dev/null || true)"
+  case "$title" in
+    session:*|meta:*) exit 0 ;;
+  esac
+fi
+
 jq -n --arg owner "$owner" --arg repo "$repo" --argjson pn "$pn" '{
   hookSpecificOutput: {
     hookEventName: "PostToolUse",
