@@ -42,23 +42,8 @@ if [ -z "$owner" ] || [ -z "$repo" ] || [ -z "$pn" ]; then
 fi
 case "$pn" in *[!0-9]*|'') exit 0 ;; esac
 
-# Skip the subscribe message for auto-merging classes in coo-logs:
-#   - session-log PRs (title prefix `session:`) — from /end-session
-#   - meta-sidecar PRs (title prefix `meta:`)   — from the SessionEnd
-#                                                  auto-meta script
-# Both auto-merge within ~60s via the coo-logs auto-merge workflow.
-# Subscribing produces a confusing "subscribed → merged → unsubscribed"
-# round trip with no review consumer.
-#
-# Detection is by title prefix (codified in end-session SKILL.md §3 and
-# in the existing exempt-class registry in
-# coo-memory/operations/issue-pr-hygiene.md), fetched via one `gh api`
-# call only when the PR is in coo-logs — keeps the hot path free for
-# the 95% case of PRs in other repos.
-#
-# Incidents and structural coo-logs PRs (non-prefixed titles) fall
-# through and get the standard subscribe message. The agent can also
-# subscribe manually in any other case.
+# Skip session-log (`session:`) and meta-sidecar (`meta:`) PRs in
+# coo-logs — both auto-merge in ~60s; no review consumer.
 if [ "$owner/$repo" = "coo-labs/coo-logs" ]; then
   title="$(gh api "repos/$owner/$repo/pulls/$pn" --jq .title 2>/dev/null || true)"
   case "$title" in
