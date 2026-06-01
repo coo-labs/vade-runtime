@@ -191,9 +191,13 @@ def _is_no_such_key(e: BaseException) -> bool:
     response = getattr(e, "response", None)
     if isinstance(response, dict):
         code = response.get("Error", {}).get("Code", "")
-        if code == "NoSuchKey" or code == "404":
+        if code in {"NoSuchKey", "404"}:
             return True
     return type(e).__name__ == "NoSuchKey"
+
+
+SIDECAR_CACHE_CONTROL = "private, max-age=0, must-revalidate"
+SIDECAR_CONTENT_TYPE = "application/json; charset=utf-8"
 
 
 def write_sidecar(
@@ -201,23 +205,61 @@ def write_sidecar(
     sidecar: dict[str, Any],
     *,
     key_prefix: str = "rendered",
+    overwrite: bool = False,
     s3: S3Client | None = None,
-) -> None:
-    """Upload a sidecar dict as rendered/<key_prefix>/<sid>.meta.json.
+) -> bool:
+    """Upload a sidecar dict to R2 at <key_prefix>/<sid>.meta.json.
 
-    No safety guard against overwriting authoritative url_source — that's the
-    caller's responsibility (use provenance.is_authoritative on the existing
-    sidecar's url_source before calling this). Keeping the primitive dumb means
-    every caller has to think about the invariant explicitly.
+    Returns True on write success, False if the write was ceded because the
+    key already existed and overwrite=False. Caller decides what to do with
+    the cede — typically: re-fetch with read_sidecar, run the
+    provenance.is_authoritative guard, and either skip or write with
+    overwrite=True after the read-check-write merge.
+
+    Production semantics this primitive enforces (parity with
+    scripts/lifecycle/session-end-transcript-render.py:_r2_put_bytes and
+    scripts/transcript-url-backfill.py:_patch_one):
+      - CacheControl="private, max-age=0, must-revalidate" — sidecars carry
+        session_url + first_user_preview, must NOT be cached at CDN/edge.
+      - IfNoneMatch="*" on first-write — atomic-create discipline from
+        MEMO-2026-05-03-bgk3 / coo-harness#204. 412 PreconditionFailed maps
+        to a clean ceded outcome.
+      - Minified JSON (separators=(",", ":")) + charset=utf-8 — keeps the
+        body under the 2KB user-metadata cap used by the embedded-meta
+        durability tier (see scripts/lib/transcript-fetch.py:233-249).
     """
     if s3 is None:
         s3 = r2_client()
     bucket = _bucket_from_env_or_op()
     key = f"{key_prefix}/{session_id}.meta.json"
-    body = json.dumps(sidecar, indent=2, sort_keys=True).encode("utf-8")
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-        ContentType="application/json",
-    )
+    body = json.dumps(sidecar, separators=(",", ":")).encode("utf-8")
+    put_kwargs: dict[str, Any] = {
+        "Bucket": bucket,
+        "Key": key,
+        "Body": body,
+        "ContentType": SIDECAR_CONTENT_TYPE,
+        "CacheControl": SIDECAR_CACHE_CONTROL,
+    }
+    if not overwrite:
+        put_kwargs["IfNoneMatch"] = "*"
+    try:
+        s3.put_object(**put_kwargs)
+    except Exception as e:
+        if not overwrite and _is_precondition_failed(e):
+            return False
+        raise
+    return True
+
+
+def _is_precondition_failed(e: BaseException) -> bool:
+    """True if a boto3-raised exception means 'the conditional write failed'.
+
+    botocore raises ClientError with `response['Error']['Code']` of
+    'PreconditionFailed' for IfNoneMatch="*" on an existing key.
+    """
+    response = getattr(e, "response", None)
+    if isinstance(response, dict):
+        code = response.get("Error", {}).get("Code", "")
+        if code in {"PreconditionFailed", "412"}:
+            return True
+    return type(e).__name__ == "PreconditionFailed"

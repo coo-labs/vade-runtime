@@ -56,7 +56,11 @@ class FakeS3Client:
         Key: str,
         Body: bytes,
         ContentType: str = "",
+        CacheControl: str = "",
+        IfNoneMatch: str = "",
     ) -> dict[str, Any]:
+        if IfNoneMatch == "*" and Key in self.objects:
+            raise FakeClientError("PreconditionFailed", f"key exists: {Key}")
         self.objects[Key] = Body
         self.puts.append(
             {
@@ -64,6 +68,8 @@ class FakeS3Client:
                 "Key": Key,
                 "Body": Body,
                 "ContentType": ContentType,
+                "CacheControl": CacheControl,
+                "IfNoneMatch": IfNoneMatch,
             }
         )
         return {}
@@ -161,24 +167,30 @@ class TestReadSidecar:
 
     def test_raises_on_non_dict_payload(self) -> None:
         client = FakeS3Client({"rendered/abc.meta.json": b"[1, 2, 3]"})
-        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
-            with pytest.raises(R2Error, match="malformed sidecar"):
-                read_sidecar("abc", s3=_s3(client))
+        with (
+            patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"),
+            pytest.raises(R2Error, match="malformed sidecar"),
+        ):
+            read_sidecar("abc", s3=_s3(client))
 
     def test_raises_on_null_payload(self) -> None:
         client = FakeS3Client({"rendered/abc.meta.json": b"null"})
-        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
-            with pytest.raises(R2Error, match="malformed sidecar"):
-                read_sidecar("abc", s3=_s3(client))
+        with (
+            patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"),
+            pytest.raises(R2Error, match="malformed sidecar"),
+        ):
+            read_sidecar("abc", s3=_s3(client))
 
     def test_raises_on_unrelated_boto3_error(self) -> None:
         class BoomClient:
-            def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:  # noqa: N803
+            def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
                 raise FakeClientError("InternalError", "boom")
 
-        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
-            with pytest.raises(FakeClientError):
-                read_sidecar("abc", s3=_s3(BoomClient()))
+        with (
+            patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"),
+            pytest.raises(FakeClientError),
+        ):
+            read_sidecar("abc", s3=_s3(BoomClient()))
 
     def test_respects_key_prefix(self) -> None:
         payload = {"session_id": "abc"}
@@ -197,19 +209,50 @@ class TestWriteSidecar:
     def test_puts_serialized_json(self) -> None:
         client = FakeS3Client()
         with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
-            write_sidecar("abc", {"session_id": "abc"}, s3=_s3(client))
+            result = write_sidecar("abc", {"session_id": "abc"}, s3=_s3(client))
+        assert result is True
         assert len(client.puts) == 1
         put = client.puts[0]
         assert put["Key"] == "rendered/abc.meta.json"
-        assert put["ContentType"] == "application/json"
+        assert put["ContentType"] == "application/json; charset=utf-8"
+        assert put["CacheControl"] == "private, max-age=0, must-revalidate"
+        assert put["IfNoneMatch"] == "*"
         assert json.loads(put["Body"]) == {"session_id": "abc"}
 
-    def test_sorts_keys(self) -> None:
+    def test_minified_body(self) -> None:
+        """Production parity: body is minified, no indent, no sort_keys."""
         client = FakeS3Client()
         with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
             write_sidecar("abc", {"z": 1, "a": 2}, s3=_s3(client))
         body = client.puts[0]["Body"].decode("utf-8")
-        assert body.index('"a"') < body.index('"z"')
+        assert body == '{"z":1,"a":2}'
+
+    def test_ifnonematch_cede_returns_false(self) -> None:
+        client = FakeS3Client({"rendered/abc.meta.json": b'{"old":true}'})
+        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
+            result = write_sidecar("abc", {"new": True}, s3=_s3(client))
+        assert result is False
+        assert client.objects["rendered/abc.meta.json"] == b'{"old":true}'
+        assert len(client.puts) == 0
+
+    def test_overwrite_true_skips_precondition(self) -> None:
+        client = FakeS3Client({"rendered/abc.meta.json": b'{"old":true}'})
+        with patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"):
+            result = write_sidecar("abc", {"new": True}, overwrite=True, s3=_s3(client))
+        assert result is True
+        assert client.puts[0]["IfNoneMatch"] == ""
+        assert json.loads(client.objects["rendered/abc.meta.json"]) == {"new": True}
+
+    def test_unrelated_error_propagates(self) -> None:
+        class BoomClient:
+            def put_object(self, **kwargs: Any) -> dict[str, Any]:
+                raise FakeClientError("InternalError", "boom")
+
+        with (
+            patch("transcripts.r2._bucket_from_env_or_op", return_value="bkt"),
+            pytest.raises(FakeClientError),
+        ):
+            write_sidecar("abc", {"x": 1}, s3=_s3(BoomClient()))
 
 
 class TestListKeys:
