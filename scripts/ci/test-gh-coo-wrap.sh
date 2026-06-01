@@ -410,6 +410,100 @@ out="$(VADE_RUNTIME_DIR="/nonexistent-vade-runtime" \
 assert_contains "minter missing: warns" "$out" "minter not found"
 assert_contains "minter missing: falls back to MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
 
+# ============================================================
+# App-only-read auto-routes (coo-memory#1157).
+# ============================================================
+# CI / check-state / Actions read endpoints route to App. PAT can't be
+# granted Checks: Read (community#129512); App holds both Checks and
+# Commit statuses. GET-shape only — writes against the same surfaces
+# stay on the user PAT.
+
+printf '\nApp-only-read routing tests:\n'
+
+# --- check-runs / check-suites read ---
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/commits/abc123/check-runs)"
+assert_contains "check-runs (combined): App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api /repos/coo-labs/coo-memory/commits/abc123/check-runs)"
+assert_contains "check-runs leading slash: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/commits/abc123/check-suites)"
+assert_contains "check-suites: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/check-runs/12345)"
+assert_contains "check-runs by id: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/check-suites/678)"
+assert_contains "check-suites by id: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- commit status read (combined + list) ---
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/commits/abc123/status)"
+assert_contains "commit status (combined): App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/commits/abc123/statuses)"
+assert_contains "commit statuses (list): App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- Actions read ---
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/runs)"
+assert_contains "actions/runs list: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/runs/12345)"
+assert_contains "actions/runs by id: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/runs/12345/logs)"
+assert_contains "actions/runs logs: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/jobs/567)"
+assert_contains "actions/jobs by id: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/jobs/567/logs)"
+assert_contains "actions/jobs logs: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/workflows/9999/runs)"
+assert_contains "actions/workflows runs: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- explicit GET method still auto-routes ---
+
+out="$("$WRAPPER" api -X GET repos/coo-labs/coo-memory/commits/abc/check-runs)"
+assert_contains "explicit -X GET check-runs: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# --- writes against the same surfaces stay on user PAT ---
+
+out="$("$WRAPPER" api -X POST repos/coo-labs/coo-memory/check-runs/12345)"
+assert_contains "POST against check-runs: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+out="$("$WRAPPER" api -X PATCH repos/coo-labs/coo-memory/check-runs/12345)"
+assert_contains "PATCH against check-runs: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/commits/abc/statuses -f state=success)"
+assert_contains "POST status via -f: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/actions/runs/123/rerun -X POST)"
+assert_contains "POST actions/runs rerun: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+# --- non-matching read paths stay on MCP_PAT (regression coverage) ---
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/issues/1)"
+assert_contains "non-matching read path: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+out="$("$WRAPPER" api repos/coo-labs/coo-memory/contents/README.md)"
+assert_contains "contents/ read: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
+# --- gh pr checks subcommand ---
+
+out="$("$WRAPPER" pr checks 1154)"
+assert_contains "gh pr checks: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+out="$("$WRAPPER" -R coo-labs/coo-memory pr checks 1154)"
+assert_contains "gh -R ... pr checks: App token" "$out" "GH_TOKEN=APP_TOKEN_TESTING"
+
+# Sanity: other pr subcommands don't accidentally trigger
+out="$("$WRAPPER" pr view 1154)"
+assert_contains "gh pr view: stays on MCP_PAT" "$out" "GH_TOKEN=MCP_PAT_TESTING"
+
 printf '\n'
 printf 'Total: %d pass, %d fail\n' "$PASS" "$FAIL"
 if [ "$FAIL" -gt 0 ]; then

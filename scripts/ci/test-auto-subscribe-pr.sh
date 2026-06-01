@@ -45,6 +45,19 @@ assert_fires() {
   fi
 }
 
+assert_mentions() {
+  local name="$1" pattern="$2" out="$3"
+  if printf '%s' "$out" | jq -e --arg p "$pattern" '.hookSpecificOutput.additionalContext | test($p)' >/dev/null 2>&1; then
+    PASS=$((PASS+1))
+    printf '  PASS  MENTIONS %s: %s\n' "$pattern" "$name"
+  else
+    FAIL=$((FAIL+1))
+    FAILURES+=("MENTIONS $pattern: $name")
+    printf '  FAIL  MENTIONS %s: %s\n' "$pattern" "$name"
+    printf '         hook output: %s\n' "${out:-<empty>}"
+  fi
+}
+
 assert_noop() {
   local name="$1" out="$2"
   if [ -z "$out" ]; then
@@ -73,6 +86,11 @@ assert_fires "wrapper via bash" \
 
 assert_fires "wrapper via VADE_RUNTIME_DIR" \
   "$(run_hook "bash \$VADE_RUNTIME_DIR/scripts/gh-pr-create.sh --title foo --body 'bar'" "$URL")"
+
+printf '\nMentions both subscriptions (subscribe_pr_activity + subscribe-pr-watch.sh):\n'
+
+assert_mentions "canonical wrapper case" "subscribe-pr-watch" \
+  "$(run_hook "coo-harness/scripts/gh-pr-create.sh --title foo --body 'bar'" "$URL")"
 
 printf '\nNo-ops on unrelated commands:\n'
 

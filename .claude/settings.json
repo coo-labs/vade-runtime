@@ -107,6 +107,10 @@
           },
           {
             "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/workflow-file-auth-guard.sh\""
+          },
+          {
+            "type": "command",
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-best-practices-nudge.sh\""
           }
         ]
@@ -128,6 +132,10 @@
           {
             "type": "command",
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/auto-subscribe-pr.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/git-push-workflow-scope-guard.sh\""
           }
         ]
       }
