@@ -21,19 +21,42 @@ and the principal-engineer / SRE review chain it cites.
 
 ## Importing
 
-From any `coo-harness` script:
+From any `coo-harness` script, locate the repo root by walking up the right
+number of `parents[]` for that script's depth, then insert `lib/` on
+`sys.path`:
 
 ```python
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
+
+# Walk up to coo-harness/ root, then into lib/.
+# Adjust parents[N] for the script's directory depth (see table below).
+_repo_root = Path(__file__).resolve().parents[1]  # for scripts/<top>.py
+sys.path.insert(0, str(_repo_root / "lib"))
+
 from transcripts import Sidecar, is_authoritative, r2_client
 ```
 
-(`parents[2]` from `scripts/lifecycle/foo.py`; `parents[1]` from `scripts/foo.py`.)
+`parents[N]` by script location:
+
+| Script path | `parents[N]` |
+|---|---|
+| `scripts/<top>.py` | `parents[1]` |
+| `scripts/lib/<top>.py` | `parents[2]` |
+| `scripts/lifecycle/<top>.py` | `parents[2]` |
+| `scripts/ci/<top>.py` | `parents[2]` |
+| `scripts/boot/<top>.py` | `parents[2]` |
+
+Wrong `parents[N]` resolves to `/home/user` (or a sibling of the repo) instead
+of the repo root — `transcripts` won't be importable and you'll see
+`ModuleNotFoundError` at runtime, not at lint time. Verify with
+`python3 -c "from pathlib import Path; print(Path('<script-path>').resolve().parents[N])"`
+before shipping the import.
 
 For local dev with editor tooling: `uv pip install -e .` from the repo root
-puts the package on PYTHONPATH cleanly.
+puts the package on PYTHONPATH cleanly (replaces the `sys.path.insert` dance
+during development; at script runtime under `uv run --script`, the path-hack
+is still required because PEP 723 venvs don't see the editable install).
 
 ## Quality bar
 
