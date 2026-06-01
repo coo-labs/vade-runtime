@@ -104,6 +104,10 @@
           {
             "type": "command",
             "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-yaml-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$VADE_RUNTIME_DIR/scripts/hooks/skill-best-practices-nudge.sh\""
           }
         ]
       },
